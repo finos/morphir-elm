@@ -1,9 +1,9 @@
 on:
-  push:
-    branches: [ master ]
+  pull_request:
+    branches: [master]
     # Sequence of patterns matched against refs/tags
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
 
 name: Release morphir-elm
 
@@ -24,7 +24,7 @@ jobs:
         uses: TriPSs/conventional-changelog-action@v2
         with:
           github-token: ${{ secrets.github_token }}
-          git-message: 'chore(release): {version}'
+          git-message: "chore(release): {version}"
 
       - name: Build project # This would actually build your project, using zip for an example artifact
         uses: actions/setup-node@v1
