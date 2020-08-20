@@ -50,7 +50,7 @@ import Elm.Syntax.Pattern as Pattern exposing (Pattern(..))
 import Elm.Syntax.Range as Range exposing (Range)
 import Elm.Syntax.TypeAnnotation exposing (TypeAnnotation(..))
 import Graph exposing (Graph)
-import Morphir.Elm.Frontend.Resolve as Resolve exposing (ModuleResolver, PackageResolver)
+import Morphir.Elm.Frontend.Resolve as Resolve exposing (ModuleResolver)
 import Morphir.Graph
 import Morphir.IR.AccessControlled exposing (AccessControlled, private, public)
 import Morphir.IR.Documented exposing (Documented)
@@ -314,6 +314,7 @@ mapProcessedFile currentPackagePath processedFile modulesSoFar =
                 |> Node.value
                 |> ElmModule.exposingList
 
+        moduleDeclsSoFar : Dict Path (Module.Specification ())
         moduleDeclsSoFar =
             modulesSoFar
                 |> Dict.map
@@ -322,6 +323,7 @@ mapProcessedFile currentPackagePath processedFile modulesSoFar =
                             |> Module.eraseSpecificationAttributes
                     )
 
+        dependencies : Dict Path (Package.Specification ())
         dependencies =
             Dict.fromList
                 [ ( SDK.packageName, SDK.packageSpec )
@@ -350,10 +352,14 @@ mapProcessedFile currentPackagePath processedFile modulesSoFar =
                     moduleResolver : ModuleResolver
                     moduleResolver =
                         Resolve.createModuleResolver
-                            (Resolve.createPackageResolver dependencies currentPackagePath moduleDeclsSoFar)
-                            (processedFile.file.imports |> List.map Node.value)
-                            modulePath
-                            moduleDef
+                            (Resolve.Context
+                                dependencies
+                                currentPackagePath
+                                moduleDeclsSoFar
+                                (processedFile.file.imports |> List.map Node.value)
+                                modulePath
+                                moduleDef
+                            )
                 in
                 resolveLocalNames moduleResolver moduleDef
             )

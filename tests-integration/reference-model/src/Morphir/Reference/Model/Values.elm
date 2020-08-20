@@ -168,3 +168,9 @@ basicUpdateRecord rec =
 basicUnit : ()
 basicUnit =
     ()
+
+
+sdkValues : List Bool
+sdkValues =
+    [ min 1 2 == 1
+    ]

@@ -15,7 +15,10 @@
 -}
 
 
-module Morphir.Elm.Frontend.Resolve exposing (Error(..), ModuleResolver, PackageResolver, createModuleResolver, createPackageResolver, encodeError)
+module Morphir.Elm.Frontend.Resolve exposing (Context, Error(..), ImportedNames, LocalNames, ModuleResolver, collectImportedNames, createModuleResolver, encodeError)
+
+{-| This module contains tools to resolve local names in the Elm source code to [fully-qualified names](../../../IR/FQName) in the IR.
+-}
 
 import Dict exposing (Dict)
 import Elm.Syntax.Exposing exposing (Exposing(..), TopLevelExpose(..))
@@ -27,8 +30,10 @@ import Morphir.IR.AccessControlled exposing (AccessControlled)
 import Morphir.IR.FQName exposing (FQName, fQName)
 import Morphir.IR.Module as Module
 import Morphir.IR.Name as Name exposing (Name)
+import Morphir.IR.Name.Codec exposing (encodeName)
 import Morphir.IR.Package as Package
 import Morphir.IR.Path as Path exposing (Path)
+import Morphir.IR.Path.Codec exposing (encodePath)
 import Morphir.IR.Type as Type
 import Morphir.JsonExtra as JsonExtra
 import Set exposing (Set)
@@ -44,13 +49,15 @@ type alias LocalName =
 
 type Error
     = CouldNotDecompose ModuleName
-    | CouldNotFindLocalName ResolveTarget LocalName
+    | CouldNotFindLocalName Trace NameType LocalName
     | CouldNotFindName Path Path Name
     | CouldNotFindModule Path Path
     | CouldNotFindPackage Path
     | ModuleNotImported ModuleName
     | AliasNotFound String
     | PackageNotPrefixOfModule Path Path
+    | CouldNotFindContainingModule Trace NameType LocalName
+    | AmbigousImports LocalName (List Path)
 
 
 encodeError : Error -> Encode.Value
@@ -60,9 +67,10 @@ encodeError error =
             JsonExtra.encodeConstructor "CouldNotDecompose"
                 [ Encode.string (String.join "." moduleName) ]
 
-        CouldNotFindLocalName target localName ->
+        CouldNotFindLocalName trace target localName ->
             JsonExtra.encodeConstructor "CouldNotFindLocalName"
-                [ encodeResolveTarget target
+                [ encodeTrace trace
+                , encodeNameType target
                 , Encode.string localName
                 ]
 
@@ -97,33 +105,29 @@ encodeError error =
                 , modulePath |> Path.toString Name.toTitleCase "." |> Encode.string
                 ]
 
+        CouldNotFindContainingModule trace target localName ->
+            JsonExtra.encodeConstructor "CouldNotFindContainingModule"
+                [ encodeTrace trace
+                , encodeNameType target
+                , Encode.string localName
+                ]
 
-type alias ModuleResolver =
-    { resolveType : ModuleName -> LocalName -> Result Error FQName
-    , resolveCtor : ModuleName -> LocalName -> Result Error FQName
-    , resolveValue : ModuleName -> LocalName -> Result Error FQName
-    }
-
-
-type alias PackageResolver =
-    { packagePath : Path
-    , ctorNames : ModuleName -> LocalName -> Result Error (List String)
-    , exposesType : ModuleName -> LocalName -> Result Error Bool
-    , exposesCtor : ModuleName -> LocalName -> Result Error Bool
-    , exposesValue : ModuleName -> LocalName -> Result Error Bool
-    , decomposeModuleName : ModuleName -> Result Error ( Path, Path )
-    }
+        AmbigousImports localName modulePaths ->
+            JsonExtra.encodeConstructor "AmbigousImports"
+                [ Encode.string localName
+                , Encode.list encodePath modulePaths
+                ]
 
 
-type ResolveTarget
+type NameType
     = Type
     | Ctor
     | Value
 
 
-encodeResolveTarget : ResolveTarget -> Encode.Value
-encodeResolveTarget target =
-    case target of
+encodeNameType : NameType -> Encode.Value
+encodeNameType kind =
+    case kind of
         Type ->
             Encode.string "type"
 
@@ -132,6 +136,70 @@ encodeResolveTarget target =
 
         Value ->
             Encode.string "value"
+
+
+type Trace
+    = ResolveTarget NameType ModuleName LocalName
+    | ScannedLocalNames LocalNames Trace
+
+
+encodeTrace : Trace -> Encode.Value
+encodeTrace trace =
+    case trace of
+        ResolveTarget nameType moduleName localName ->
+            Encode.list identity
+                [ Encode.string "resolve_target"
+                , encodeNameType nameType
+                , Encode.list Encode.string moduleName
+                , Encode.string localName
+                ]
+
+        ScannedLocalNames localNames nestedTrace ->
+            Encode.list identity
+                [ Encode.string "scanned_local_names"
+                , encodeLocalNames localNames
+                , encodeTrace nestedTrace
+                ]
+
+
+type alias LocalNames =
+    { typeNames : List Name
+    , ctorNames : Dict Name (List Name)
+    , valueNames : List Name
+    }
+
+
+type alias ImportedNames =
+    { typeNames : Dict Name (List Path)
+    , ctorNames : Dict Name (List Path)
+    , valueNames : Dict Name (List Path)
+    }
+
+
+encodeLocalNames : LocalNames -> Encode.Value
+encodeLocalNames localNames =
+    Encode.object
+        [ ( "typeNames", Encode.list encodeName localNames.typeNames )
+        , ( "ctorNames"
+          , localNames.ctorNames
+                |> Dict.toList
+                |> Encode.list
+                    (\( typeName, ctorNames ) ->
+                        Encode.list identity
+                            [ encodeName typeName
+                            , Encode.list encodeName ctorNames
+                            ]
+                    )
+          )
+        , ( "valueNames", Encode.list encodeName localNames.valueNames )
+        ]
+
+
+type alias ModuleResolver =
+    { resolveType : ModuleName -> LocalName -> Result Error FQName
+    , resolveCtor : ModuleName -> LocalName -> Result Error FQName
+    , resolveValue : ModuleName -> LocalName -> Result Error FQName
+    }
 
 
 defaultImports : List Import
@@ -173,18 +241,28 @@ moduleMapping =
         ]
 
 
-createPackageResolver : Dict Path (Package.Specification a) -> Path -> Dict Path (Module.Specification a) -> PackageResolver
-createPackageResolver dependencies currentPackagePath currentPackageModules =
+type alias Context a =
+    { dependencies : Dict Path (Package.Specification ())
+    , currentPackagePath : Path
+    , currentPackageModules : Dict Path (Module.Specification ())
+    , explicitImports : List Import
+    , currentModulePath : Path
+    , moduleDef : Module.Definition a
+    }
+
+
+createModuleResolver : Context a -> ModuleResolver
+createModuleResolver ctx =
     let
-        lookupModule : Path -> Path -> Result Error (Module.Specification a)
+        lookupModule : Path -> Path -> Result Error (Module.Specification ())
         lookupModule packagePath modulePath =
             let
                 modulesResult =
-                    if packagePath == currentPackagePath then
-                        Ok currentPackageModules
+                    if packagePath == ctx.currentPackagePath then
+                        Ok ctx.currentPackageModules
 
                     else
-                        dependencies
+                        ctx.dependencies
                             |> Dict.get packagePath
                             |> Result.fromMaybe (CouldNotFindPackage packagePath)
                             |> Result.map .modules
@@ -194,7 +272,7 @@ createPackageResolver dependencies currentPackagePath currentPackageModules =
                     (\modules ->
                         modules
                             |> Dict.get modulePath
-                            |> Result.fromMaybe (CouldNotFindModule currentPackagePath modulePath)
+                            |> Result.fromMaybe (CouldNotFindModule ctx.currentPackagePath modulePath)
                     )
 
         ctorNames : ModuleName -> LocalName -> Result Error (List String)
@@ -327,42 +405,59 @@ createPackageResolver dependencies currentPackagePath currentPackageModules =
                     else
                         Nothing
             in
-            matchModuleToPackagePath suppliedModulePath currentPackagePath
+            matchModuleToPackagePath suppliedModulePath ctx.currentPackagePath
                 |> Maybe.map Just
                 |> Maybe.withDefault
-                    (dependencies
+                    (ctx.dependencies
                         |> Dict.keys
                         |> List.filterMap (matchModuleToPackagePath suppliedModulePath)
                         |> List.head
                     )
                 |> Result.fromMaybe (CouldNotDecompose morphirModuleName)
-    in
-    PackageResolver currentPackagePath ctorNames exposesType exposesCtor exposesValue decomposeModuleName
 
-
-createModuleResolver : PackageResolver -> List Import -> Path -> Module.Definition a -> ModuleResolver
-createModuleResolver packageResolver elmImports currenctModulePath moduleDef =
-    let
-        explicitImports : List Import
-        explicitImports =
-            elmImports
-                |> List.map
-                    (\imp ->
-                        { imp
-                            | moduleName =
-                                imp.moduleName
-                                    |> Node.map
-                                        (\moduleName ->
-                                            moduleMapping
-                                                |> Dict.get moduleName
-                                                |> Maybe.withDefault moduleName
+        -- As we resolve names we will first have to look at local names so we collect them here.
+        localNames : LocalNames
+        localNames =
+            { typeNames =
+                ctx.moduleDef.types
+                    |> Dict.keys
+            , ctorNames =
+                ctx.moduleDef.types
+                    |> Dict.toList
+                    |> List.filterMap
+                        (\( typeName, accessControlledDocumentedTypeDef ) ->
+                            case accessControlledDocumentedTypeDef.value.value of
+                                Type.CustomTypeDefinition _ accessControlledCtors ->
+                                    Just
+                                        ( typeName
+                                        , accessControlledCtors.value
+                                            |> List.map
+                                                (\(Type.Constructor name _) ->
+                                                    name
+                                                )
                                         )
-                        }
-                    )
 
+                                _ ->
+                                    Nothing
+                        )
+                    |> Dict.fromList
+            , valueNames =
+                ctx.moduleDef.values
+                    |> Dict.keys
+            }
+
+        -- Elm has default imports that are included automatically so we prepend that to the explicit imports.
         imports : List Import
         imports =
-            defaultImports ++ explicitImports
+            defaultImports ++ ctx.explicitImports
+
+        importedNamesResult : Result Error ImportedNames
+        importedNamesResult =
+            imports
+                |> collectImportedNames
+                    (\modulePath ->
+                        Err (CouldNotFindModule [] modulePath)
+                    )
 
         explicitNames : (ModuleName -> TopLevelExpose -> List LocalName) -> Dict LocalName ModuleName
         explicitNames matchExpose =
@@ -415,7 +510,7 @@ createModuleResolver packageResolver elmImports currenctModulePath moduleDef =
                             open
                                 |> Maybe.andThen
                                     (\_ ->
-                                        packageResolver.ctorNames moduleName name
+                                        ctorNames moduleName name
                                             |> Result.toMaybe
                                     )
                                 |> Maybe.withDefault []
@@ -470,8 +565,8 @@ createModuleResolver packageResolver elmImports currenctModulePath moduleDef =
                     )
                 |> Dict.fromList
 
-        resolveWithoutModuleName : ResolveTarget -> LocalName -> Maybe ModuleName
-        resolveWithoutModuleName target localName =
+        findContainingModule : NameType -> LocalName -> Maybe ModuleName
+        findContainingModule target localName =
             let
                 explNames =
                     case target of
@@ -487,13 +582,13 @@ createModuleResolver packageResolver elmImports currenctModulePath moduleDef =
                 exposes =
                     case target of
                         Type ->
-                            packageResolver.exposesType
+                            exposesType
 
                         Ctor ->
-                            packageResolver.exposesCtor
+                            exposesCtor
 
                         Value ->
-                            packageResolver.exposesValue
+                            exposesValue
             in
             case explNames |> Dict.get localName of
                 Just moduleName ->
@@ -512,12 +607,12 @@ createModuleResolver packageResolver elmImports currenctModulePath moduleDef =
                             )
                         |> List.head
 
-        resolveModuleName : ResolveTarget -> ModuleName -> LocalName -> Result Error ModuleName
-        resolveModuleName target moduleName localName =
+        resolveModuleName : Trace -> NameType -> ModuleName -> LocalName -> Result Error ModuleName
+        resolveModuleName trace target moduleName localName =
             case moduleName of
                 [] ->
-                    resolveWithoutModuleName target localName
-                        |> Result.fromMaybe (CouldNotFindLocalName target localName)
+                    findContainingModule target localName
+                        |> Result.fromMaybe (CouldNotFindContainingModule trace target localName)
 
                 [ moduleAlias ] ->
                     moduleAliases
@@ -531,61 +626,83 @@ createModuleResolver packageResolver elmImports currenctModulePath moduleDef =
                     else
                         Err (ModuleNotImported fullModuleName)
 
-        resolveExternally : ResolveTarget -> ModuleName -> LocalName -> Result Error FQName
-        resolveExternally target moduleName localName =
-            resolveModuleName target moduleName localName
-                |> Result.andThen packageResolver.decomposeModuleName
-                |> Result.map
-                    (\( packagePath, modulePath ) ->
-                        fQName packagePath modulePath (Name.fromString localName)
+        resolveWithoutModuleName : Trace -> NameType -> LocalName -> Result Error FQName
+        resolveWithoutModuleName trace nameType sourceLocalName =
+            let
+                localName : Name
+                localName =
+                    sourceLocalName |> Name.fromString
+
+                localToFullyQualified : Dict Name (List Path) -> Result Error FQName
+                localToFullyQualified imported =
+                    imported
+                        |> Dict.get localName
+                        |> Result.fromMaybe (CouldNotFindLocalName trace nameType sourceLocalName)
+                        |> Result.andThen
+                            (\modulePaths ->
+                                case modulePaths of
+                                    [] ->
+                                        Err (CouldNotFindLocalName trace nameType sourceLocalName)
+
+                                    [ modulePath ] ->
+                                        Ok (fQName [] modulePath localName)
+
+                                    _ ->
+                                        Err (AmbigousImports sourceLocalName modulePaths)
+                            )
+            in
+            importedNamesResult
+                |> Result.andThen
+                    (\importedNames ->
+                        case nameType of
+                            Type ->
+                                localToFullyQualified importedNames.typeNames
+
+                            Ctor ->
+                                localToFullyQualified importedNames.ctorNames
+
+                            Value ->
+                                localToFullyQualified importedNames.valueNames
                     )
 
-        resolve : ResolveTarget -> ModuleName -> LocalName -> Result Error FQName
-        resolve target elmModuleName elmLocalName =
+        resolve : NameType -> ModuleName -> LocalName -> Result Error FQName
+        resolve nameType elmModuleName elmLocalNameToResolve =
+            let
+                trace : Trace
+                trace =
+                    ResolveTarget nameType elmModuleName elmLocalNameToResolve
+
+                localNameToResolve =
+                    elmLocalNameToResolve |> Name.fromString
+            in
             if List.isEmpty elmModuleName then
                 -- If the name is not prefixed with a module we need to look it up within the module first
                 let
-                    localNames =
-                        case target of
+                    isLocalName =
+                        case nameType of
                             Type ->
-                                moduleDef.types |> Dict.keys
+                                localNames.typeNames |> List.member localNameToResolve
 
                             Ctor ->
-                                moduleDef.types
-                                    |> Dict.toList
-                                    |> List.concatMap
-                                        (\( _, accessControlledDocumentedTypeDef ) ->
-                                            case accessControlledDocumentedTypeDef.value.value of
-                                                Type.CustomTypeDefinition _ accessControlledCtors ->
-                                                    accessControlledCtors.value
-                                                        |> List.map
-                                                            (\(Type.Constructor name _) ->
-                                                                name
-                                                            )
-
-                                                _ ->
-                                                    []
-                                        )
+                                localNames.ctorNames |> Dict.values |> List.concat |> List.member localNameToResolve
 
                             Value ->
-                                moduleDef.values |> Dict.keys
-
-                    localName =
-                        elmLocalName |> Name.fromString
+                                localNames.valueNames |> List.member localNameToResolve
                 in
-                if localNames |> List.member localName then
-                    if Path.isPrefixOf currenctModulePath packageResolver.packagePath then
-                        Ok (fQName packageResolver.packagePath (currenctModulePath |> List.drop (List.length packageResolver.packagePath)) localName)
+                if isLocalName then
+                    if Path.isPrefixOf ctx.currentModulePath ctx.currentPackagePath then
+                        Ok (fQName ctx.currentPackagePath (ctx.currentModulePath |> List.drop (List.length ctx.currentPackagePath)) localNameToResolve)
 
                     else
-                        Err (PackageNotPrefixOfModule packageResolver.packagePath currenctModulePath)
+                        Err (PackageNotPrefixOfModule ctx.currentPackagePath ctx.currentModulePath)
 
                 else
-                    resolveExternally target elmModuleName elmLocalName
+                    resolveWithoutModuleName (ScannedLocalNames localNames trace) nameType elmLocalNameToResolve
 
             else
                 -- If the name is prefixed with a module we can skip the local resolution
-                resolveExternally target elmModuleName elmLocalName
+                --resolveVeryExternally trace nameType elmModuleName elmLocalNameToResolve
+                Err (CouldNotFindLocalName trace nameType elmLocalNameToResolve)
 
         resolveType : ModuleName -> LocalName -> Result Error FQName
         resolveType moduleName =
@@ -603,3 +720,149 @@ createModuleResolver packageResolver elmImports currenctModulePath moduleDef =
                 (moduleMapping |> Dict.get moduleName |> Maybe.withDefault moduleName)
     in
     ModuleResolver resolveType resolveCtor resolveValue
+
+
+moduleSpecToLocalNames : Module.Specification () -> LocalNames
+moduleSpecToLocalNames moduleSpec =
+    { typeNames =
+        moduleSpec.types
+            |> Dict.keys
+    , ctorNames =
+        moduleSpec.types
+            |> Dict.toList
+            |> List.filterMap
+                (\( typeName, typeSpec ) ->
+                    case typeSpec.value of
+                        Type.OpaqueTypeSpecification _ ->
+                            Just ( typeName, [] )
+
+                        Type.CustomTypeSpecification _ ctors ->
+                            Just
+                                ( typeName
+                                , ctors
+                                    |> List.map
+                                        (\(Type.Constructor ctorName _) ->
+                                            ctorName
+                                        )
+                                )
+
+                        _ ->
+                            Nothing
+                )
+            |> Dict.fromList
+    , valueNames =
+        moduleSpec.values
+            |> Dict.keys
+    }
+
+
+{-| We loop through the imports and create a mapping from local name to module names. Notice that the same
+name can be imported from multiple modules which will only cause a collision if the names are actually used.
+We will detect and report that during resolution.
+-}
+collectImportedNames : (Path -> Result Error LocalNames) -> List Import -> Result Error ImportedNames
+collectImportedNames getModulesExposedNames imports =
+    imports
+        |> List.foldl
+            (\nextImport importedNamesSoFar ->
+                let
+                    importModulePath : Path
+                    importModulePath =
+                        nextImport.moduleName
+                            |> Node.value
+                            |> List.map Name.fromString
+
+                    appendValue : comparable -> v -> Dict comparable (List v) -> Dict comparable (List v)
+                    appendValue key value =
+                        Dict.update key
+                            (\currentValue ->
+                                case currentValue of
+                                    Just values ->
+                                        Just (List.append values [ value ])
+
+                                    Nothing ->
+                                        Just [ value ]
+                            )
+
+                    addTypeName : Name -> ImportedNames -> ImportedNames
+                    addTypeName localName importedNames =
+                        { importedNames
+                            | typeNames =
+                                importedNames.typeNames
+                                    |> appendValue localName importModulePath
+                        }
+
+                    addCtorName : Name -> ImportedNames -> ImportedNames
+                    addCtorName localName importedNames =
+                        { importedNames
+                            | ctorNames =
+                                importedNames.ctorNames
+                                    |> appendValue localName importModulePath
+                        }
+
+                    addValueName : Name -> ImportedNames -> ImportedNames
+                    addValueName localName importedNames =
+                        { importedNames
+                            | valueNames =
+                                importedNames.valueNames
+                                    |> appendValue localName importModulePath
+                        }
+
+                    addNames : (Name -> ImportedNames -> ImportedNames) -> List Name -> ImportedNames -> ImportedNames
+                    addNames addName localNames importedNames =
+                        List.foldl addName importedNames localNames
+                in
+                case nextImport.exposingList of
+                    Just (Node _ expose) ->
+                        case expose of
+                            Explicit exposeList ->
+                                exposeList
+                                    |> List.foldl
+                                        (\(Node _ nextTopLevelExpose) explicitImportedNamesSoFar ->
+                                            case nextTopLevelExpose of
+                                                InfixExpose _ ->
+                                                    -- Infix declarations are ignored
+                                                    explicitImportedNamesSoFar
+
+                                                FunctionExpose sourceName ->
+                                                    explicitImportedNamesSoFar
+                                                        |> Result.map (addValueName (sourceName |> Name.fromString))
+
+                                                TypeOrAliasExpose sourceName ->
+                                                    explicitImportedNamesSoFar
+                                                        |> Result.map (addTypeName (sourceName |> Name.fromString))
+
+                                                TypeExpose exposedType ->
+                                                    case exposedType.open of
+                                                        Just _ ->
+                                                            explicitImportedNamesSoFar
+                                                                |> Result.map (addTypeName (exposedType.name |> Name.fromString))
+                                                                |> Result.andThen
+                                                                    (\namesSoFar ->
+                                                                        getModulesExposedNames importModulePath
+                                                                            |> Result.map
+                                                                                (\exposedLocalNames ->
+                                                                                    addNames addCtorName (exposedLocalNames.ctorNames |> Dict.values |> List.concat) namesSoFar
+                                                                                )
+                                                                    )
+
+                                                        Nothing ->
+                                                            explicitImportedNamesSoFar
+                                                                |> Result.map (addTypeName (exposedType.name |> Name.fromString))
+                                        )
+                                        importedNamesSoFar
+
+                            All _ ->
+                                getModulesExposedNames importModulePath
+                                    |> Result.andThen
+                                        (\exposedLocalNames ->
+                                            importedNamesSoFar
+                                                |> Result.map (addNames addTypeName exposedLocalNames.typeNames)
+                                                |> Result.map (addNames addCtorName (exposedLocalNames.ctorNames |> Dict.values |> List.concat))
+                                                |> Result.map (addNames addValueName exposedLocalNames.valueNames)
+                                        )
+
+                    Nothing ->
+                        importedNamesSoFar
+            )
+            (Ok (ImportedNames Dict.empty Dict.empty Dict.empty))
