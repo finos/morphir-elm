@@ -22,6 +22,7 @@ import Morphir.IR.Package as Package exposing (PackagePath)
 import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.SDK.Basics as Basics
 import Morphir.IR.SDK.Char as Char
+import Morphir.IR.SDK.Dict as Dict
 import Morphir.IR.SDK.List as List
 import Morphir.IR.SDK.Maybe as Maybe
 import Morphir.IR.SDK.Regex as Regex
@@ -39,8 +40,9 @@ packageSpec : Package.Specification ()
 packageSpec =
     { modules =
         Dict.fromList
-            [ ( [ [ "char" ] ], Char.moduleSpec )
-            , ( [ [ "basics" ] ], Basics.moduleSpec )
+            [ ( [ [ "basics" ] ], Basics.moduleSpec )
+            , ( [ [ "char" ] ], Char.moduleSpec )
+            , ( [ [ "dict" ] ], Dict.moduleSpec )
             , ( [ [ "string" ] ], String.moduleSpec )
             , ( [ [ "maybe" ] ], Maybe.moduleSpec )
             , ( [ [ "result" ] ], Result.moduleSpec )

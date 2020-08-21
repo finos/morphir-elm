@@ -32,13 +32,6 @@ moduleName =
     Path.fromString "Basics"
 
 
-{-| Used temporarily as a placeholder for function values until we can generate them based on the SDK.
--}
-dummyValueSpec : Value.Specification ()
-dummyValueSpec =
-    Value.Specification [] (Type.Unit ())
-
-
 moduleSpec : Module.Specification ()
 moduleSpec =
     { types =
@@ -50,6 +43,11 @@ moduleSpec =
             ]
     , values =
         let
+            -- Used temporarily as a placeholder for function values until we can generate them based on the SDK.
+            dummyValueSpec : Value.Specification ()
+            dummyValueSpec =
+                Value.Specification [] (Type.Unit ())
+
             valueNames : List String
             valueNames =
                 [ "add"

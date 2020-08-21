@@ -1,6 +1,7 @@
 module Morphir.Reference.Model.Values exposing (..)
 
 import Morphir.Reference.Model.Types exposing (Custom(..), FooBarBazRecord)
+import String exposing (fromInt)
 
 
 basicLiteralBool : Bool
@@ -191,4 +192,16 @@ sdkBasicsValues =
     , (1 >= 2) == False
     , max 1 2 == 2
     , min 1 2 == 1
+    ]
+
+
+sdkMaybeValues : List Bool
+sdkMaybeValues =
+    [ Maybe.andThen (always Nothing) Nothing == Nothing
+    , Maybe.map fromInt (Just 42) == Just "42"
+    , Maybe.map2 (\a b -> [ a, b ]) (Just 1) (Just 2) == Just [ 1, 2 ]
+    , Maybe.map3 (\a b c -> [ a, b, c ]) (Just 1) (Just 2) (Just 3) == Just [ 1, 2, 3 ]
+    , Maybe.map4 (\a b c d -> [ a, b, c, d ]) (Just 1) (Just 2) (Just 3) (Just 4) == Just [ 1, 2, 3, 4 ]
+    , Maybe.map5 (\a b c d e -> [ a, b, c, d, e ]) (Just 1) (Just 2) (Just 3) (Just 4) (Just 5) == Just [ 1, 2, 3, 4, 5 ]
+    , Maybe.withDefault 13 Nothing == 13
     ]
