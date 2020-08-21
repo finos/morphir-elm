@@ -170,7 +170,25 @@ basicUnit =
     ()
 
 
-sdkValues : List Bool
-sdkValues =
-    [ min 1 2 == 1
+sdkBasicsValues : List Bool
+sdkBasicsValues =
+    [ 4 + 3 == 7
+    , 4 - 3 == 1
+    , 4 * 2.5 == 10
+    , 10 / 4 == 2.5
+    , 11 // 5 == 2
+    , 2 ^ 3 == 8
+    , toFloat 2 == 2.0
+    , round 2.5 == 3
+    , floor 2.78 == 2
+    , ceiling 2.13 == 3
+    , truncate 2.56 == 2
+    , 1 == 1
+    , 1 /= 2
+    , (1 < 2) == True
+    , (1 > 2) == False
+    , (1 <= 2) == True
+    , (1 >= 2) == False
+    , max 1 2 == 2
+    , min 1 2 == 1
     ]

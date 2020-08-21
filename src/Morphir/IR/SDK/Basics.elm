@@ -32,19 +32,92 @@ moduleName =
     Path.fromString "Basics"
 
 
+{-| Used temporarily as a placeholder for function values until we can generate them based on the SDK.
+-}
+dummyValueSpec : Value.Specification ()
+dummyValueSpec =
+    Value.Specification [] (Type.Unit ())
+
+
 moduleSpec : Module.Specification ()
 moduleSpec =
     { types =
         Dict.fromList
             [ ( Name.fromString "Int", OpaqueTypeSpecification [] |> Documented "Type that represents an integer value." )
-            , ( Name.fromString "Bool", OpaqueTypeSpecification [] |> Documented "Type that represents a boolean value." )
             , ( Name.fromString "Float", OpaqueTypeSpecification [] |> Documented "Type that represents a floating-point number." )
+            , ( Name.fromString "Bool", OpaqueTypeSpecification [] |> Documented "Type that represents a boolean value." )
+            , ( Name.fromString "Never", OpaqueTypeSpecification [] |> Documented "A value that can never happen!" )
             ]
     , values =
-        Dict.fromList
-            [ ( [ "min" ], Value.Specification [] (Type.Variable () [ "number" ]) )
-            ]
+        let
+            valueNames : List String
+            valueNames =
+                [ "add"
+                , "subtract"
+                , "multiply"
+                , "divide"
+                , "integerDivide"
+                , "power"
+                , "toFloat"
+                , "round"
+                , "floor"
+                , "ceiling"
+                , "truncate"
+                , "equal"
+                , "notEqual"
+                , "lessThan"
+                , "greaterThan"
+                , "lessThanOrEqual"
+                , "greaterThanOrEqual"
+                , "max"
+                , "min"
+                , "compare"
+                , "not"
+                , "and"
+                , "or"
+                , "xor"
+                , "modBy"
+                , "remainderBy"
+                , "negate"
+                , "abs"
+                , "clamp"
+                , "sqrt"
+                , "logBase"
+                , "e"
+                , "pi"
+                , "cos"
+                , "sin"
+                , "tan"
+                , "acos"
+                , "asin"
+                , "atan"
+                , "atan2"
+                , "degrees"
+                , "radians"
+                , "turns"
+                , "toPolar"
+                , "fromPolar"
+                , "isNaN"
+                , "isInfinite"
+                , "identity"
+                , "always"
+                , "composeLeft"
+                , "composeRight"
+                , "never"
+                ]
+        in
+        valueNames
+            |> List.map
+                (\valueName ->
+                    ( Name.fromString valueName, dummyValueSpec )
+                )
+            |> Dict.fromList
     }
+
+
+numberClass : a -> Type a
+numberClass attributes =
+    Variable attributes [ "number" ]
 
 
 equal : a -> Value a
@@ -70,11 +143,6 @@ and a =
 or : a -> Value a
 or a =
     Value.Reference a (toFQName moduleName "or")
-
-
-numberClass : a -> Type a
-numberClass attributes =
-    Variable attributes [ "number" ]
 
 
 negate : a -> a -> Value a -> Value a
