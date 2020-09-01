@@ -1,6 +1,6 @@
 {
   "name": "morphir-elm",
-  "version": "0.7.0",
+  "version": "1.0.1",
   "description": "Elm bindings for Morphir",
   "scripts": {
     "test": "elm-test",
@@ -19,6 +19,7 @@
   "files": [
     "cli/morphir-elm.js",
     "cli/morphir-elm-make.js",
+    "cli/morphir-elm-gen.js",
     "cli/morphir-dapr.js",
     "cli/Morphir.Elm.CLI.js",
     "cli/Morphir.Elm.DaprCLI.js",
