@@ -473,15 +473,19 @@ mapValue value =
                 (defs
                     |> List.map
                         (\( defName, def ) ->
-                            Scala.FunctionDecl
-                                { modifiers = []
-                                , name = defName |> Name.toCamelCase
-                                , typeArgs = []
-                                , args =
-                                    if List.isEmpty def.inputTypes then
-                                        []
+                            if List.isEmpty def.inputTypes then
+                                Scala.ValueDecl
+                                    { modifiers = []
+                                    , pattern = Scala.NamedMatch (defName |> Name.toCamelCase)
+                                    , value = mapValue def.body
+                                    }
 
-                                    else
+                            else
+                                Scala.FunctionDecl
+                                    { modifiers = []
+                                    , name = defName |> Name.toCamelCase
+                                    , typeArgs = []
+                                    , args =
                                         [ def.inputTypes
                                             |> List.map
                                                 (\( argName, _, argType ) ->
@@ -492,11 +496,11 @@ mapValue value =
                                                     }
                                                 )
                                         ]
-                                , returnType =
-                                    Just (mapType def.outputType)
-                                , body =
-                                    Just (mapValue def.body)
-                                }
+                                    , returnType =
+                                        Just (mapType def.outputType)
+                                    , body =
+                                        Just (mapValue def.body)
+                                    }
                         )
                 )
                 (mapValue finalInValue)
