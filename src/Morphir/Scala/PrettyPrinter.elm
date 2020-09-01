@@ -395,10 +395,18 @@ mapValue opt value =
                 [ "if "
                 , parens (mapValue opt condValue)
                 , " "
-                , statementBlock opt [ trueValue |> mapValue opt ]
+                , case trueValue of
+                    Block _ _ ->
+                        mapValue opt trueValue
+
+                    _ ->
+                        statementBlock opt [ mapValue opt trueValue ]
                 , " else "
                 , case falseValue of
                     IfElse _ _ _ ->
+                        mapValue opt falseValue
+
+                    Block _ _ ->
                         mapValue opt falseValue
 
                     _ ->
