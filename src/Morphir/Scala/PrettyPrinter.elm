@@ -121,6 +121,12 @@ mapMemberDecl opt memberDecl =
             concat
                 [ "val "
                 , mapPattern decl.pattern
+                , case decl.valueType of
+                    Just tpe ->
+                        concat [ ": ", mapType opt tpe ]
+
+                    Nothing ->
+                        empty
                 , " = "
                 , mapValue opt decl.value
                 ]
