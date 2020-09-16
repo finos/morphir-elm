@@ -435,13 +435,22 @@ mapValue value =
                 ( bottomFun, args ) =
                     Value.uncurryApply fun arg
             in
-            Scala.Apply (mapValue bottomFun)
-                (args
-                    |> List.map
-                        (\argValue ->
-                            Scala.ArgValue Nothing (mapValue argValue)
+            case bottomFun of
+                -- Constructor references should use multiple arguments instead of currying
+                Constructor _ _ ->
+                    Scala.Apply (mapValue bottomFun)
+                        (args
+                            |> List.map
+                                (\argValue ->
+                                    Scala.ArgValue Nothing (mapValue argValue)
+                                )
                         )
-                )
+
+                -- Value/function references will be curried
+                _ ->
+                    Scala.Apply (mapValue fun)
+                        [ Scala.ArgValue Nothing (mapValue arg)
+                        ]
 
         Lambda a argPattern bodyValue ->
             case argPattern of
