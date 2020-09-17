@@ -21,6 +21,7 @@ import Dict
 import List.Extra as ListExtra
 import Morphir.File.FileMap exposing (FileMap)
 import Morphir.IR.AccessControlled exposing (Access(..), AccessControlled)
+import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
 import Morphir.IR.FQName exposing (FQName(..))
 import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.IR.Module as Module
@@ -38,14 +39,14 @@ type alias Options =
     {}
 
 
-mapDistribution : Options -> Package.Distribution -> FileMap
+mapDistribution : Options -> Distribution -> FileMap
 mapDistribution opt distro =
     case distro of
-        Package.Library packagePath packageDef ->
+        Distribution.Library packagePath dependencies packageDef ->
             mapPackageDefinition opt packagePath packageDef
 
 
-mapPackageDefinition : Options -> Package.PackagePath -> Package.Definition ta tv -> FileMap
+mapPackageDefinition : Options -> Package.PackageName -> Package.Definition ta tv -> FileMap
 mapPackageDefinition opt packagePath packageDef =
     packageDef.modules
         |> Dict.toList
@@ -99,7 +100,7 @@ mapFQNameToTypeRef fQName =
     Scala.TypeRef path (name |> Name.toTitleCase)
 
 
-mapModuleDefinition : Options -> Package.PackagePath -> Path -> AccessControlled (Module.Definition ta tv) -> List Scala.CompilationUnit
+mapModuleDefinition : Options -> Package.PackageName -> Path -> AccessControlled (Module.Definition ta tv) -> List Scala.CompilationUnit
 mapModuleDefinition opt currentPackagePath currentModulePath accessControlledModuleDef =
     let
         ( scalaPackagePath, moduleName ) =
@@ -229,7 +230,7 @@ mapModuleDefinition opt currentPackagePath currentModulePath accessControlledMod
     [ moduleUnit ]
 
 
-mapCustomTypeDefinition : Package.PackagePath -> Path -> Name -> List Name -> AccessControlled (Type.Constructors a) -> List Scala.MemberDecl
+mapCustomTypeDefinition : Package.PackageName -> Path -> Name -> List Name -> AccessControlled (Type.Constructors a) -> List Scala.MemberDecl
 mapCustomTypeDefinition currentPackagePath currentModulePath typeName typeParams accessControlledCtors =
     let
         caseClass name args extends =
@@ -446,7 +447,14 @@ mapValue value =
                                 )
                         )
 
-                -- Value/function references will be curried
+                Reference _ fQName ->
+                    let
+                        ( path, name ) =
+                            mapFQNameToPathAndName fQName
+                    in
+                    Scala.Ref path (name |> Name.toCamelCase)
+
+                -- More complex values will be curried by default
                 _ ->
                     Scala.Apply (mapValue fun)
                         [ Scala.ArgValue Nothing (mapValue arg)
