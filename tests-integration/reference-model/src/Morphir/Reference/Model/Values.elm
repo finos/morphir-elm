@@ -214,4 +214,6 @@ sdkMaybeValues =
 
 fieldFunctionAsArg : List FooBarBazRecord -> List String
 fieldFunctionAsArg list =
-    List.map .foo list
+    list
+        |> List.filter (\x -> x.bar)
+        |> List.map .foo

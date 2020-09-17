@@ -1,6 +1,6 @@
 module Morphir.IR.Distribution exposing
     ( Distribution(..)
-    , lookupModuleSpecification, lookupTypeSpecification
+    , lookupModuleSpecification, lookupTypeSpecification, lookupValueSpecification
     )
 
 {-| A distribution contains all the necessary information to consume a package.
@@ -10,7 +10,7 @@ module Morphir.IR.Distribution exposing
 
 # Lookups
 
-@docs lookupModuleSpecification, lookupTypeSpecification
+@docs lookupModuleSpecification, lookupTypeSpecification, lookupValueSpecification
 
 -}
 
@@ -19,6 +19,7 @@ import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Package as Package exposing (PackageName)
 import Morphir.IR.Type as Type
+import Morphir.IR.Value as Value
 
 
 {-| Type that represents a package distribution.
@@ -51,3 +52,12 @@ lookupTypeSpecification packageName moduleName localName distribution =
     distribution
         |> lookupModuleSpecification packageName moduleName
         |> Maybe.andThen (Module.lookupTypeSpecification localName)
+
+
+{-| Look up a value specification by package, module and local name in a distribution.
+-}
+lookupValueSpecification : PackageName -> ModuleName -> Name -> Distribution -> Maybe (Value.Specification ())
+lookupValueSpecification packageName moduleName localName distribution =
+    distribution
+        |> lookupModuleSpecification packageName moduleName
+        |> Maybe.andThen (Module.lookupValueSpecification localName)

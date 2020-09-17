@@ -467,9 +467,9 @@ encodeSpecification encodeAttributes spec =
           , spec.inputs
                 |> Encode.list
                     (\( argName, argType ) ->
-                        Encode.object
-                            [ ( "argName", encodeName argName )
-                            , ( "argType", encodeType encodeAttributes argType )
+                        Encode.list identity
+                            [ encodeName argName
+                            , encodeType encodeAttributes argType
                             ]
                     )
           )
@@ -484,7 +484,7 @@ decodeSpecification decodeTypeAttributes =
             (Decode.list
                 (Decode.map2 Tuple.pair
                     (Decode.index 0 decodeName)
-                    (Decode.index 2 (decodeType decodeTypeAttributes))
+                    (Decode.index 1 (decodeType decodeTypeAttributes))
                 )
             )
         )

@@ -18,7 +18,7 @@
 module Morphir.IR.Package exposing
     ( Specification
     , Definition, emptyDefinition
-    , lookupModuleSpecification, lookupTypeSpecification
+    , lookupModuleSpecification, lookupTypeSpecification, lookupValueSpecification
     , PackageName, definitionToSpecification, eraseDefinitionAttributes, eraseSpecificationAttributes
     )
 
@@ -31,7 +31,7 @@ module Morphir.IR.Package exposing
 
 # Lookups
 
-@docs lookupModuleSpecification, lookupTypeSpecification
+@docs lookupModuleSpecification, lookupTypeSpecification, lookupValueSpecification
 
 
 # Other utilities
@@ -46,6 +46,7 @@ import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Path exposing (Path)
 import Morphir.IR.Type as Type
+import Morphir.IR.Value as Value
 
 
 {-| -}
@@ -97,6 +98,15 @@ lookupTypeSpecification modulePath localName packageSpec =
     packageSpec
         |> lookupModuleSpecification modulePath
         |> Maybe.andThen (Module.lookupTypeSpecification localName)
+
+
+{-| Look up a value specification by its module path and name in a package specification.
+-}
+lookupValueSpecification : Path -> Name -> Specification ta -> Maybe (Value.Specification ta)
+lookupValueSpecification modulePath localName packageSpec =
+    packageSpec
+        |> lookupModuleSpecification modulePath
+        |> Maybe.andThen (Module.lookupValueSpecification localName)
 
 
 {-| -}

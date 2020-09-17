@@ -17,7 +17,7 @@
 
 module Morphir.IR.Module exposing
     ( Specification, Definition
-    , lookupTypeSpecification
+    , lookupTypeSpecification, lookupValueSpecification
     , ModuleName, definitionToSpecification, eraseSpecificationAttributes, mapDefinitionAttributes, mapSpecificationAttributes
     )
 
@@ -31,7 +31,7 @@ module Morphir.IR.Module exposing
 
 # Lookups
 
-@docs lookupTypeSpecification
+@docs lookupTypeSpecification, lookupValueSpecification
 
 
 # Other Utilities
@@ -85,6 +85,14 @@ lookupTypeSpecification localName moduleSpec =
     moduleSpec.types
         |> Dict.get localName
         |> Maybe.map .value
+
+
+{-| Look up a value specification by its name in a module specification.
+-}
+lookupValueSpecification : Name -> Specification ta -> Maybe (Value.Specification ta)
+lookupValueSpecification localName moduleSpec =
+    moduleSpec.values
+        |> Dict.get localName
 
 
 {-| -}
