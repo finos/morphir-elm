@@ -3,6 +3,7 @@ module Morphir.SDK.Decimal exposing
     , fromInt
     , fromFloat
     , fromString
+    , toString
     , add
     , sub
     , mul
@@ -15,7 +16,6 @@ module Morphir.SDK.Decimal exposing
     , zero
     , one
     , minusOne
-    , toString
     )
 
 {-|
@@ -31,6 +31,7 @@ module Morphir.SDK.Decimal exposing
 @docs fromInt
 @docs fromFloat
 @docs fromString
+@docs toString
 
 
 # Arithmetic operations
