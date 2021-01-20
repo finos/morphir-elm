@@ -149,6 +149,108 @@ fromFloatTests =
         ]
 
 
+hundredTests : Test
+hundredTests =
+    describe "Decimal.hundred"
+        [ test "positive integer" <|
+            \_ ->
+                Decimal.hundred 42 |> Decimal.toString |> Expect.equal (Decimal.fromInt 4200 |> Decimal.toString)
+        , test "negative integer" <|
+            \_ ->
+                Decimal.hundred -2 |> Decimal.toString |> Expect.equal (Decimal.toString <| Decimal.fromInt -200)
+        ]
+
+
+thousandTests : Test
+thousandTests =
+    describe "Decimal.thousands"
+        [ test "positive integer" <|
+            \_ ->
+                Decimal.thousand 4 |> Decimal.toString |> Expect.equal (Decimal.fromInt 4000 |> Decimal.toString)
+        , test "negative integer" <|
+            \_ ->
+                Decimal.thousand -7 |> Decimal.toString |> Expect.equal (Decimal.toString <| Decimal.fromInt -7000)
+        ]
+
+
+millionTests : Test
+millionTests =
+    describe "Decimal.million"
+        [ test "positive integer" <|
+            \_ ->
+                Decimal.million 21 |> Decimal.toString |> Expect.equal (Decimal.fromInt 21000000 |> Decimal.toString)
+        , test "negative integer" <|
+            \_ ->
+                Decimal.million -99 |> Decimal.toString |> Expect.equal (Decimal.toString <| Decimal.fromInt -99000000)
+        ]
+
+
+tenthTests : Test
+tenthTests =
+    describe "Decimal.tenth"
+        [ test "positive integer" <|
+            \_ ->
+                Decimal.tenth 1000 |> Decimal.toString |> Expect.equal "100.0"
+        , test "small positive integer" <|
+            \_ ->
+                Decimal.tenth 10 |> Decimal.toString |> Expect.equal "1.0"
+        , test "negative integer" <|
+            \_ ->
+                Decimal.tenth -1000 |> Decimal.toString |> Expect.equal "-100.0"
+        , test "small negative integer" <|
+            \_ ->
+                Decimal.tenth -50 |> Decimal.toString |> Expect.equal "-5.0"
+        ]
+
+
+hundredthTests : Test
+hundredthTests =
+    describe "Decimal.hundredth"
+        [ test "positive integer" <|
+            \_ ->
+                Decimal.hundredth 100 |> Decimal.toString |> Expect.equal "1.00"
+        , test "small positive integer" <|
+            \_ ->
+                Decimal.hundredth 10 |> Decimal.toString |> Expect.equal "0.10"
+        , test "negative integer" <|
+            \_ ->
+                Decimal.hundredth -1000 |> Decimal.toString |> Expect.equal "-10.00"
+        , test "small negative integer" <|
+            \_ ->
+                Decimal.hundredth -50 |> Decimal.toString |> Expect.equal "-0.50"
+        ]
+
+
+bpsTests : Test
+bpsTests =
+    describe "Decimal.bps"
+        [ test "positive integer" <|
+            \_ ->
+                Decimal.bps 10000 |> Decimal.toString |> Expect.equal "1.0000"
+        , test "small positive integer" <|
+            \_ ->
+                Decimal.bps 2 |> Decimal.toString |> Expect.equal "0.0002"
+        , test "negative integer" <|
+            \_ ->
+                Decimal.bps -100000 |> Decimal.toString |> Expect.equal "-10.0000"
+        , test "small negative integer" <|
+            \_ ->
+                Decimal.bps -5 |> Decimal.toString |> Expect.equal "-0.0005"
+        ]
+
+
+millionthTests : Test
+millionthTests =
+    describe "Decimal.millionth"
+        [ test "positive integer" <|
+            \_ ->
+                Decimal.millionth 1000000 |> Decimal.toString |> Expect.equal "1.000000"
+        , test "negative integer" <|
+            \_ ->
+                Decimal.millionth -10000000 |> Decimal.toString |> Expect.equal "-10.000000"
+        ]
+
+
 toStringTests : Test
 toStringTests =
     describe "Decimal.toString"
