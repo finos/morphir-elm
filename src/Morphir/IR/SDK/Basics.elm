@@ -39,7 +39,7 @@ moduleSpec : Module.Specification ()
 moduleSpec =
     { types =
         Dict.fromList
-            [ ( Name.fromString "Int32", OpaqueTypeSpecification [] |> Documented "Type that represents a 32-bit integer value." )
+            [ ( Name.fromString "Int", OpaqueTypeSpecification [] |> Documented "Type that represents an integer value." )
             , ( Name.fromString "Float", OpaqueTypeSpecification [] |> Documented "Type that represents a floating-point number." )
             , ( Name.fromString "Order"
               , CustomTypeSpecification []
@@ -377,7 +377,7 @@ power a =
 
 intType : a -> Type a
 intType attributes =
-    Reference attributes (toFQName moduleName "Int32") []
+    Reference attributes (toFQName moduleName "Int") []
 
 
 integerDivide : a -> Value ta a

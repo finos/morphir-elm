@@ -1,6 +1,21 @@
 module Morphir.SDK.Decimal exposing
     ( Decimal
-    , abs, fromInt, fromIntWithExponent, fromString, minusOne, one, toString, zero
+    , fromInt
+    , fromFloat
+    , fromString
+    , add
+    , sub
+    , mul
+    , negate
+    , round
+    , eq
+    , neq
+    , compare
+    , abs
+    , zero
+    , one
+    , minusOne
+    , toString
     )
 
 {-|
@@ -13,7 +28,41 @@ module Morphir.SDK.Decimal exposing
 
 # Conversion
 
-#docs fromInt
+@docs fromInt
+@docs fromFloat
+@docs fromString
+
+
+# Arithmetic operations
+
+@docs add
+@docs sub
+@docs mul
+@docs negate
+
+
+# Rounding
+
+@docs round
+
+
+# Comparing
+
+@docs eq
+@docs neq
+@docs compare
+
+
+# Misc operations
+
+@docs abs
+
+
+# Common Constants
+
+@docs zero
+@docs one
+@docs minusOne
 
 -}
 
@@ -33,11 +82,11 @@ fromInt n =
     D.fromInt n
 
 
-{-| Converts an Int to a Decimal, but specifying the exponent
+{-| Converts a Float to a Decimal
 -}
-fromIntWithExponent : Int -> Int -> Decimal
-fromIntWithExponent n e =
-    D.fromIntWithExponent n e
+fromFloat : Float -> Maybe Decimal
+fromFloat f =
+    D.fromFloat f
 
 
 {-| Converts a String to a Maybe Decimal. The string shall be in the format [<sign>]<numbers>[.<numbers>][e<numbers>]
@@ -54,11 +103,65 @@ toString decimalValue =
     D.toString decimalValue
 
 
+{-| Addition
+-}
+add : Decimal -> Decimal -> Decimal
+add a b =
+    D.add a b
+
+
+sub : Decimal -> Decimal -> Decimal
+sub a b =
+    D.sub a b
+
+
+{-| Multiplication
+-}
+mul : Decimal -> Decimal -> Decimal
+mul a b =
+    D.mul a b
+
+
+{-| Changes the sign of a Decimal
+-}
+negate : Decimal -> Decimal
+negate value =
+    D.negate value
+
+
+{-| Rounds the Decimal to the specified decimal places
+-}
+round : Int -> Decimal -> Decimal
+round n d =
+    D.round n d
+
+
 {-| Absolute value (sets the sign as positive)
 -}
 abs : Decimal -> Decimal
 abs value =
     D.abs value
+
+
+{-| Compares two Decimals
+-}
+compare : Decimal -> Decimal -> Order
+compare a b =
+    D.compare a b
+
+
+{-| Equals
+-}
+eq : Decimal -> Decimal -> Bool
+eq a b =
+    D.eq a b
+
+
+{-| Not equals
+-}
+neq : Decimal -> Decimal -> Bool
+neq a b =
+    not (eq a b)
 
 
 {-| The number 0
