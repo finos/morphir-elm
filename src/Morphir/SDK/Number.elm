@@ -1,8 +1,8 @@
 module Morphir.SDK.Number exposing
     ( Number(..)
     , fromInt
-    , equal, notEqual
-    , add, subtract, multiply, abs, negate, reciprocal
+    , equal, notEqual, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual
+    , add, subtract, multiply, divide, abs, negate, reciprocal
     , toFractionalString
     , simplify, isSimplified
     , zero, one
@@ -22,12 +22,12 @@ If you need irrational numbers please use a `Float`.
 
 # Comparison
 
-@docs equal, notEqual
+@docs equal, notEqual, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual
 
 
 # Arithmetic
 
-@docs add, subtract, multiply, abs, negate, reciprocal
+@docs add, subtract, multiply, divide, abs, negate, reciprocal
 
 
 # String conversion

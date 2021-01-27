@@ -19,7 +19,7 @@ module Morphir.SDK.NumberTests exposing (..)
 import Decimal as D
 import Expect
 import Fuzz exposing (..)
-import Morphir.SDK.Decimal as Decimal exposing (..)
+import Morphir.FuzzEx exposing (..)
 import Morphir.SDK.Number as Number exposing (Number)
 import Test exposing (..)
 
@@ -80,6 +80,29 @@ notEqualTests =
         ]
 
 
+divideTests : Test
+divideTests =
+    describe "Number.divide"
+        [ test "dividing by zero should result in DivisionByZero" <|
+            \_ ->
+                case Number.divide (Number.fromInt 42) (Number.fromInt 0) of
+                    Err _ ->
+                        Expect.pass
+
+                    Ok res ->
+                        "Expected to fail with DivisionByZero error, but it didn't, we received the value of "
+                            ++ Number.toFractionalString res
+                            ++ " instead."
+                            |> Expect.fail
+        , fuzz nonZeroInt "dividing a non-zero number by itself should equal 1" <|
+            \n ->
+                Number.divide
+                    (Number.fromInt n)
+                    (Number.fromInt n)
+                    |> expectNumberResultEqual Number.one
+        ]
+
+
 simplifyTests : Test
 simplifyTests =
     describe "Number.simplify"
@@ -114,6 +137,16 @@ simplifyTests =
                     Just actualValue ->
                         actualValue |> expectNumbersEqual Number.zero
         ]
+
+
+expectNumberResultEqual : Number -> Result error Number -> Expect.Expectation
+expectNumberResultEqual expected value =
+    case value of
+        Ok actual ->
+            expectNumbersEqual expected actual
+
+        Err _ ->
+            Expect.fail "Expected numbers to be equal but the given result was an error"
 
 
 expectNumbersEqual : Number -> Number -> Expect.Expectation
