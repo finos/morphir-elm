@@ -1,7 +1,8 @@
 module Morphir.SDK.Number exposing
     ( Number(..)
     , equal, notEqual
-    , add, divide, fromInt, zero
+    , toFractionalString
+    , add, divide, fromInt, isSimplified, one, simplify, zero
     )
 
 {-| This module provides a way to represent a number without the risk of rounding issues or division by zero for any of
@@ -15,9 +16,14 @@ If you need irrational numbers please use a `Float`.
 
 @docs equal, notEqual
 
+
+# String conversion
+
+@docs toFractionalString
+
 -}
 
-import BigInt exposing (BigInt)
+import BigInt as BigInt exposing (BigInt)
 import Decimal as D
 import Morphir.SDK.Decimal exposing (Decimal)
 
@@ -153,6 +159,70 @@ divide (Rational a b) ((Rational c d) as denominator) =
             )
 
 
+gcd : BigInt -> BigInt -> Maybe BigInt
+gcd a b =
+    let
+        zero_ =
+            BigInt.fromInt 0
+
+        gcd_ x maybeY =
+            case maybeY of
+                Nothing ->
+                    Nothing
+
+                Just y ->
+                    if y == zero_ then
+                        Just x
+
+                    else
+                        gcd_ y (BigInt.modBy y x)
+    in
+    gcd_ (BigInt.abs a) (BigInt.abs b |> Just)
+
+
+simplify : Number -> Maybe Number
+simplify (Rational numerator denominator) =
+    let
+        zero_ =
+            BigInt.fromInt 0
+
+        denominatorIsZero =
+            bigIntsAreEqual denominator zero_
+    in
+    if denominatorIsZero then
+        Nothing
+
+    else
+        let
+            commonFactor =
+                gcd numerator denominator
+
+            reducedNumerator =
+                commonFactor
+                    |> Maybe.andThen (\gcf -> BigInt.divmod numerator gcf |> Maybe.map Tuple.first)
+
+            reducedDenominator =
+                commonFactor
+                    |> Maybe.andThen (\gcf -> BigInt.divmod denominator gcf |> Maybe.map Tuple.first)
+        in
+        Maybe.map2 Rational reducedNumerator reducedDenominator
+
+
+isSimplified : Number -> Bool
+isSimplified (Rational originalNumerator originalDenominator) =
+    case simplify (Rational originalNumerator originalDenominator) of
+        Nothing ->
+            True
+
+        Just (Rational numerator denominator) ->
+            bigIntsAreEqual originalNumerator numerator && bigIntsAreEqual originalDenominator denominator
+
+
+toFractionalString : Number -> String
+toFractionalString (Rational numerator denominator) =
+    BigInt.toString numerator ++ "/" ++ BigInt.toString denominator
+
+
 isZero : Number -> Bool
 isZero (Rational nominator _) =
     nominator == BigInt.fromInt 0
@@ -171,3 +241,18 @@ one =
 ten : Number
 ten =
     Rational (BigInt.fromInt 10) (BigInt.fromInt 1)
+
+
+bigIntsAreEqual : BigInt -> BigInt -> Bool
+bigIntsAreEqual a b =
+    case BigInt.compare a b of
+        EQ ->
+            True
+
+        _ ->
+            False
+
+
+bigIntIsZero : BigInt -> Bool
+bigIntIsZero n =
+    bigIntsAreEqual (BigInt.fromInt 0) n

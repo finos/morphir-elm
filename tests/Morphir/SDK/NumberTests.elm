@@ -35,6 +35,23 @@ number =
         int
 
 
+over : Int -> Int -> Number
+over d n =
+    makeNumber n d
+
+
+makeNumber : Int -> Int -> Number
+makeNumber n d =
+    let
+        numerator =
+            Number.fromInt n
+
+        denominator =
+            Number.fromInt d
+    in
+    Number.divide numerator denominator |> Result.withDefault Number.zero
+
+
 equalTests : Test
 equalTests =
     describe "Number.equal"
@@ -61,3 +78,48 @@ notEqualTests =
                 Expect.false "Expected the same value to be equal" <|
                     Number.notEqual a a
         ]
+
+
+simplifyTests : Test
+simplifyTests =
+    describe "Number.simplify"
+        [ test "4/2 should reduce to 2/1" <|
+            \_ ->
+                case Number.simplify (4 |> over 2) of
+                    Nothing ->
+                        Expect.fail "expected simplification to occur but it didn't"
+
+                    Just result ->
+                        result |> expectNumbersEqual (Number.fromInt 2)
+        , test "7/5 should not simplify" <|
+            \_ ->
+                case Number.simplify (7 |> over 5) of
+                    Nothing ->
+                        Expect.pass
+
+                    Just result ->
+                        if Number.isSimplified result then
+                            Expect.pass
+
+                        else
+                            Number.toFractionalString result
+                                |> (++) "Expected no simplification to occur but the number simplified to "
+                                |> Expect.fail
+        , fuzz (intRange 2 999) "simplifying with a numerator of zero" <|
+            \n ->
+                case Number.simplify (0 |> over n) of
+                    Nothing ->
+                        Expect.fail "Expected simplification to occur but it didn't"
+
+                    Just actualValue ->
+                        actualValue |> expectNumbersEqual Number.zero
+        ]
+
+
+expectNumbersEqual : Number -> Number -> Expect.Expectation
+expectNumbersEqual a b =
+    if Number.equal a b then
+        Expect.pass
+
+    else
+        [ "Expected ", Number.toFractionalString a, "to equal", Number.toFractionalString b ] |> String.join " " |> Expect.fail
