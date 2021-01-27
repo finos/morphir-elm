@@ -1,8 +1,11 @@
 module Morphir.SDK.Number exposing
     ( Number(..)
+    , fromInt
     , equal, notEqual
+    , add, subtract, multiply, abs, negate, reciprocal
     , toFractionalString
-    , add, divide, fromInt, isSimplified, one, simplify, zero
+    , simplify, isSimplified
+    , zero, one
     )
 
 {-| This module provides a way to represent a number without the risk of rounding issues or division by zero for any of
@@ -12,14 +15,34 @@ If you need irrational numbers please use a `Float`.
 @docs Number
 
 
+# Convert from
+
+@docs fromInt
+
+
 # Comparison
 
 @docs equal, notEqual
 
 
+# Arithmetic
+
+@docs add, subtract, multiply, abs, negate, reciprocal
+
+
 # String conversion
 
 @docs toFractionalString
+
+
+# Misc
+
+@docs simplify, isSimplified
+
+
+# Constants
+
+@docs zero, one
 
 -}
 
@@ -106,6 +129,13 @@ negate (Rational a b) =
     Rational
         (BigInt.negate a)
         b
+
+
+abs : Number -> Number
+abs (Rational a b) =
+    Rational
+        (BigInt.abs a)
+        (BigInt.abs b)
 
 
 reciprocal : Number -> Number
@@ -209,8 +239,8 @@ simplify (Rational numerator denominator) =
 
 
 isSimplified : Number -> Bool
-isSimplified (Rational originalNumerator originalDenominator) =
-    case simplify (Rational originalNumerator originalDenominator) of
+isSimplified ((Rational originalNumerator originalDenominator) as num) =
+    case simplify num of
         Nothing ->
             True
 
