@@ -3,7 +3,7 @@ module Morphir.SDK.Number exposing
     , fromInt
     , equal, notEqual, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual
     , add, subtract, multiply, divide, abs, negate, reciprocal
-    , toFractionalString
+    , toFractionalString, toDecimal
     , simplify, isSimplified
     , zero, one
     )
@@ -30,9 +30,9 @@ If you need irrational numbers please use a `Float`.
 @docs add, subtract, multiply, divide, abs, negate, reciprocal
 
 
-# String conversion
+# Convert to
 
-@docs toFractionalString
+@docs toFractionalString, toDecimal
 
 
 # Misc
@@ -92,26 +92,43 @@ equal =
     compareWith (==)
 
 
+{-| Checks if two numbers are not equal.
+
+    notEqual one zero == True
+
+    notEqual zero one == True
+
+    notEqual one one == False
+
+-}
 notEqual : Number -> Number -> Bool
 notEqual =
     compareWith (/=)
 
 
+{-| Checks if the first number is less than the second
+-}
 lessThan : Number -> Number -> Bool
 lessThan =
     compareWith BigInt.lt
 
 
+{-| Checks if the first number is less than or equal to the second
+-}
 lessThanOrEqual : Number -> Number -> Bool
 lessThanOrEqual =
     compareWith BigInt.lte
 
 
+{-| Checks if the first number is greater than the second
+-}
 greaterThan : Number -> Number -> Bool
 greaterThan =
     compareWith BigInt.gt
 
 
+{-| Checks if the first number is greater or equal than the second
+-}
 greaterThanOrEqual : Number -> Number -> Bool
 greaterThanOrEqual =
     compareWith BigInt.gte
@@ -124,6 +141,8 @@ compareWith f (Rational a b) (Rational c d) =
         (BigInt.mul b c)
 
 
+{-| Negate the given number, thus flipping the sign.
+-}
 negate : Number -> Number
 negate (Rational a b) =
     Rational
@@ -131,6 +150,8 @@ negate (Rational a b) =
         b
 
 
+{-| Takes the absolute value of the number
+-}
 abs : Number -> Number
 abs (Rational a b) =
     Rational
@@ -138,6 +159,8 @@ abs (Rational a b) =
         (BigInt.abs b)
 
 
+{-| Calculates the reciprocal of the number
+-}
 reciprocal : Number -> Number
 reciprocal ((Rational nominator denominator) as number) =
     if isZero number then
@@ -149,6 +172,8 @@ reciprocal ((Rational nominator denominator) as number) =
             nominator
 
 
+{-| Adds two numbers together.
+-}
 add : Number -> Number -> Number
 add (Rational a b) (Rational c d) =
     Rational
@@ -159,6 +184,8 @@ add (Rational a b) (Rational c d) =
         (BigInt.mul b d)
 
 
+{-| Subtracts one number from the other.
+-}
 subtract : Number -> Number -> Number
 subtract (Rational a b) (Rational c d) =
     Rational
@@ -169,6 +196,8 @@ subtract (Rational a b) (Rational c d) =
         (BigInt.mul b d)
 
 
+{-| Multiplies two numbers together
+-}
 multiply : Number -> Number -> Number
 multiply (Rational a b) (Rational c d) =
     Rational
@@ -176,6 +205,8 @@ multiply (Rational a b) (Rational c d) =
         (BigInt.mul b d)
 
 
+{-| Division
+-}
 divide : Number -> Number -> Result DivisionByZero Number
 divide (Rational a b) ((Rational c d) as denominator) =
     if isZero denominator then
@@ -210,6 +241,8 @@ gcd a b =
     gcd_ (BigInt.abs a) (BigInt.abs b |> Just)
 
 
+{-| Tries to simplify the number.
+-}
 simplify : Number -> Maybe Number
 simplify (Rational numerator denominator) =
     let
@@ -238,6 +271,8 @@ simplify (Rational numerator denominator) =
         Maybe.map2 Rational reducedNumerator reducedDenominator
 
 
+{-| Tells if the number is simplified
+-}
 isSimplified : Number -> Bool
 isSimplified ((Rational originalNumerator originalDenominator) as num) =
     case simplify num of
@@ -248,6 +283,8 @@ isSimplified ((Rational originalNumerator originalDenominator) as num) =
             bigIntsAreEqual originalNumerator numerator && bigIntsAreEqual originalDenominator denominator
 
 
+{-| Create a fractional representation of the number
+-}
 toFractionalString : Number -> String
 toFractionalString (Rational numerator denominator) =
     BigInt.toString numerator ++ "/" ++ BigInt.toString denominator
@@ -258,11 +295,15 @@ isZero (Rational nominator _) =
     nominator == BigInt.fromInt 0
 
 
+{-| Constant for 0
+-}
 zero : Number
 zero =
     Rational (BigInt.fromInt 0) (BigInt.fromInt 1)
 
 
+{-| Constant for one
+-}
 one : Number
 one =
     Rational (BigInt.fromInt 1) (BigInt.fromInt 1)
