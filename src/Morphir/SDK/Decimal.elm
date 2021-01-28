@@ -26,11 +26,10 @@ module Morphir.SDK.Decimal exposing
     , lt
     , lte
     , compare
-    , abs
+    , abs, shiftDecimalLeft, shiftDecimalRight
     , zero
     , one
     , minusOne
-    , shiftDecimalLeft, shiftDecimalRight
     )
 
 {-|
@@ -93,7 +92,7 @@ module Morphir.SDK.Decimal exposing
 
 # Misc operations
 
-@docs abs, shiftLeft, shiftRight
+@docs abs, shiftDecimalLeft, shiftDecimalRight
 
 
 # Common Constants
