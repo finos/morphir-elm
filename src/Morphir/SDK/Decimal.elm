@@ -37,7 +37,7 @@ module Morphir.SDK.Decimal exposing
 
 # The datatype
 
-@docs Decimal, RoundingMode
+@docs Decimal
 
 
 # Convert from
