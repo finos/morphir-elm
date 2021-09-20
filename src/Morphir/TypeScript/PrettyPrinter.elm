@@ -61,6 +61,9 @@ mapTypeDef opt typeDef =
 mapTypeExp : Options -> TypeExp -> Doc
 mapTypeExp opt typeExp =
     case typeExp of
+        LiteralString stringval ->
+            "\"" ++ stringval ++ "\""
+
         String ->
             "string"
 
