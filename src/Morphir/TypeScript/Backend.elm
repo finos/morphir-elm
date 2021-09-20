@@ -93,15 +93,20 @@ mapConstructor ( ctorName, ctorArgs ) =
     let
         nameInTitleCase =
             ctorName |> Name.toTitleCase
+
+        kindField =
+            ( "kind", TS.LiteralString nameInTitleCase )
+
+        otherFields =
+            ctorArgs
+                |> List.map
+                    (\( argName, argType ) ->
+                        ( argName |> Name.toCamelCase, mapTypeExp argType )
+                    )
     in
     TS.Interface
         nameInTitleCase
-        (ctorArgs
-            |> List.map
-                (\( argName, argType ) ->
-                    ( argName |> Name.toCamelCase, mapTypeExp argType )
-                )
-        )
+        (kindField :: otherFields)
 
 
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
