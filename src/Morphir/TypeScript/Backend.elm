@@ -86,6 +86,24 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
     [ moduleUnit ]
 
 
+{-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
+-}
+mapConstructor : ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
+mapConstructor ( ctorName, ctorArgs ) =
+    let
+        nameInTitleCase =
+            ctorName |> Name.toTitleCase
+    in
+    TS.Interface
+        nameInTitleCase
+        (ctorArgs
+            |> List.map
+                (\( argName, argType ) ->
+                    ( argName |> Name.toCamelCase, mapTypeExp argType )
+                )
+        )
+
+
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
 some Morphir type definitions can only be represented by a combination of multiple type definitions in TypeScript.
 -}
@@ -98,7 +116,7 @@ mapTypeDefinition name typeDef =
                 (typeExp |> mapTypeExp)
             ]
 
-        Type.CustomTypeDefinition typeArgs accessControlledConstructors ->
+        Type.CustomTypeDefinition _ accessControlledConstructors ->
             let
                 constructors =
                     accessControlledConstructors.value
@@ -106,17 +124,7 @@ mapTypeDefinition name typeDef =
 
                 constructorInterfaces =
                     constructors
-                        |> List.map
-                            (\( ctorName, ctorArgs ) ->
-                                TS.Interface
-                                    (ctorName |> Name.toTitleCase)
-                                    (ctorArgs
-                                        |> List.map
-                                            (\( argName, argType ) ->
-                                                ( argName |> Name.toCamelCase, mapTypeExp argType )
-                                            )
-                                    )
-                            )
+                        |> List.map mapConstructor
 
                 union =
                     TS.TypeAlias
