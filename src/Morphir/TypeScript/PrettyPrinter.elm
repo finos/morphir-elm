@@ -73,6 +73,9 @@ mapTypeExp opt typeExp =
         Boolean ->
             "boolean"
 
+        List listType ->
+            "Array<" ++ mapTypeExp opt listType ++ ">"
+
         Union types ->
             types
                 |> List.map (mapTypeExp opt)
