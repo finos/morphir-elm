@@ -154,6 +154,9 @@ mapTypeExp tpe =
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
             TS.Boolean
 
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
+            TS.List (TS.Tuple [ mapTypeExp dictKeyType, mapTypeExp dictValType ])
+
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
             TS.List (mapTypeExp listType)
 
