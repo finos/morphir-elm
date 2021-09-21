@@ -34,8 +34,19 @@ type Privacy
 {-| Represents a type definition.
 -}
 type TypeDef
-    = TypeAlias Privacy String String (List TypeExp) TypeExp -- (Public/Private, Doc, Name, Variables, TypeExpression)
-    | Interface Privacy String (List TypeExp) ObjectExp -- (Public/Private, Name, Variables, FieldList)
+    = TypeAlias
+        { name : String
+        , doc : String
+        , privacy : Privacy
+        , variables: (List TypeExp)
+        , typeExpression: TypeExp
+        }
+    | Interface
+        { name: String
+        , privacy : Privacy
+        , variables: (List TypeExp)
+        , fields: ObjectExp
+        }
 
 
 {-| A type expression represents the right-hand side of a type annotation or a type alias.

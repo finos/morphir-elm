@@ -54,7 +54,7 @@ mapGenericVariables opt variables =
 mapTypeDef : Options -> TypeDef -> Doc
 mapTypeDef opt typeDef =
     case typeDef of
-        TypeAlias privacy doc name variables typeExp ->
+        TypeAlias { name, privacy, doc, variables, typeExpression } ->
             let
                 docstring =
                     if String.length doc > 0 then
@@ -79,10 +79,10 @@ mapTypeDef opt typeDef =
                 , name
                 , mapGenericVariables opt variables
                 , " = "
-                , mapTypeExp opt typeExp
+                , mapTypeExp opt typeExpression
                 ]
 
-        Interface privacy name variables fields ->
+        Interface { name, privacy, variables, fields } ->
             concat
                 [ "interface "
                 , name

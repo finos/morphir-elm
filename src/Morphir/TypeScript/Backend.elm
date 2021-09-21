@@ -105,10 +105,11 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
                     )
     in
     TS.Interface
-        privacy
-        nameInTitleCase
-        variables
-        (kindField :: otherFields)
+        { name = nameInTitleCase
+        , privacy = privacy
+        , variables = variables
+        , fields = (kindField :: otherFields)
+        }
 
 
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
@@ -131,11 +132,12 @@ mapTypeDefinition name typeDef =
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
             [ TS.TypeAlias
-                privacy
-                doc
-                (name |> Name.toTitleCase)
-                (variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var))
-                (typeExp |> mapTypeExp)
+                { name = (name |> Name.toTitleCase)
+                , privacy = privacy
+                , doc = doc
+                , variables = (variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var))
+                , typeExpression = (typeExp |> mapTypeExp)
+                }
             ]
 
         Type.CustomTypeDefinition variables accessControlledConstructors ->
@@ -166,18 +168,20 @@ mapTypeDefinition name typeDef =
                     else
                         List.singleton
                             (TS.TypeAlias
-                                privacy
-                                doc
-                                typeName
-                                tsVariables
-                                (TS.Union
-                                    (constructors
-                                        |> List.map
-                                            (\( ctorName, _ ) ->
-                                                TS.TypeRef (ctorName |> Name.toTitleCase) tsVariables
-                                            )
+                                { name = typeName
+                                , privacy = privacy
+                                , doc = doc
+                                , variables = tsVariables
+                                , typeExpression =
+                                    (TS.Union
+                                        (constructors
+                                            |> List.map
+                                                (\( ctorName, _ ) ->
+                                                    TS.TypeRef (ctorName |> Name.toTitleCase) tsVariables
+                                                )
+                                        )
                                     )
-                                )
+                                }
                             )
             in
             union ++ constructorInterfaces
