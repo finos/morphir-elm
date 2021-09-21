@@ -61,14 +61,8 @@ mapTypeDef opt typeDef =
 mapTypeExp : Options -> TypeExp -> Doc
 mapTypeExp opt typeExp =
     case typeExp of
-        LiteralString stringval ->
-            "\"" ++ stringval ++ "\""
-
-        String ->
-            "string"
-
-        Number ->
-            "number"
+        Any ->
+            "any"
 
         Boolean ->
             "boolean"
@@ -76,16 +70,20 @@ mapTypeExp opt typeExp =
         List listType ->
             "Array<" ++ mapTypeExp opt listType ++ ">"
 
-        Union types ->
-            types
-                |> List.map (mapTypeExp opt)
-                |> String.join " | "
+        LiteralString stringval ->
+            "\"" ++ stringval ++ "\""
+
+        Number ->
+            "number"
+
+        String ->
+            "string"
 
         TypeRef name ->
             name
 
-        Any ->
-            "any"
+        Union types ->
+            types |> List.map (mapTypeExp opt) |> String.join " | "
 
         UnhandledType tpe ->
             concat

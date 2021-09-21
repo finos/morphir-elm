@@ -40,14 +40,14 @@ Only a small subset of the type-system is currently implemented.
 
 -}
 type TypeExp
-    = String
-    | Number
+    = Any
     | Boolean
+    | List TypeExp {- Represents a Morphir 'List' type, as a Typescript 'Array' type -}
     | LiteralString String
-    | List TypeExp
-    | Union (List TypeExp)
+    | Number
+    | String
     | TypeRef String
-    | Any
+    | Union (List TypeExp)
     | UnhandledType String
 
 
