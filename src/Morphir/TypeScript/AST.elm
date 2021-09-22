@@ -27,7 +27,7 @@ type alias CompilationUnit =
 {-| Represents a type definition.
 -}
 type TypeDef
-    = TypeAlias String TypeExp
+    = TypeAlias String (List String) TypeExp
     | Interface String ObjectExp
 
 
@@ -50,6 +50,7 @@ type TypeExp
     | Tuple (List TypeExp)
     | TypeRef String
     | Union (List TypeExp)
+    | Variable String
     | UnhandledType String
 
 

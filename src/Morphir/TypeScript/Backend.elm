@@ -118,6 +118,7 @@ mapTypeDefinition name typeDef =
         Type.TypeAliasDefinition typeArgs typeExp ->
             [ TS.TypeAlias
                 (name |> Name.toTitleCase)
+                (typeArgs |> List.map Name.toCamelCase)
                 (typeExp |> mapTypeExp)
             ]
 
@@ -147,6 +148,7 @@ mapTypeDefinition name typeDef =
                         List.singleton
                             (TS.TypeAlias
                                 typeName
+                                []
                                 (TS.Union
                                     (constructors
                                         |> List.map
@@ -201,11 +203,11 @@ mapTypeExp tpe =
         Type.Unit _ ->
             TS.Tuple []
 
+        Type.Variable _ name ->
+            TS.Variable (Name.toCamelCase name)
+
         Type.Reference _ fqName _ ->
             TS.UnhandledType ("Reference " ++ FQName.toString fqName ++ ")")
-
-        Type.Variable a name ->
-            TS.UnhandledType ("Variable (" ++ Name.toCamelCase name ++ ")")
 
         Type.ExtensibleRecord a argName fields ->
             TS.UnhandledType "ExtensibleRecord"

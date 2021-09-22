@@ -39,8 +39,24 @@ mapCompilationUnit opt cu =
 mapTypeDef : Options -> TypeDef -> Doc
 mapTypeDef opt typeDef =
     case typeDef of
-        TypeAlias name typeExp ->
-            concat [ "type ", name, " = ", mapTypeExp opt typeExp ]
+        TypeAlias name variables typeExp ->
+            let
+                mappedVariables =
+                    case List.length variables of
+                        0 ->
+                            ""
+
+                        _ ->
+                            concat
+                                [ "<"
+                                , String.join ", " variables
+                                , ">"
+                                ]
+
+                mappedExpression =
+                    mapTypeExp opt typeExp
+            in
+            concat [ "type ", name, mappedVariables, " = ", mappedExpression ]
 
         Interface name fields ->
             concat
@@ -110,6 +126,9 @@ mapTypeExp opt typeExp =
 
         Union types ->
             types |> List.map (mapTypeExp opt) |> String.join " | "
+
+        Variable name ->
+            name
 
         UnhandledType tpe ->
             concat
