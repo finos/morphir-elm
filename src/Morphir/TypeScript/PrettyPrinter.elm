@@ -97,11 +97,13 @@ mapTypeExp opt typeExp =
             "string"
 
         Tuple tupleTypesList ->
-            let
-                mappedtupleTypesList =
-                    tupleTypesList |> List.map (mapTypeExp opt)
-            in
-            "[" ++ String.join ", " mappedtupleTypesList ++ "]"
+            concat
+                [ "["
+                , tupleTypesList
+                    |> List.map (mapTypeExp opt)
+                    |> String.join ", "
+                , "]"
+                ]
 
         TypeRef name ->
             name
