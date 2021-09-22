@@ -198,6 +198,9 @@ mapTypeExp tpe =
         Type.Reference _ ( packageName, moduleName, localName ) [] ->
             TS.TypeRef (localName |> Name.toTitleCase)
 
+        Type.Unit _ ->
+            TS.Tuple []
+
         Type.Reference _ fqName _ ->
             TS.UnhandledType ("Reference " ++ FQName.toString fqName ++ ")")
 
@@ -209,6 +212,3 @@ mapTypeExp tpe =
 
         Type.Function a argType returnType ->
             TS.UnhandledType "Function"
-
-        Type.Unit a ->
-            TS.UnhandledType "Unit"
