@@ -180,6 +180,15 @@ mapTypeExp tpe =
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
             TS.Number
 
+        Type.Record _ fieldList ->
+            TS.Object
+                (fieldList
+                    |> List.map
+                        (\field ->
+                            ( field.name |> Name.toTitleCase, mapTypeExp field.tpe )
+                        )
+                )
+
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
             TS.String
 
@@ -194,9 +203,6 @@ mapTypeExp tpe =
 
         Type.Variable a name ->
             TS.UnhandledType ("Variable (" ++ Name.toCamelCase name ++ ")")
-
-        Type.Record a fields ->
-            TS.UnhandledType "Record"
 
         Type.ExtensibleRecord a argName fields ->
             TS.UnhandledType "ExtensibleRecord"

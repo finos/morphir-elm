@@ -1,4 +1,7 @@
-module Morphir.TypeScript.PrettyPrinter exposing (Options, mapCompilationUnit, mapTypeDef, mapTypeExp)
+module Morphir.TypeScript.PrettyPrinter exposing
+    ( Options, mapCompilationUnit, mapTypeDef, mapTypeExp
+    , mapObjectExp
+    )
 
 {-| This module contains a pretty-printer that takes a TypeScript AST as an input and returns a formatted text
 representation.
@@ -8,7 +11,7 @@ representation.
 -}
 
 import Morphir.File.SourceCode exposing (Doc, concat, empty, indentLines, newLine)
-import Morphir.TypeScript.AST exposing (CompilationUnit, TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.AST exposing (CompilationUnit, ObjectExp, TypeDef(..), TypeExp(..))
 
 
 {-| Formatting options.
@@ -43,17 +46,28 @@ mapTypeDef opt typeDef =
             concat
                 [ "interface "
                 , name
-                , "{"
-                , newLine
-                , fields
-                    |> List.map
-                        (\( fieldName, fieldType ) ->
-                            concat [ fieldName, ": ", mapTypeExp opt fieldType, ";" ]
-                        )
-                    |> indentLines opt.indentDepth
-                , newLine
-                , "}"
+                , mapObjectExp opt fields
                 ]
+
+
+{-| Map an object expression or interface definiton to text
+-}
+mapObjectExp : Options -> ObjectExp -> Doc
+mapObjectExp opt objectExp =
+    let
+        mapField : ( String, TypeExp ) -> Doc
+        mapField ( fieldName, fieldType ) =
+            concat [ fieldName, ": ", mapTypeExp opt fieldType, ";" ]
+    in
+    concat
+        [ "{"
+        , newLine
+        , objectExp
+            |> List.map mapField
+            |> indentLines opt.indentDepth
+        , newLine
+        , "}"
+        ]
 
 
 {-| Map a type expression to text.
@@ -75,6 +89,9 @@ mapTypeExp opt typeExp =
 
         Number ->
             "number"
+
+        Object fieldList ->
+            mapObjectExp opt fieldList
 
         String ->
             "string"
