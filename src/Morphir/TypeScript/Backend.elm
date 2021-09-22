@@ -183,6 +183,9 @@ mapTypeExp tpe =
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
             TS.String
 
+        Type.Tuple _ tupleTypesList ->
+            TS.Tuple (List.map mapTypeExp tupleTypesList)
+
         Type.Reference _ ( packageName, moduleName, localName ) [] ->
             TS.TypeRef (localName |> Name.toTitleCase)
 
@@ -191,9 +194,6 @@ mapTypeExp tpe =
 
         Type.Variable a name ->
             TS.UnhandledType ("Variable (" ++ Name.toCamelCase name ++ ")")
-
-        Type.Tuple a elemTypes ->
-            TS.UnhandledType "Tuple"
 
         Type.Record a fields ->
             TS.UnhandledType "Record"

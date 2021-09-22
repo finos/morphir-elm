@@ -46,6 +46,7 @@ type TypeExp
     | LiteralString String
     | Number
     | String
+    | Tuple (List TypeExp)
     | TypeRef String
     | Union (List TypeExp)
     | UnhandledType String
