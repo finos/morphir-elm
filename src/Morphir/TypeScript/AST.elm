@@ -1,6 +1,6 @@
 module Morphir.TypeScript.AST exposing
     ( TypeDef(..), TypeExp(..)
-    , CompilationUnit, ObjectExp
+    , CompilationUnit, ObjectExp, Privacy(..)
     )
 
 {-| This module contains the TypeScript AST (Abstract Syntax Tree). The purpose of this AST is to make it easier to
@@ -24,11 +24,18 @@ type alias CompilationUnit =
     }
 
 
+{-| Represents either a public or a private entity
+-}
+type Privacy
+    = Public
+    | Private
+
+
 {-| Represents a type definition.
 -}
 type TypeDef
-    = TypeAlias String String (List String) TypeExp -- (Doc, Name, Variables, TypeExpression)
-    | Interface String (List String) ObjectExp -- (Name, Variables, FieldList)
+    = TypeAlias Privacy String String (List TypeExp) TypeExp -- (Public/Private, Doc, Name, Variables, TypeExpression)
+    | Interface Privacy String (List TypeExp) ObjectExp -- (Public/Private, Name, Variables, FieldList)
 
 
 {-| A type expression represents the right-hand side of a type annotation or a type alias.
@@ -48,7 +55,7 @@ type TypeExp
     | Object ObjectExp
     | String
     | Tuple (List TypeExp)
-    | TypeRef String (List String)
+    | TypeRef String (List TypeExp)
     | Union (List TypeExp)
     | Variable String
     | UnhandledType String

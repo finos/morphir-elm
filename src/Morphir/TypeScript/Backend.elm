@@ -88,8 +88,8 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
 
 {-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
 -}
-mapConstructor : List String -> ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
-mapConstructor variableStrings ( ctorName, ctorArgs ) =
+mapConstructor : TS.Privacy -> List TS.TypeExp -> ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
+mapConstructor privacy variables ( ctorName, ctorArgs ) =
     let
         nameInTitleCase =
             ctorName |> Name.toTitleCase
@@ -105,8 +105,9 @@ mapConstructor variableStrings ( ctorName, ctorArgs ) =
                     )
     in
     TS.Interface
+        privacy
         nameInTitleCase
-        variableStrings
+        variables
         (kindField :: otherFields)
 
 
@@ -118,13 +119,22 @@ mapTypeDefinition name typeDef =
     let
         doc =
             typeDef.value.doc
+
+        privacy =
+            case typeDef.access of
+                Public ->
+                    TS.Public
+
+                Private ->
+                    TS.Private
     in
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
             [ TS.TypeAlias
+                privacy
                 doc
                 (name |> Name.toTitleCase)
-                (variables |> List.map Name.toCamelCase)
+                (variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var))
                 (typeExp |> mapTypeExp)
             ]
 
@@ -133,8 +143,8 @@ mapTypeDefinition name typeDef =
                 typeName =
                     name |> Name.toTitleCase
 
-                variableStrings =
-                    variables |> List.map Name.toCamelCase
+                tsVariables =
+                    variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
 
                 constructors =
                     accessControlledConstructors.value
@@ -147,7 +157,7 @@ mapTypeDefinition name typeDef =
 
                 constructorInterfaces =
                     constructors
-                        |> List.map (mapConstructor variableStrings)
+                        |> List.map (mapConstructor privacy tsVariables)
 
                 union =
                     if List.all ((==) typeName) constructorNames then
@@ -156,14 +166,15 @@ mapTypeDefinition name typeDef =
                     else
                         List.singleton
                             (TS.TypeAlias
+                                privacy
                                 doc
                                 typeName
-                                variableStrings
+                                tsVariables
                                 (TS.Union
                                     (constructors
                                         |> List.map
                                             (\( ctorName, _ ) ->
-                                                TS.TypeRef (ctorName |> Name.toTitleCase) variableStrings
+                                                TS.TypeRef (ctorName |> Name.toTitleCase) tsVariables
                                             )
                                     )
                                 )
@@ -207,17 +218,14 @@ mapTypeExp tpe =
         Type.Tuple _ tupleTypesList ->
             TS.Tuple (List.map mapTypeExp tupleTypesList)
 
-        Type.Reference _ ( packageName, moduleName, localName ) [] ->
-            TS.TypeRef (localName |> Name.toTitleCase) []
+        Type.Reference _ ( packageName, moduleName, localName ) typeList ->
+            TS.TypeRef (localName |> Name.toTitleCase) (typeList |> List.map mapTypeExp)
 
         Type.Unit _ ->
             TS.Tuple []
 
         Type.Variable _ name ->
             TS.Variable (Name.toCamelCase name)
-
-        Type.Reference _ fqName _ ->
-            TS.UnhandledType ("Reference " ++ FQName.toString fqName ++ ")")
 
         Type.ExtensibleRecord a argName fields ->
             TS.UnhandledType "ExtensibleRecord"
