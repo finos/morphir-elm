@@ -36,32 +36,37 @@ mapCompilationUnit opt cu =
 
 {-| Map a type definition to text.
 -}
+mapGenericVariables : List String -> String
+mapGenericVariables variables =
+    case List.length variables of
+        0 ->
+            ""
+
+        _ ->
+            concat
+                [ "<"
+                , String.join ", " variables
+                , ">"
+                ]
+
+
 mapTypeDef : Options -> TypeDef -> Doc
 mapTypeDef opt typeDef =
     case typeDef of
         TypeAlias name variables typeExp ->
-            let
-                mappedVariables =
-                    case List.length variables of
-                        0 ->
-                            ""
+            concat
+                [ "type "
+                , name
+                , mapGenericVariables variables
+                , " = "
+                , mapTypeExp opt typeExp
+                ]
 
-                        _ ->
-                            concat
-                                [ "<"
-                                , String.join ", " variables
-                                , ">"
-                                ]
-
-                mappedExpression =
-                    mapTypeExp opt typeExp
-            in
-            concat [ "type ", name, mappedVariables, " = ", mappedExpression ]
-
-        Interface name fields ->
+        Interface name variables fields ->
             concat
                 [ "interface "
                 , name
+                , mapGenericVariables variables
                 , mapObjectExp opt fields
                 ]
 
@@ -121,8 +126,8 @@ mapTypeExp opt typeExp =
                 , "]"
                 ]
 
-        TypeRef name ->
-            name
+        TypeRef name variables ->
+            name ++ mapGenericVariables variables
 
         Union types ->
             types |> List.map (mapTypeExp opt) |> String.join " | "

@@ -28,7 +28,7 @@ type alias CompilationUnit =
 -}
 type TypeDef
     = TypeAlias String (List String) TypeExp
-    | Interface String ObjectExp
+    | Interface String (List String) ObjectExp
 
 
 {-| A type expression represents the right-hand side of a type annotation or a type alias.
@@ -48,7 +48,7 @@ type TypeExp
     | Object ObjectExp
     | String
     | Tuple (List TypeExp)
-    | TypeRef String
+    | TypeRef String (List String)
     | Union (List TypeExp)
     | Variable String
     | UnhandledType String
