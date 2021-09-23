@@ -115,9 +115,14 @@ some Morphir type definitions can only be represented by a combination of multip
 -}
 mapTypeDefinition : Name -> AccessControlled (Documented (Type.Definition ta)) -> List TS.TypeDef
 mapTypeDefinition name typeDef =
+    let
+        doc =
+            typeDef.value.doc
+    in
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
             [ TS.TypeAlias
+                doc
                 (name |> Name.toTitleCase)
                 (variables |> List.map Name.toCamelCase)
                 (typeExp |> mapTypeExp)
@@ -151,6 +156,7 @@ mapTypeDefinition name typeDef =
                     else
                         List.singleton
                             (TS.TypeAlias
+                                doc
                                 typeName
                                 variableStrings
                                 (TS.Union
@@ -163,7 +169,7 @@ mapTypeDefinition name typeDef =
                                 )
                             )
             in
-            constructorInterfaces ++ union
+            union ++ constructorInterfaces
 
 
 {-| Map a Morphir type expression into a TypeScript type expression.

@@ -53,9 +53,19 @@ mapGenericVariables variables =
 mapTypeDef : Options -> TypeDef -> Doc
 mapTypeDef opt typeDef =
     case typeDef of
-        TypeAlias name variables typeExp ->
+        TypeAlias doc name variables typeExp ->
+            let
+                docstring =
+                    if String.length doc > 0 then
+                        String.concat [ "/*", doc, "*/" ]
+
+                    else
+                        ""
+            in
             concat
-                [ "type "
+                [ docstring
+                , newLine
+                , "type "
                 , name
                 , mapGenericVariables variables
                 , " = "
