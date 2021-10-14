@@ -1,4 +1,4 @@
-module Morphir.TypeScript.BackendTests exposing (mapTypeDefinitionTests)
+module Morphir.TypeScript.Backend.MapTypeTests exposing (mapTypeDefinitionTests)
 
 import Dict
 import Expect
@@ -6,6 +6,7 @@ import Morphir.IR.AccessControlled exposing (public)
 import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.FQName as FQName
 import Morphir.IR.Name as Name
+import Morphir.IR.Package as Package
 import Morphir.IR.Path as Path
 import Morphir.IR.SDK.String exposing (stringType)
 import Morphir.IR.Type as Type
@@ -16,7 +17,8 @@ import Test exposing (Test, describe, test)
 
 localFQName : String -> FQName.FQName
 localFQName local =
-    (Path.fromList [], Path.fromList [], Name.fromString local)
+    ( Path.fromList [], Path.fromList [], Name.fromString local )
+
 
 mapTypeDefinitionTests : Test
 mapTypeDefinitionTests =
@@ -26,8 +28,8 @@ mapTypeDefinitionTests =
                 mapTypeDefinition [ "my", "foo" ]
                     (public
                         (Documented
-                             ""
-                             (Type.CustomTypeDefinition []
+                            ""
+                            (Type.CustomTypeDefinition []
                                 (public
                                     (Dict.fromList
                                         [ ( Name.fromString "bar", [] )
@@ -42,23 +44,24 @@ mapTypeDefinitionTests =
                     )
                     |> Expect.equal
                         [ TS.TypeAlias
-                            { name = (Name.fromString "MyFoo")
+                            { name = Name.fromString "MyFoo"
                             , doc = ""
                             , privacy = TS.Public
                             , variables = []
-                            , typeExpression = (TS.Union
-                                [ TS.TypeRef (localFQName "Bar") []
-                                , TS.TypeRef (localFQName "Baz") []
-                                ])
+                            , typeExpression =
+                                TS.Union
+                                    [ TS.TypeRef (localFQName "Bar") []
+                                    , TS.TypeRef (localFQName "Baz") []
+                                    ]
                             }
                         , TS.Interface
-                            { name = (Name.fromString "Bar")
+                            { name = Name.fromString "Bar"
                             , privacy = TS.Public
                             , variables = []
                             , fields = [ ( "kind", TS.LiteralString "Bar" ) ]
                             }
                         , TS.Interface
-                            { name = (Name.fromString "Baz")
+                            { name = Name.fromString "Baz"
                             , privacy = TS.Public
                             , variables = []
                             , fields =
@@ -92,5 +95,5 @@ mapTypeDefinitionTests =
                             , fields = [ ( "kind", TS.LiteralString "SameName" ) ]
                             }
                         ]
-             )
+            )
         ]
