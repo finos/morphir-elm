@@ -232,6 +232,71 @@ mapColumnExpression value =
                 "Morphir.SDK:Basics:equal" ->
                     Scala.BinOp (mapColumnExpression arg1) "===" (mapColumnExpression arg2)
 
+                "Morphir.SDK:Basics:notEqual" ->
+                    Scala.BinOp (mapColumnExpression arg1) "=!=" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:add" ->
+                    Scala.BinOp (mapColumnExpression arg1) "+" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:subtract" ->
+                    Scala.BinOp (mapColumnExpression arg1) "-" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:multiply" ->
+                    Scala.BinOp (mapColumnExpression arg1) "*" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:divide" ->
+                    Scala.BinOp (mapColumnExpression arg1) "/" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:power" ->
+                    Scala.BinOp (mapColumnExpression arg1) "pow" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:modBy" ->
+                    Scala.BinOp (mapColumnExpression arg1) "mod" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:remainderBy" ->
+                    Scala.BinOp (mapColumnExpression arg1) "%" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:logBase" ->
+                    Scala.BinOp (mapColumnExpression arg1) "log" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:atan2" ->
+                    Scala.BinOp (mapColumnExpression arg1) "atan2" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:lessThan" ->
+                    Scala.BinOp (mapColumnExpression arg1) "<" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:greaterThan" ->
+                    Scala.BinOp (mapColumnExpression arg1) ">" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:lessThanOrEqual" ->
+                    Scala.BinOp (mapColumnExpression arg1) "<=" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:greaterThanOrEqual" ->
+                    Scala.BinOp (mapColumnExpression arg1) ">=" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:max" ->
+                    Scala.BinOp (mapColumnExpression arg1) "max" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:min" ->
+                    Scala.BinOp (mapColumnExpression arg1) "min" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:and" ->
+                    Scala.BinOp (mapColumnExpression arg1) "and" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:or" ->
+                    Scala.BinOp (mapColumnExpression arg1) "or" (mapColumnExpression arg2)
+
+                "Morphir.SDK:Basics:xor" ->
+                    Scala.BinOp (mapColumnExpression arg1) "xor" (mapColumnExpression arg2)
+
+                _ ->
+                    default value
+
+        Value.Apply _ (Value.Reference _ fqn) arg1 ->
+            case FQName.toString fqn of
+                "Morphir.SDK:Basics:not" ->
+                    Scala.UnOp "!" (mapColumnExpression arg1)
+
                 _ ->
                     default value
 

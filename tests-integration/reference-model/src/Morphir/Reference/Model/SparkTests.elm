@@ -55,3 +55,14 @@ testSelect1 source =
                         "baz"
                 }
             )
+
+
+testSparkAddOp : List Record1 -> List { age : Int, nickname : String }
+testSparkAddOp source =
+    source
+        |> List.map
+            (\a ->
+                { age = a.age - add 1 10 - 2 + 2
+                , nickname = a.firstName
+                }
+            )
