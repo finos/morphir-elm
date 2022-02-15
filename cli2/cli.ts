@@ -60,7 +60,7 @@ async function packageDefinitionFromSource(parsedMorphirJson :any, sourcedFiles 
             reject(err)
         })
 
-        worker.ports.packageDefinitionFromSourceResult.subscribe(([err, ok]: string) => {
+        worker.ports.packageDefinitionFromSourceResult.subscribe(([err, ok]: any) => {
             if (err) {
                 reject(err)
             } else {
