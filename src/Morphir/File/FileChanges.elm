@@ -1,6 +1,8 @@
 module Morphir.File.FileChanges exposing (..)
 
 import Dict exposing (Dict)
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode
 
 
 type alias Path =
@@ -17,7 +19,7 @@ It should serialize into this JSON format:
 
 -}
 type alias FileChanges =
-    Dict String Change
+    Dict Path Change
 
 
 type Change
