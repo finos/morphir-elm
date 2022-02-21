@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * Morphir make command
- * This command firstly, the files in the source directory,  pointed to as it read the morphir.json file.
- * These files are read and hashed, and these has
+ *TO-DO
+ *Deleted files
  */
 
 import * as fs from 'fs';
@@ -15,45 +14,38 @@ const readDir = util.promisify(fs.readdir)
 const makeDir = util.promisify(fs.mkdir)
 const readFile = util.promisify(fs.readFile)
 const accessFile = util.promisify(fs.access)
+const appendFile = util.promisify(fs.appendFile)
 
-// const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.Cli.init()
-const worker = require('./../Morphir.Elm.CLI').Elm.Morphir.Elm.CLI.init()
+const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.Cli.init()
+// const worker = require('./../Morphir.Elm.CLI').Elm.Morphir.Elm.CLI.init()
 
 async function make(projectDir: string, options: any) {
-    const morphirJsonPath :string = path.join(projectDir, 'morphir.json')
-    const morphirJsonContent  = await readFile(morphirJsonPath)
+    const morphirJsonPath: string = path.join(projectDir, 'morphir.json')
+    const morphirJsonContent = await readFile(morphirJsonPath)
     const parsedMorphirJson = JSON.parse(morphirJsonContent.toString())
-    
+
     // All the files in the src directory are read
     const sourcedFiles = await readElmSourceFiles(path.join(projectDir, parsedMorphirJson.sourceDirectory))
 
     //To check if the morphir-ir.json already exists
-    const morphirIrPath :string = path.join(projectDir, 'morphir-ir.json')
-    accessFile(morphirIrPath, fs.constants.F_OK)
-    .then(fileExists =>{
-        //here, the morphir-ir along with the files that changed will be passed to the worker
+    const morphirIrPath: string = path.join(projectDir, 'morphir-ir.json')
+    try {
+        await accessFile(morphirIrPath, fs.constants.F_OK)
         console.log(`${morphirIrPath}, will be passed to the worker along side changed to update the ir`)
-    })
-    .catch(err =>{
-        packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options)
+    } catch (err) {
         console.log(`${err}, not found`)
-        // throw err
-    })
+        return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options)
+    }
     // return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options)
 }
 
 //generating a hash with md5 algorithm for the content of the read file
-const createHashFile = (contentOfFile: any) =>{
+const createHashFile = (contentOfFile: any) => {
     let hash = crypto.createHash('md5');
     let data = hash.update(contentOfFile, 'utf-8')
     let gen_hash = data.digest('hex')
     return gen_hash;
 }
-
-// const updateJson = (obj: any, oldkey: string, newkey: string)=>{
-//     obj[newkey] = obj[oldkey]
-//     delete obj[oldkey]
-// }
 
 async function packageDefinitionFromSource(parsedMorphirJson :any, sourcedFiles :any, options:any, ) {
     return new Promise((resolve, reject) => {
@@ -77,79 +69,81 @@ async function packageDefinitionFromSource(parsedMorphirJson :any, sourcedFiles 
     })
 }
 
-async function readElmSourceFiles(dir:string) {
-    let map = new Map<string,string>();
-    const readSourceFile = async function (filePath:string) {
-        console.log(filePath, 'this is filepath')
-        const hashFilePath :string = path.join(dir, '../morphir-hash.json')
-        accessFile(hashFilePath, fs.constants.F_OK)
-        .then(async () =>{
-            const readHashFile = await readFile(hashFilePath)
-            let elorm = JSON.parse(readHashFile.toString())
-            const readContent = await readFile(filePath)
-            const hash = createHashFile(readContent)
-            map.set(filePath, hash)
-            if(elorm[filePath]){
-                if(elorm[filePath]== map.get(filePath)){
-                    console.log('exists and is equal')
-                    elorm[filePath] = map.get(filePath)
-                    return {
-                        path: filePath,
-                        content: elorm
-                    }
-                }else if(elorm[filePath] !== map.get(filePath)){
-                    console.log('exists and is not equal')
-                    console.log(map.get(filePath))
-                    elorm[filePath] = map.get(filePath)
-                    return {
-                        path: filePath,
-                        content: elorm
-                    }
-                }
-            }else if(!elorm[filePath]){
-                delete elorm[filePath]
-                return {
-                    path: filePath,
-                    content: elorm
-                }
-            }
-        })
-        .catch(async () =>{
-            const readContent = await readFile(filePath)
-            const hash = createHashFile(readContent)
-            map.set(filePath, hash)
-            let jsonObject = Object.fromEntries(map)
-            await fsWriteFile(hashFilePath,JSON.stringify(jsonObject, null, 3))
-            const readHashFile = await readFile(hashFilePath)
-            let elorm = JSON.parse(readHashFile.toString())
-            return{
-                path: filePath,
-                content: elorm
-            }
-        })
+async function differenceInPathAndHash(hashFilePath: string, filePath: string, fileChange: string,
+    fileHash: Map<string, string>, fileChangesMap: Map<string, Array<string>>) {
+    const readHashFile = await readFile(hashFilePath)
+    let hashJson = JSON.parse(readHashFile.toString())
+    for (let key in hashJson) {
+        fileHash.set(key, hashJson[key])
     }
-        const readDirectory = async function (currentDir:string) {
-            const entries = await readDir(currentDir,{
-                withFileTypes:true
-            })
-            const elmSources =
+    const readContent = await readFile(filePath)
+    const hash = createHashFile(readContent)
+    if (fileHash.has(filePath)) {
+        if (fileHash.get(filePath)) {
+            if (fileHash.get(filePath) !== hash) {
+                fileHash.set(filePath, hash)
+                fileChangesMap.set(filePath, ['Updated', readContent.toString()])
+            }
+        }
+    }
+    else {
+        fileHash.set(filePath, hash)
+        fileChangesMap.set(filePath, ['Insert', readContent.toString()])
+    }
+
+    let fileChangeObject = Object.fromEntries(fileChangesMap)
+    await fsWriteFile(fileChange, JSON.stringify(fileChangeObject, null, 2))
+
+    let jsonObject = Object.fromEntries(fileHash)
+    await fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2))
+
+    const fileChangeJson = await readFile(fileChange)
+    return fileChangeJson
+}
+
+async function readElmSourceFiles(dir: string) {
+    let fileHash = new Map<string, string>();
+    let fileChangesMap = new Map<string, Array<string>>()
+    const hashFilePath: string = path.join(dir, '../morphir-hash.json')
+    const fileChange: string = path.join(dir, '../fileChange.json')
+    const readSourceFile = async function (filePath: string) {
+        try {
+            await accessFile(hashFilePath, fs.constants.F_OK)
+            await differenceInPathAndHash(hashFilePath, filePath, fileChange, fileHash, fileChangesMap)
+        } catch (err) {
+            const readContent = await readFile(filePath)
+            const hash = createHashFile(readContent)
+            fileHash.set(filePath, hash)
+            let jsonObject = Object.fromEntries(fileHash)
+            await fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2))
+            return {
+                path: filePath,
+                content: readContent.toString()
+            }
+        }
+    }
+    const readDirectory = async function (currentDir: string) {
+        const entries = await readDir(currentDir, {
+            withFileTypes: true
+        })
+        const elmSources =
             entries
                 .filter(entry => entry.isFile() && entry.name.endsWith('.elm'))
                 .map(async entry => {
-                    readSourceFile(path.join(currentDir,entry.name))
+                    readSourceFile(path.join(currentDir, entry.name))
                 })
-            const subDirectories: any = 
+        const subDirectories: any =
             entries
                 .filter(entry => entry.isDirectory())
-                .map(entry => readDirectory(path.join(currentDir,entry.name)))
+                .map(entry => readDirectory(path.join(currentDir, entry.name)))
                 .reduce(async (currentResult, nextResult) => {
                     const current = await currentResult
                     const next = await nextResult
                     return current.concat(next)
                 }, Promise.resolve([]))
-            return elmSources.concat(await subDirectories)
-        }
-        return Promise.all(await readDirectory(dir))
+        return elmSources.concat(await subDirectories)
+    }
+    return Promise.all(await readDirectory(dir))
 }
 
 async function writeFile(filePath: string, content: string) {
@@ -159,4 +153,4 @@ async function writeFile(filePath: string, content: string) {
     return await fsWriteFile(filePath, content)
 }
 
-export = {make,writeFile}
+export = { make, writeFile }

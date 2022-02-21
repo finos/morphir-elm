@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 "use strict";
 /**
- * Morphir make command
- * This command firstly, the files in the source directory,  pointed to as it read the morphir.json file.
- * These files are read and hashed, and these has
+ *TO-DO
+ *Deleted files
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -42,8 +41,9 @@ const readDir = util.promisify(fs.readdir);
 const makeDir = util.promisify(fs.mkdir);
 const readFile = util.promisify(fs.readFile);
 const accessFile = util.promisify(fs.access);
-// const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.Cli.init()
-const worker = require('./../Morphir.Elm.CLI').Elm.Morphir.Elm.CLI.init();
+const appendFile = util.promisify(fs.appendFile);
+const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.Cli.init();
+// const worker = require('./../Morphir.Elm.CLI').Elm.Morphir.Elm.CLI.init()
 function make(projectDir, options) {
     return __awaiter(this, void 0, void 0, function* () {
         const morphirJsonPath = path.join(projectDir, 'morphir.json');
@@ -53,16 +53,14 @@ function make(projectDir, options) {
         const sourcedFiles = yield readElmSourceFiles(path.join(projectDir, parsedMorphirJson.sourceDirectory));
         //To check if the morphir-ir.json already exists
         const morphirIrPath = path.join(projectDir, 'morphir-ir.json');
-        accessFile(morphirIrPath, fs.constants.F_OK)
-            .then(fileExists => {
-            //here, the morphir-ir along with the files that changed will be passed to the worker
+        try {
+            yield accessFile(morphirIrPath, fs.constants.F_OK);
             console.log(`${morphirIrPath}, will be passed to the worker along side changed to update the ir`);
-        })
-            .catch(err => {
-            packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options);
+        }
+        catch (err) {
             console.log(`${err}, not found`);
-            // throw err
-        });
+            return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options);
+        }
         // return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options)
     });
 }
@@ -73,10 +71,6 @@ const createHashFile = (contentOfFile) => {
     let gen_hash = data.digest('hex');
     return gen_hash;
 };
-// const updateJson = (obj: any, oldkey: string, newkey: string)=>{
-//     obj[newkey] = obj[oldkey]
-//     delete obj[oldkey]
-// }
 function packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options) {
     return __awaiter(this, void 0, void 0, function* () {
         return new Promise((resolve, reject) => {
@@ -98,60 +92,58 @@ function packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options) {
         });
     });
 }
+function differenceInPathAndHash(hashFilePath, filePath, fileChange, fileHash, fileChangesMap) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const readHashFile = yield readFile(hashFilePath);
+        let hashJson = JSON.parse(readHashFile.toString());
+        for (let key in hashJson) {
+            fileHash.set(key, hashJson[key]);
+        }
+        const readContent = yield readFile(filePath);
+        const hash = createHashFile(readContent);
+        if (fileHash.has(filePath)) {
+            if (fileHash.get(filePath)) {
+                if (fileHash.get(filePath) !== hash) {
+                    fileHash.set(filePath, hash);
+                    fileChangesMap.set(filePath, ['Updated', readContent.toString()]);
+                }
+            }
+        }
+        else {
+            fileHash.set(filePath, hash);
+            fileChangesMap.set(filePath, ['Insert', readContent.toString()]);
+        }
+        let fileChangeObject = Object.fromEntries(fileChangesMap);
+        yield fsWriteFile(fileChange, JSON.stringify(fileChangeObject, null, 2));
+        let jsonObject = Object.fromEntries(fileHash);
+        yield fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2));
+        const fileChangeJson = yield readFile(fileChange);
+        return fileChangeJson;
+    });
+}
 function readElmSourceFiles(dir) {
     return __awaiter(this, void 0, void 0, function* () {
-        let map = new Map();
+        let fileHash = new Map();
+        let fileChangesMap = new Map();
+        const hashFilePath = path.join(dir, '../morphir-hash.json');
+        const fileChange = path.join(dir, '../fileChange.json');
         const readSourceFile = function (filePath) {
             return __awaiter(this, void 0, void 0, function* () {
-                console.log(filePath, 'this is filepath');
-                const hashFilePath = path.join(dir, '../morphir-hash.json');
-                accessFile(hashFilePath, fs.constants.F_OK)
-                    .then(() => __awaiter(this, void 0, void 0, function* () {
-                    const readHashFile = yield readFile(hashFilePath);
-                    let elorm = JSON.parse(readHashFile.toString());
+                try {
+                    yield accessFile(hashFilePath, fs.constants.F_OK);
+                    yield differenceInPathAndHash(hashFilePath, filePath, fileChange, fileHash, fileChangesMap);
+                }
+                catch (err) {
                     const readContent = yield readFile(filePath);
                     const hash = createHashFile(readContent);
-                    map.set(filePath, hash);
-                    if (elorm[filePath]) {
-                        if (elorm[filePath] == map.get(filePath)) {
-                            console.log('exists and is equal');
-                            elorm[filePath] = map.get(filePath);
-                            return {
-                                path: filePath,
-                                content: elorm
-                            };
-                        }
-                        else if (elorm[filePath] !== map.get(filePath)) {
-                            console.log('exists and is not equal');
-                            console.log(map.get(filePath));
-                            elorm[filePath] = map.get(filePath);
-                            return {
-                                path: filePath,
-                                content: elorm
-                            };
-                        }
-                    }
-                    else if (!elorm[filePath]) {
-                        delete elorm[filePath];
-                        return {
-                            path: filePath,
-                            content: elorm
-                        };
-                    }
-                }))
-                    .catch(() => __awaiter(this, void 0, void 0, function* () {
-                    const readContent = yield readFile(filePath);
-                    const hash = createHashFile(readContent);
-                    map.set(filePath, hash);
-                    let jsonObject = Object.fromEntries(map);
-                    yield fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 3));
-                    const readHashFile = yield readFile(hashFilePath);
-                    let elorm = JSON.parse(readHashFile.toString());
+                    fileHash.set(filePath, hash);
+                    let jsonObject = Object.fromEntries(fileHash);
+                    yield fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2));
                     return {
                         path: filePath,
-                        content: elorm
+                        content: readContent.toString()
                     };
-                }));
+                }
             });
         };
         const readDirectory = function (currentDir) {
