@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  *TO-DO
- *Deleted files
+ *Deleted files into the filchanges
  */
 
 import * as fs from 'fs';
