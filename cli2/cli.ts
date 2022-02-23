@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- *TO-DO
- *Deleted files into the filchanges
- */
 
 import * as fs from 'fs';
 import * as util from 'util';
@@ -66,14 +62,18 @@ async function packageDefinitionFromSource(parsedMorphirJson :any, sourcedFiles 
     })
 }
 
-async function differenceInPathAndHash(hashFilePath: string, filePath: string,
-    fileHash: Map<string, string>, fileChangesMap: Map<string, Array<string>>, readHashFile: Buffer) {
-    let hashJson = JSON.parse(readHashFile.toString())
+function pathDifference(keys1: Array<string>, keys2: Array<string>) {
+    return keys1.filter(item => keys2.indexOf(item) < 0)
+}
+
+async function differenceAndHash(hashFilePath: string, filePath: string,
+    fileHash: Map<string, string>, fileChangesMap: Map<string, Array<string>>, hashJson: any) {
+
+    const readContent = await readFile(filePath)
+    const hash = hashedContent(readContent)
     for (let key in hashJson) {
         fileHash.set(key, hashJson[key])
     }
-    const readContent = await readFile(filePath)
-    const hash = hashedContent(readContent)
     if (fileHash.has(filePath)) {
         if (fileHash.get(filePath)) {
             if (fileHash.get(filePath) !== hash) {
@@ -86,24 +86,32 @@ async function differenceInPathAndHash(hashFilePath: string, filePath: string,
         fileHash.set(filePath, hash)
         fileChangesMap.set(filePath, ['Insert', readContent.toString()])
     }
-
-    let fileChangeObject = Object.fromEntries(fileChangesMap)
-
     let jsonObject = Object.fromEntries(fileHash)
     await fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2))
-
+    let fileChangeObject = Object.fromEntries(fileChangesMap)
     return fileChangeObject
 }
 
 async function readElmSourceFiles(dir: string) {
     let fileHash = new Map<string, string>();
     let fileChangesMap = new Map<string, Array<string>>()
-    const hashFilePath: string = path.join(dir, '../morphir-hash.json')
-    const readHashFile = await readFile(hashFilePath)
+    let keys2: Array<string> = []
     const readSourceFile = async function (filePath: string) {
+        const hashFilePath: string = path.join(dir, '../morphir-hash.json')
+        keys2.push(filePath)
         try {
-            await accessFile(hashFilePath, fs.constants.F_OK)
-            await differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMap, readHashFile)
+            await accessFile(hashFilePath)
+            const readHashFile = await readFile(hashFilePath)
+            let hashJson = JSON.parse(readHashFile.toString())
+            let keys1 = Object.keys(hashJson)
+            await differenceAndHash(hashFilePath, filePath, fileHash, fileChangesMap, hashJson)
+            let missing = pathDifference(keys1, keys2)
+            missing.map(file => {
+                fileHash.delete(file)
+                fileChangesMap.set(file, ['Deleted', 'No content'])
+            })
+            let jsonObject = Object.fromEntries(fileHash)
+            await fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2))
         } catch (err) {
             const readContent = await readFile(filePath)
             const hash = hashedContent(readContent)

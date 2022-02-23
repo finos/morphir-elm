@@ -41,7 +41,7 @@ const readDir = util.promisify(fs.readdir);
 const makeDir = util.promisify(fs.mkdir);
 const readFile = util.promisify(fs.readFile);
 const accessFile = util.promisify(fs.access);
-const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.Cli.init();
+// const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.Cli.init()
 function make(projectDir, options) {
     return __awaiter(this, void 0, void 0, function* () {
         const morphirJsonPath = path.join(projectDir, 'morphir.json');
@@ -57,7 +57,7 @@ function make(projectDir, options) {
         }
         catch (err) {
             console.log(`${err}, not found`);
-            return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options);
+            // return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options)
         }
     });
 }
@@ -68,35 +68,53 @@ const hashedContent = (contentOfFile) => {
     let gen_hash = data.digest('hex');
     return gen_hash;
 };
-function packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return new Promise((resolve, reject) => {
-            worker.ports.jsonDecodeError.subscribe((err) => {
-                reject(err);
-            });
-            worker.ports.packageDefinitionFromSourceResult.subscribe(([err, ok]) => {
-                if (err) {
-                    reject(err);
-                }
-                else {
-                    resolve(ok);
-                }
-            });
-            const opts = {
-                typesOnly: options.typesOnly
-            };
-            worker.ports.packageDefinitionFromSource.send([opts, parsedMorphirJson, sourcedFiles]);
-        });
-    });
+// async function packageDefinitionFromSource(parsedMorphirJson :any, sourcedFiles :any, options:any, ) {
+//     return new Promise((resolve, reject) => {
+//         worker.ports.jsonDecodeError.subscribe((err: any) => {
+//             reject(err)
+//         })
+//         worker.ports.packageDefinitionFromSourceResult.subscribe(([err, ok]: any) => {
+//             if (err) {
+//                 reject(err)
+//             } else {
+//                 resolve(ok)
+//             }
+//         })
+//         const opts = {
+//             typesOnly: options.typesOnly
+//         }
+//         worker.ports.packageDefinitionFromSource.send([opts, parsedMorphirJson, sourcedFiles])
+//     })
+// }
+function remove(keys, filePath) {
+    const index = keys.indexOf(filePath);
+    if (index > -1) {
+        keys.splice(index, 1); // 2nd parameter means remove one item only
+    }
 }
-function differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMap, readHashFile) {
+function pathDifference(keys1, keys2) {
+    return keys1.filter(item => keys2.indexOf(item) < 0);
+    // .map(missing=>{
+    //     fileHash.delete(missing)
+    //     console.log(missing, 'inside function')
+    //     // fileChangesMap.set(missing, ['Deleted', 'No content'])
+    // })
+}
+function differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMap, hashJson) {
     return __awaiter(this, void 0, void 0, function* () {
-        let hashJson = JSON.parse(readHashFile.toString());
-        for (let key in hashJson) {
-            fileHash.set(key, hashJson[key]);
-        }
         const readContent = yield readFile(filePath);
         const hash = hashedContent(readContent);
+        // let keys1 = Object.keys(hashJson)
+        // keys2.push(filePath)
+        for (let key in hashJson) {
+            fileHash.set(key, hashJson[key]);
+            // console.log(key, 'key1')
+            // if (fileHash.get(key) == hash) {
+            //     fileHash.delete(key)
+            //     fileHash.set(filePath, hash)
+            //     fileChangesMap.set(key, ['Deleted', 'No content'])
+            // }
+        }
         if (fileHash.has(filePath)) {
             if (fileHash.get(filePath)) {
                 if (fileHash.get(filePath) !== hash) {
@@ -109,9 +127,11 @@ function differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMa
             fileHash.set(filePath, hash);
             fileChangesMap.set(filePath, ['Insert', readContent.toString()]);
         }
-        let fileChangeObject = Object.fromEntries(fileChangesMap);
+        // console.log(pathDifference(keys1,keys2,fileHash))
         let jsonObject = Object.fromEntries(fileHash);
         yield fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2));
+        let fileChangeObject = Object.fromEntries(fileChangesMap);
+        // console.log(fileChangeObject, 'file changes')
         return fileChangeObject;
     });
 }
@@ -119,13 +139,26 @@ function readElmSourceFiles(dir) {
     return __awaiter(this, void 0, void 0, function* () {
         let fileHash = new Map();
         let fileChangesMap = new Map();
-        const hashFilePath = path.join(dir, '../morphir-hash.json');
-        const readHashFile = yield readFile(hashFilePath);
+        let keys2 = [];
         const readSourceFile = function (filePath) {
             return __awaiter(this, void 0, void 0, function* () {
+                const hashFilePath = path.join(dir, '../morphir-hash.json');
+                keys2.push(filePath);
                 try {
-                    yield accessFile(hashFilePath, fs.constants.F_OK);
-                    yield differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMap, readHashFile);
+                    yield accessFile(hashFilePath);
+                    const readHashFile = yield readFile(hashFilePath);
+                    let hashJson = JSON.parse(readHashFile.toString());
+                    let keys1 = Object.keys(hashJson);
+                    yield differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMap, hashJson);
+                    let missing = pathDifference(keys1, keys2);
+                    console.log(missing);
+                    missing.map(file => {
+                        fileHash.delete(file);
+                        fileChangesMap.set(file, ['Deleted', 'No content']);
+                    });
+                    console.log(fileChangesMap);
+                    let jsonObject = Object.fromEntries(fileHash);
+                    yield fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2));
                 }
                 catch (err) {
                     const readContent = yield readFile(filePath);
