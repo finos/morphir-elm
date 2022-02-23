@@ -14,10 +14,8 @@ const readDir = util.promisify(fs.readdir)
 const makeDir = util.promisify(fs.mkdir)
 const readFile = util.promisify(fs.readFile)
 const accessFile = util.promisify(fs.access)
-const appendFile = util.promisify(fs.appendFile)
 
 const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.Cli.init()
-// const worker = require('./../Morphir.Elm.CLI').Elm.Morphir.Elm.CLI.init()
 
 async function make(projectDir: string, options: any) {
     const morphirJsonPath: string = path.join(projectDir, 'morphir.json')
@@ -36,11 +34,10 @@ async function make(projectDir: string, options: any) {
         console.log(`${err}, not found`)
         return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options)
     }
-    // return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options)
 }
 
 //generating a hash with md5 algorithm for the content of the read file
-const createHashFile = (contentOfFile: any) => {
+const hashedContent = (contentOfFile: any) => {
     let hash = crypto.createHash('md5');
     let data = hash.update(contentOfFile, 'utf-8')
     let gen_hash = data.digest('hex')
@@ -69,15 +66,14 @@ async function packageDefinitionFromSource(parsedMorphirJson :any, sourcedFiles 
     })
 }
 
-async function differenceInPathAndHash(hashFilePath: string, filePath: string, fileChange: string,
-    fileHash: Map<string, string>, fileChangesMap: Map<string, Array<string>>) {
-    const readHashFile = await readFile(hashFilePath)
+async function differenceInPathAndHash(hashFilePath: string, filePath: string,
+    fileHash: Map<string, string>, fileChangesMap: Map<string, Array<string>>, readHashFile: Buffer) {
     let hashJson = JSON.parse(readHashFile.toString())
     for (let key in hashJson) {
         fileHash.set(key, hashJson[key])
     }
     const readContent = await readFile(filePath)
-    const hash = createHashFile(readContent)
+    const hash = hashedContent(readContent)
     if (fileHash.has(filePath)) {
         if (fileHash.get(filePath)) {
             if (fileHash.get(filePath) !== hash) {
@@ -92,27 +88,25 @@ async function differenceInPathAndHash(hashFilePath: string, filePath: string, f
     }
 
     let fileChangeObject = Object.fromEntries(fileChangesMap)
-    await fsWriteFile(fileChange, JSON.stringify(fileChangeObject, null, 2))
 
     let jsonObject = Object.fromEntries(fileHash)
     await fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2))
 
-    const fileChangeJson = await readFile(fileChange)
-    return fileChangeJson
+    return fileChangeObject
 }
 
 async function readElmSourceFiles(dir: string) {
     let fileHash = new Map<string, string>();
     let fileChangesMap = new Map<string, Array<string>>()
     const hashFilePath: string = path.join(dir, '../morphir-hash.json')
-    const fileChange: string = path.join(dir, '../fileChange.json')
+    const readHashFile = await readFile(hashFilePath)
     const readSourceFile = async function (filePath: string) {
         try {
             await accessFile(hashFilePath, fs.constants.F_OK)
-            await differenceInPathAndHash(hashFilePath, filePath, fileChange, fileHash, fileChangesMap)
+            await differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMap, readHashFile)
         } catch (err) {
             const readContent = await readFile(filePath)
-            const hash = createHashFile(readContent)
+            const hash = hashedContent(readContent)
             fileHash.set(filePath, hash)
             let jsonObject = Object.fromEntries(fileHash)
             await fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2))

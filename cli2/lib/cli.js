@@ -2,7 +2,7 @@
 "use strict";
 /**
  *TO-DO
- *Deleted files
+ *Deleted files into the filchanges
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -41,9 +41,7 @@ const readDir = util.promisify(fs.readdir);
 const makeDir = util.promisify(fs.mkdir);
 const readFile = util.promisify(fs.readFile);
 const accessFile = util.promisify(fs.access);
-const appendFile = util.promisify(fs.appendFile);
 const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.Cli.init();
-// const worker = require('./../Morphir.Elm.CLI').Elm.Morphir.Elm.CLI.init()
 function make(projectDir, options) {
     return __awaiter(this, void 0, void 0, function* () {
         const morphirJsonPath = path.join(projectDir, 'morphir.json');
@@ -61,11 +59,10 @@ function make(projectDir, options) {
             console.log(`${err}, not found`);
             return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options);
         }
-        // return packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options)
     });
 }
 //generating a hash with md5 algorithm for the content of the read file
-const createHashFile = (contentOfFile) => {
+const hashedContent = (contentOfFile) => {
     let hash = crypto.createHash('md5');
     let data = hash.update(contentOfFile, 'utf-8');
     let gen_hash = data.digest('hex');
@@ -92,15 +89,14 @@ function packageDefinitionFromSource(parsedMorphirJson, sourcedFiles, options) {
         });
     });
 }
-function differenceInPathAndHash(hashFilePath, filePath, fileChange, fileHash, fileChangesMap) {
+function differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMap, readHashFile) {
     return __awaiter(this, void 0, void 0, function* () {
-        const readHashFile = yield readFile(hashFilePath);
         let hashJson = JSON.parse(readHashFile.toString());
         for (let key in hashJson) {
             fileHash.set(key, hashJson[key]);
         }
         const readContent = yield readFile(filePath);
-        const hash = createHashFile(readContent);
+        const hash = hashedContent(readContent);
         if (fileHash.has(filePath)) {
             if (fileHash.get(filePath)) {
                 if (fileHash.get(filePath) !== hash) {
@@ -114,11 +110,9 @@ function differenceInPathAndHash(hashFilePath, filePath, fileChange, fileHash, f
             fileChangesMap.set(filePath, ['Insert', readContent.toString()]);
         }
         let fileChangeObject = Object.fromEntries(fileChangesMap);
-        yield fsWriteFile(fileChange, JSON.stringify(fileChangeObject, null, 2));
         let jsonObject = Object.fromEntries(fileHash);
         yield fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2));
-        const fileChangeJson = yield readFile(fileChange);
-        return fileChangeJson;
+        return fileChangeObject;
     });
 }
 function readElmSourceFiles(dir) {
@@ -126,16 +120,16 @@ function readElmSourceFiles(dir) {
         let fileHash = new Map();
         let fileChangesMap = new Map();
         const hashFilePath = path.join(dir, '../morphir-hash.json');
-        const fileChange = path.join(dir, '../fileChange.json');
+        const readHashFile = yield readFile(hashFilePath);
         const readSourceFile = function (filePath) {
             return __awaiter(this, void 0, void 0, function* () {
                 try {
                     yield accessFile(hashFilePath, fs.constants.F_OK);
-                    yield differenceInPathAndHash(hashFilePath, filePath, fileChange, fileHash, fileChangesMap);
+                    yield differenceInPathAndHash(hashFilePath, filePath, fileHash, fileChangesMap, readHashFile);
                 }
                 catch (err) {
                     const readContent = yield readFile(filePath);
-                    const hash = createHashFile(readContent);
+                    const hash = hashedContent(readContent);
                     fileHash.set(filePath, hash);
                     let jsonObject = Object.fromEntries(fileHash);
                     yield fsWriteFile(hashFilePath, JSON.stringify(jsonObject, null, 2));
