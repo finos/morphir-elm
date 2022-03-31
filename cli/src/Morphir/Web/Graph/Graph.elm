@@ -115,8 +115,12 @@ depList =
     , ( "i", [] )
     ]
 
-dagToGraph: DAG FQName -> Graph
+
+dagToGraph : DAG FQName -> Graph
+
+
 dagToGrpah =
+    Debug.todo "Implement"
 
 
 extractTypesAndValues : ModuleName -> Distribution -> Graph
