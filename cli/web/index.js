@@ -6580,12 +6580,21 @@ var $author$project$Morphir$IR$Documented$Documented = F2(
 	function (doc, value) {
 		return {doc: doc, value: value};
 	});
+var $elm$json$Json$Decode$oneOf = _Json_oneOf;
 var $author$project$Morphir$IR$Documented$Codec$decodeDocumented = function (decodeValue) {
-	return A3(
-		$elm$json$Json$Decode$map2,
-		$author$project$Morphir$IR$Documented$Documented,
-		A2($elm$json$Json$Decode$field, 'doc', $elm$json$Json$Decode$string),
-		A2($elm$json$Json$Decode$field, 'value', decodeValue));
+	return $elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				A3(
+				$elm$json$Json$Decode$map2,
+				$author$project$Morphir$IR$Documented$Documented,
+				A2($elm$json$Json$Decode$field, 'doc', $elm$json$Json$Decode$string),
+				A2($elm$json$Json$Decode$field, 'value', decodeValue)),
+				A2(
+				$elm$json$Json$Decode$map,
+				$author$project$Morphir$IR$Documented$Documented(''),
+				decodeValue)
+			]));
 };
 var $author$project$Morphir$IR$Module$Codec$decodeDefinition = F2(
 	function (decodeTypeAttributes, decodeValueAttributes) {
@@ -6624,7 +6633,8 @@ var $author$project$Morphir$IR$Module$Codec$decodeDefinition = F2(
 								$elm$json$Json$Decode$index,
 								1,
 								$author$project$Morphir$IR$AccessControlled$Codec$decodeAccessControlled(
-									A2($author$project$Morphir$IR$Value$Codec$decodeDefinition, decodeTypeAttributes, decodeValueAttributes))))))));
+									$author$project$Morphir$IR$Documented$Codec$decodeDocumented(
+										A2($author$project$Morphir$IR$Value$Codec$decodeDefinition, decodeTypeAttributes, decodeValueAttributes)))))))));
 	});
 var $author$project$Morphir$IR$Name$CodecV1$decodeName = A2(
 	$elm$json$Json$Decode$map,
@@ -6776,7 +6786,8 @@ var $author$project$Morphir$IR$Module$Codec$decodeSpecification = function (deco
 						A2(
 							$elm$json$Json$Decode$index,
 							1,
-							$author$project$Morphir$IR$Value$Codec$decodeSpecification(decodeTypeAttributes)))))));
+							$author$project$Morphir$IR$Documented$Codec$decodeDocumented(
+								$author$project$Morphir$IR$Value$Codec$decodeSpecification(decodeTypeAttributes))))))));
 };
 var $author$project$Morphir$IR$Package$Codec$decodeSpecification = function (decodeAttributes) {
 	return A2(
@@ -7401,11 +7412,19 @@ var $author$project$Morphir$IR$Value$CodecV1$decodeValue = F2(
 			A2($elm$json$Json$Decode$index, 0, $elm$json$Json$Decode$string));
 	});
 var $author$project$Morphir$IR$Documented$CodecV1$decodeDocumented = function (decodeValue) {
-	return A3(
-		$elm$json$Json$Decode$map2,
-		$author$project$Morphir$IR$Documented$Documented,
-		A2($elm$json$Json$Decode$index, 0, $elm$json$Json$Decode$string),
-		A2($elm$json$Json$Decode$index, 1, decodeValue));
+	return $elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				A3(
+				$elm$json$Json$Decode$map2,
+				$author$project$Morphir$IR$Documented$Documented,
+				A2($elm$json$Json$Decode$index, 0, $elm$json$Json$Decode$string),
+				A2($elm$json$Json$Decode$index, 1, decodeValue)),
+				A2(
+				$elm$json$Json$Decode$map,
+				$author$project$Morphir$IR$Documented$Documented(''),
+				decodeValue)
+			]));
 };
 var $author$project$Morphir$IR$Module$CodecV1$decodeDefinition = F2(
 	function (decodeTypeAttributes, decodeValueAttributes) {
@@ -7444,7 +7463,8 @@ var $author$project$Morphir$IR$Module$CodecV1$decodeDefinition = F2(
 								$elm$json$Json$Decode$index,
 								1,
 								$author$project$Morphir$IR$AccessControlled$CodecV1$decodeAccessControlled(
-									A2($author$project$Morphir$IR$Value$CodecV1$decodeDefinition, decodeTypeAttributes, decodeValueAttributes))))))));
+									$author$project$Morphir$IR$Documented$CodecV1$decodeDocumented(
+										A2($author$project$Morphir$IR$Value$CodecV1$decodeDefinition, decodeTypeAttributes, decodeValueAttributes)))))))));
 	});
 var $author$project$Morphir$IR$Package$CodecV1$decodeDefinition = F2(
 	function (decodeAttributes, decodeAttributes2) {
@@ -7566,7 +7586,8 @@ var $author$project$Morphir$IR$Module$CodecV1$decodeSpecification = function (de
 						A2(
 							$elm$json$Json$Decode$index,
 							1,
-							$author$project$Morphir$IR$Value$CodecV1$decodeSpecification(decodeTypeAttributes)))))));
+							$author$project$Morphir$IR$Documented$CodecV1$decodeDocumented(
+								$author$project$Morphir$IR$Value$CodecV1$decodeSpecification(decodeTypeAttributes))))))));
 };
 var $author$project$Morphir$IR$Package$CodecV1$decodeSpecification = function (decodeAttributes) {
 	return A2(
@@ -7624,7 +7645,6 @@ var $author$project$Morphir$IR$Distribution$CodecV1$decodeDistribution = A2(
 		}
 	},
 	A2($elm$json$Json$Decode$index, 0, $elm$json$Json$Decode$string));
-var $elm$json$Json$Decode$oneOf = _Json_oneOf;
 var $author$project$Morphir$IR$Distribution$Codec$decodeVersionedDistribution = $elm$json$Json$Decode$oneOf(
 	_List_fromArray(
 		[
@@ -8964,7 +8984,9 @@ var $author$project$Morphir$IR$Module$definitionToSpecificationWithPrivate = fun
 					var accessControlledValue = _v1.b;
 					return _Utils_Tuple2(
 						path,
-						$author$project$Morphir$IR$Value$definitionToSpecification(
+						A2(
+							$author$project$Morphir$IR$Documented$map,
+							$author$project$Morphir$IR$Value$definitionToSpecification,
 							$author$project$Morphir$IR$AccessControlled$withPrivateAccess(accessControlledValue)));
 				},
 				$elm$core$Dict$toList(def.values)))
@@ -9013,7 +9035,7 @@ var $author$project$Morphir$IR$fromPackageSpecifications = function (packageSpec
 							var valueSpec = _v7.b;
 							return _Utils_Tuple2(
 								_Utils_Tuple3(packageName, moduleName, valueName),
-								valueSpec);
+								valueSpec.value);
 						},
 						$elm$core$Dict$toList(moduleSpec.values));
 				},
@@ -9100,7 +9122,7 @@ var $author$project$Morphir$IR$fromDistribution = function (_v0) {
 						var valueDef = _v2.b;
 						return _Utils_Tuple2(
 							_Utils_Tuple3(libraryName, moduleName, valueName),
-							valueDef.value);
+							valueDef.value.value);
 					},
 					$elm$core$Dict$toList(moduleDef.value.values));
 			},
@@ -12079,7 +12101,12 @@ var $author$project$Morphir$IR$Module$lookupValueDefinition = F2(
 	function (localName, moduleDef) {
 		return A2(
 			$elm$core$Maybe$map,
-			$author$project$Morphir$IR$AccessControlled$withPrivateAccess,
+			A2(
+				$elm$core$Basics$composeR,
+				$author$project$Morphir$IR$AccessControlled$withPrivateAccess,
+				function ($) {
+					return $.value;
+				}),
 			A2($elm$core$Dict$get, localName, moduleDef.values));
 	});
 var $author$project$Morphir$IR$Distribution$lookupValueDefinition = F2(
@@ -12121,7 +12148,7 @@ var $author$project$Morphir$IR$Module$definitionToSpecification = function (def)
 						function (valueDef) {
 							return _Utils_Tuple2(
 								path,
-								$author$project$Morphir$IR$Value$definitionToSpecification(valueDef));
+								A2($author$project$Morphir$IR$Documented$map, $author$project$Morphir$IR$Value$definitionToSpecification, valueDef));
 						},
 						$author$project$Morphir$IR$AccessControlled$withPublicAccess(accessControlledValue));
 				},
@@ -12167,7 +12194,12 @@ var $author$project$Morphir$IR$Distribution$lookupModuleSpecification = F3(
 	});
 var $author$project$Morphir$IR$Module$lookupValueSpecification = F2(
 	function (localName, moduleSpec) {
-		return A2($elm$core$Dict$get, localName, moduleSpec.values);
+		return A2(
+			$elm$core$Maybe$map,
+			function ($) {
+				return $.value;
+			},
+			A2($elm$core$Dict$get, localName, moduleSpec.values));
 	});
 var $author$project$Morphir$IR$Distribution$lookupValueSpecification = F4(
 	function (packageName, moduleName, localName, distribution) {
@@ -13621,8 +13653,7 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 						{
 							selectedDefinition: $elm$core$Maybe$Nothing,
 							selectedModule: $elm$core$Maybe$Just(
-								_Utils_Tuple2(nodePath, moduleName)),
-							showModules: false
+								_Utils_Tuple2(nodePath, moduleName))
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'SelectDefinition':
@@ -19443,6 +19474,11 @@ var $mdgriffith$elm_ui$Internal$Model$AlignX = function (a) {
 };
 var $mdgriffith$elm_ui$Internal$Model$Right = {$: 'Right'};
 var $mdgriffith$elm_ui$Element$alignRight = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$Right);
+var $mdgriffith$elm_ui$Internal$Model$AlignY = function (a) {
+	return {$: 'AlignY', a: a};
+};
+var $mdgriffith$elm_ui$Internal$Model$Top = {$: 'Top'};
+var $mdgriffith$elm_ui$Element$alignTop = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$Top);
 var $mdgriffith$elm_ui$Internal$Model$Class = F2(
 	function (a, b) {
 		return {$: 'Class', a: a, b: b};
@@ -19606,8 +19642,6 @@ var $matthewsj$elm_ordering$Ordering$byFieldWith = F4(
 	});
 var $matthewsj$elm_ordering$Ordering$natural = $elm$core$Basics$compare;
 var $matthewsj$elm_ordering$Ordering$byField = $matthewsj$elm_ordering$Ordering$byFieldWith($matthewsj$elm_ordering$Ordering$natural);
-var $mdgriffith$elm_ui$Internal$Model$CenterX = {$: 'CenterX'};
-var $mdgriffith$elm_ui$Element$centerX = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$CenterX);
 var $mdgriffith$elm_ui$Internal$Model$Left = {$: 'Left'};
 var $mdgriffith$elm_ui$Element$alignLeft = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$Left);
 var $mdgriffith$elm_ui$Internal$Model$LivePolite = {$: 'LivePolite'};
@@ -19691,9 +19725,6 @@ var $mdgriffith$elm_ui$Element$Input$applyLabel = F3(
 		}
 	});
 var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
-var $mdgriffith$elm_ui$Internal$Model$AlignY = function (a) {
-	return {$: 'AlignY', a: a};
-};
 var $mdgriffith$elm_ui$Internal$Model$CenterY = {$: 'CenterY'};
 var $mdgriffith$elm_ui$Element$centerY = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$CenterY);
 var $mdgriffith$elm_ui$Internal$Model$Label = function (a) {
@@ -19828,6 +19859,8 @@ var $mdgriffith$elm_ui$Element$Font$color = function (fontColor) {
 };
 var $mdgriffith$elm_ui$Internal$Flag$fontAlignment = $mdgriffith$elm_ui$Internal$Flag$flag(12);
 var $mdgriffith$elm_ui$Element$Font$center = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$fontAlignment, $mdgriffith$elm_ui$Internal$Style$classes.textCenter);
+var $mdgriffith$elm_ui$Internal$Model$CenterX = {$: 'CenterX'};
+var $mdgriffith$elm_ui$Element$centerX = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$CenterX);
 var $elm$core$Basics$pi = _Basics_pi;
 var $elm$core$Basics$degrees = function (angleInDegrees) {
 	return (angleInDegrees * $elm$core$Basics$pi) / 180;
@@ -20285,10 +20318,10 @@ var $author$project$Morphir$Web$DevelopApp$Common$ifThenElse = F3(
 		return boolValue ? ifTrue : ifFalse;
 	});
 var $author$project$Morphir$IR$Path$isPrefixOf = F2(
-	function (prefix, path) {
+	function (path, prefix) {
 		isPrefixOf:
 		while (true) {
-			var _v0 = _Utils_Tuple2(path, prefix);
+			var _v0 = _Utils_Tuple2(prefix, path);
 			if (!_v0.a.b) {
 				return true;
 			} else {
@@ -20302,10 +20335,10 @@ var $author$project$Morphir$IR$Path$isPrefixOf = F2(
 					var prefixHead = _v2.a;
 					var prefixTail = _v2.b;
 					if (_Utils_eq(prefixHead, pathHead)) {
-						var $temp$prefix = prefixTail,
-							$temp$path = pathTail;
-						prefix = $temp$prefix;
+						var $temp$path = prefixTail,
+							$temp$prefix = pathTail;
 						path = $temp$path;
+						prefix = $temp$prefix;
 						continue isPrefixOf;
 					} else {
 						return false;
@@ -20400,8 +20433,14 @@ var $author$project$Morphir$Web$DevelopApp$moduleNameToPathString = function (mo
 			$elm$core$Basics$composeR,
 			$author$project$Morphir$IR$Name$toHumanWords,
 			$elm$core$String$join(' ')),
-		' / ',
+		' > ',
 		moduleName);
+};
+var $mdgriffith$elm_ui$Element$moveDown = function (y) {
+	return A2(
+		$mdgriffith$elm_ui$Internal$Model$TransformComponent,
+		$mdgriffith$elm_ui$Internal$Flag$moveY,
+		$mdgriffith$elm_ui$Internal$Model$MoveY(y));
 };
 var $author$project$Morphir$Visual$Common$nameToText = function (name) {
 	return A2(
@@ -20426,6 +20465,40 @@ var $mdgriffith$elm_ui$Element$padding = function (x) {
 			f,
 			f,
 			f));
+};
+var $mdgriffith$elm_ui$Internal$Model$paddingName = F4(
+	function (top, right, bottom, left) {
+		return 'pad-' + ($elm$core$String$fromInt(top) + ('-' + ($elm$core$String$fromInt(right) + ('-' + ($elm$core$String$fromInt(bottom) + ('-' + $elm$core$String$fromInt(left)))))));
+	});
+var $mdgriffith$elm_ui$Element$paddingEach = function (_v0) {
+	var top = _v0.top;
+	var right = _v0.right;
+	var bottom = _v0.bottom;
+	var left = _v0.left;
+	if (_Utils_eq(top, right) && (_Utils_eq(top, bottom) && _Utils_eq(top, left))) {
+		var topFloat = top;
+		return A2(
+			$mdgriffith$elm_ui$Internal$Model$StyleClass,
+			$mdgriffith$elm_ui$Internal$Flag$padding,
+			A5(
+				$mdgriffith$elm_ui$Internal$Model$PaddingStyle,
+				'p-' + $elm$core$String$fromInt(top),
+				topFloat,
+				topFloat,
+				topFloat,
+				topFloat));
+	} else {
+		return A2(
+			$mdgriffith$elm_ui$Internal$Model$StyleClass,
+			$mdgriffith$elm_ui$Internal$Flag$padding,
+			A5(
+				$mdgriffith$elm_ui$Internal$Model$PaddingStyle,
+				A4($mdgriffith$elm_ui$Internal$Model$paddingName, top, right, bottom, left),
+				top,
+				right,
+				bottom,
+				left));
+	}
 };
 var $mdgriffith$elm_ui$Element$paddingXY = F2(
 	function (x, y) {
@@ -20611,40 +20684,6 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 			$elm$json$Json$Decode$map,
 			$elm$html$Html$Events$alwaysStop,
 			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
-};
-var $mdgriffith$elm_ui$Internal$Model$paddingName = F4(
-	function (top, right, bottom, left) {
-		return 'pad-' + ($elm$core$String$fromInt(top) + ('-' + ($elm$core$String$fromInt(right) + ('-' + ($elm$core$String$fromInt(bottom) + ('-' + $elm$core$String$fromInt(left)))))));
-	});
-var $mdgriffith$elm_ui$Element$paddingEach = function (_v0) {
-	var top = _v0.top;
-	var right = _v0.right;
-	var bottom = _v0.bottom;
-	var left = _v0.left;
-	if (_Utils_eq(top, right) && (_Utils_eq(top, bottom) && _Utils_eq(top, left))) {
-		var topFloat = top;
-		return A2(
-			$mdgriffith$elm_ui$Internal$Model$StyleClass,
-			$mdgriffith$elm_ui$Internal$Flag$padding,
-			A5(
-				$mdgriffith$elm_ui$Internal$Model$PaddingStyle,
-				'p-' + $elm$core$String$fromInt(top),
-				topFloat,
-				topFloat,
-				topFloat,
-				topFloat));
-	} else {
-		return A2(
-			$mdgriffith$elm_ui$Internal$Model$StyleClass,
-			$mdgriffith$elm_ui$Internal$Flag$padding,
-			A5(
-				$mdgriffith$elm_ui$Internal$Model$PaddingStyle,
-				A4($mdgriffith$elm_ui$Internal$Model$paddingName, top, right, bottom, left),
-				top,
-				right,
-				bottom,
-				left));
-	}
 };
 var $mdgriffith$elm_ui$Element$htmlAttribute = $mdgriffith$elm_ui$Internal$Model$Attr;
 var $mdgriffith$elm_ui$Element$Input$isFill = function (len) {
@@ -21429,8 +21468,6 @@ var $elm$url$Url$Builder$absolute = F2(
 	function (pathSegments, parameters) {
 		return '/' + (A2($elm$core$String$join, '/', pathSegments) + $elm$url$Url$Builder$toQuery(parameters));
 	});
-var $mdgriffith$elm_ui$Internal$Model$Top = {$: 'Top'};
-var $mdgriffith$elm_ui$Element$alignTop = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$Top);
 var $mdgriffith$elm_ui$Element$toRgb = function (_v0) {
 	var r = _v0.a;
 	var g = _v0.b;
@@ -21952,18 +21989,21 @@ var $author$project$Morphir$IR$SDK$Common$vSpec = F3(
 		return _Utils_Tuple2(
 			$author$project$Morphir$IR$Name$fromString(name),
 			A2(
-				$author$project$Morphir$IR$Value$Specification,
+				$author$project$Morphir$IR$Documented$Documented,
+				'documentation',
 				A2(
-					$elm$core$List$map,
-					function (_v0) {
-						var argName = _v0.a;
-						var argType = _v0.b;
-						return _Utils_Tuple2(
-							$author$project$Morphir$IR$Name$fromString(argName),
-							argType);
-					},
-					args),
-				returnType));
+					$author$project$Morphir$IR$Value$Specification,
+					A2(
+						$elm$core$List$map,
+						function (_v0) {
+							var argName = _v0.a;
+							var argType = _v0.b;
+							return _Utils_Tuple2(
+								$author$project$Morphir$IR$Name$fromString(argName),
+								argType);
+						},
+						args),
+					returnType)));
 	});
 var $author$project$Morphir$IR$SDK$Aggregate$moduleSpec = {
 	types: $elm$core$Dict$fromList(
@@ -28042,7 +28082,7 @@ var $author$project$Morphir$IR$SDK$Regex$moduleSpec = {
 				function (valueName) {
 					return _Utils_Tuple2(
 						$author$project$Morphir$IR$Name$fromString(valueName),
-						dummyValueSpec);
+						A2($author$project$Morphir$IR$Documented$Documented, '', dummyValueSpec));
 				},
 				valueNames));
 	}()
@@ -30605,7 +30645,10 @@ var $author$project$Morphir$IR$Module$mapDefinitionAttributes = F3(
 						return A2(
 							$author$project$Morphir$IR$AccessControlled$AccessControlled,
 							valueDef.access,
-							A3($author$project$Morphir$IR$Value$mapDefinitionAttributes, tf, vf, valueDef.value));
+							A2(
+								$author$project$Morphir$IR$Documented$map,
+								A2($author$project$Morphir$IR$Value$mapDefinitionAttributes, tf, vf),
+								valueDef.value));
 					}),
 				def.values));
 	});
@@ -30630,6 +30673,304 @@ var $author$project$Morphir$Compiler$ErrorsInSourceFile = F2(
 	function (a, b) {
 		return {$: 'ErrorsInSourceFile', a: a, b: b};
 	});
+var $author$project$Morphir$Type$Class$Codec$encodeClass = function (_class) {
+	return A2(
+		$elm$json$Json$Encode$list,
+		$elm$core$Basics$identity,
+		_List_fromArray(
+			[
+				$elm$json$Json$Encode$string('number')
+			]));
+};
+var $author$project$Morphir$IR$Name$Codec$encodeName = function (name) {
+	return A2(
+		$elm$json$Json$Encode$list,
+		$elm$json$Json$Encode$string,
+		$author$project$Morphir$IR$Name$toList(name));
+};
+var $author$project$Morphir$IR$Path$Codec$encodePath = function (path) {
+	return A2(
+		$elm$json$Json$Encode$list,
+		$author$project$Morphir$IR$Name$Codec$encodeName,
+		$author$project$Morphir$IR$Path$toList(path));
+};
+var $author$project$Morphir$IR$FQName$Codec$encodeFQName = function (_v0) {
+	var packagePath = _v0.a;
+	var modulePath = _v0.b;
+	var localName = _v0.c;
+	return A2(
+		$elm$json$Json$Encode$list,
+		$elm$core$Basics$identity,
+		_List_fromArray(
+			[
+				$author$project$Morphir$IR$Path$Codec$encodePath(packagePath),
+				$author$project$Morphir$IR$Path$Codec$encodePath(modulePath),
+				$author$project$Morphir$IR$Name$Codec$encodeName(localName)
+			]));
+};
+var $author$project$Morphir$Type$Infer$Codec$encodeLookupError = function (lookupError) {
+	switch (lookupError.$) {
+		case 'CouldNotFindConstructor':
+			var fQName = lookupError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('could_not_find_constructor'),
+						$author$project$Morphir$IR$FQName$Codec$encodeFQName(fQName)
+					]));
+		case 'CouldNotFindValue':
+			var fQName = lookupError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('could_not_find_value'),
+						$author$project$Morphir$IR$FQName$Codec$encodeFQName(fQName)
+					]));
+		case 'CouldNotFindAlias':
+			var fQName = lookupError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('could_not_find_alias'),
+						$author$project$Morphir$IR$FQName$Codec$encodeFQName(fQName)
+					]));
+		default:
+			var fQName = lookupError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('expected_alias'),
+						$author$project$Morphir$IR$FQName$Codec$encodeFQName(fQName)
+					]));
+	}
+};
+var $author$project$Morphir$Type$MetaType$Codec$encodeVariable = function (_v0) {
+	var n = _v0.a;
+	var i = _v0.b;
+	var s = _v0.c;
+	return A2(
+		$elm$json$Json$Encode$list,
+		$elm$core$Basics$identity,
+		_List_fromArray(
+			[
+				$author$project$Morphir$IR$Name$Codec$encodeName(n),
+				$elm$json$Json$Encode$int(i),
+				$elm$json$Json$Encode$int(s)
+			]));
+};
+var $author$project$Morphir$Type$MetaType$Codec$encodeMetaType = function (metaType) {
+	switch (metaType.$) {
+		case 'MetaVar':
+			var variable = metaType.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('meta_var'),
+						$author$project$Morphir$Type$MetaType$Codec$encodeVariable(variable)
+					]));
+		case 'MetaRef':
+			var fQName = metaType.b;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('meta_ref'),
+						$author$project$Morphir$IR$FQName$Codec$encodeFQName(fQName)
+					]));
+		case 'MetaTuple':
+			var metaTypes = metaType.b;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('meta_tuple'),
+						A2($elm$json$Json$Encode$list, $author$project$Morphir$Type$MetaType$Codec$encodeMetaType, metaTypes)
+					]));
+		case 'MetaRecord':
+			var maybeVar = metaType.b;
+			var dict = metaType.c;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('meta_record'),
+						function () {
+						if (maybeVar.$ === 'Just') {
+							var _var = maybeVar.a;
+							return $author$project$Morphir$Type$MetaType$Codec$encodeVariable(_var);
+						} else {
+							return $elm$json$Json$Encode$null;
+						}
+					}(),
+						A2(
+						$elm$json$Json$Encode$list,
+						function (_v2) {
+							var fieldName = _v2.a;
+							var fieldType = _v2.b;
+							return A2(
+								$elm$json$Json$Encode$list,
+								$elm$core$Basics$identity,
+								_List_fromArray(
+									[
+										$author$project$Morphir$IR$Name$Codec$encodeName(fieldName),
+										$author$project$Morphir$Type$MetaType$Codec$encodeMetaType(fieldType)
+									]));
+						},
+						$elm$core$Dict$toList(dict))
+					]));
+		case 'MetaFun':
+			var metaType1 = metaType.b;
+			var metaType2 = metaType.c;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('meta_fun'),
+						$author$project$Morphir$Type$MetaType$Codec$encodeMetaType(metaType1),
+						$author$project$Morphir$Type$MetaType$Codec$encodeMetaType(metaType2)
+					]));
+		default:
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('meta_unit')
+					]));
+	}
+};
+var $author$project$Morphir$Type$Solve$Codec$encodeUnificationErrorType = function (unificationErrorType) {
+	switch (unificationErrorType.$) {
+		case 'NoUnificationRule':
+			return $elm$json$Json$Encode$string('NoUnificationRule');
+		case 'TuplesOfDifferentSize':
+			return $elm$json$Json$Encode$string('TuplesOfDifferentSize');
+		case 'RefMismatch':
+			return $elm$json$Json$Encode$string('RefMismatch');
+		default:
+			return $elm$json$Json$Encode$string('FieldMismatch');
+	}
+};
+var $author$project$Morphir$Type$Solve$Codec$encodeUnificationError = function (unificationError) {
+	switch (unificationError.$) {
+		case 'UnificationErrors':
+			var unificationErrors = unificationError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('UnificationErrors'),
+						A2($elm$json$Json$Encode$list, $author$project$Morphir$Type$Solve$Codec$encodeUnificationError, unificationErrors)
+					]));
+		case 'CouldNotUnify':
+			var unificationErrorType = unificationError.a;
+			var metaType1 = unificationError.b;
+			var metaType2 = unificationError.c;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('CouldNotUnify'),
+						$author$project$Morphir$Type$Solve$Codec$encodeUnificationErrorType(unificationErrorType),
+						$author$project$Morphir$Type$MetaType$Codec$encodeMetaType(metaType1),
+						$author$project$Morphir$Type$MetaType$Codec$encodeMetaType(metaType2)
+					]));
+		default:
+			var fieldName = unificationError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('CouldNotFindField'),
+						$author$project$Morphir$IR$Name$Codec$encodeName(fieldName)
+					]));
+	}
+};
+var $author$project$Morphir$Type$Infer$Codec$encodeTypeError = function (typeError) {
+	switch (typeError.$) {
+		case 'TypeErrors':
+			var typeErrors = typeError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('type_errors'),
+						A2($elm$json$Json$Encode$list, $author$project$Morphir$Type$Infer$Codec$encodeTypeError, typeErrors)
+					]));
+		case 'ClassConstraintViolation':
+			var metaType = typeError.a;
+			var _class = typeError.b;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('class_constraint_violation'),
+						$author$project$Morphir$Type$MetaType$Codec$encodeMetaType(metaType),
+						$author$project$Morphir$Type$Class$Codec$encodeClass(_class)
+					]));
+		case 'LookupError':
+			var lookupError = typeError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('lookup_error'),
+						$author$project$Morphir$Type$Infer$Codec$encodeLookupError(lookupError)
+					]));
+		case 'UnknownError':
+			var message = typeError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('unknown_error'),
+						$elm$json$Json$Encode$string(message)
+					]));
+		case 'RecursiveConstraint':
+			var metaType1 = typeError.a;
+			var metaType2 = typeError.b;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('RecursiveConstraint'),
+						$author$project$Morphir$Type$MetaType$Codec$encodeMetaType(metaType1),
+						$author$project$Morphir$Type$MetaType$Codec$encodeMetaType(metaType2)
+					]));
+		default:
+			var unificationError = typeError.a;
+			return A2(
+				$elm$json$Json$Encode$list,
+				$elm$core$Basics$identity,
+				_List_fromArray(
+					[
+						$elm$json$Json$Encode$string('UnifyError'),
+						$author$project$Morphir$Type$Solve$Codec$encodeUnificationError(unificationError)
+					]));
+	}
+};
 var $author$project$Morphir$Elm$Frontend$Resolve$errorToMessage = function (error) {
 	switch (error.$) {
 		case 'CouldNotFindLocalName':
@@ -31960,7 +32301,10 @@ var $author$project$Morphir$IR$Module$mapSpecificationAttributes = F2(
 				$elm$core$Dict$map,
 				F2(
 					function (_v1, valueSpec) {
-						return A2($author$project$Morphir$IR$Value$mapSpecificationAttributes, tf, valueSpec);
+						return A2(
+							$author$project$Morphir$IR$Documented$map,
+							$author$project$Morphir$IR$Value$mapSpecificationAttributes(tf),
+							valueSpec);
 					}),
 				spec.values));
 	});
@@ -37840,13 +38184,29 @@ var $author$project$Morphir$Elm$Frontend$mapDeclarationsToValue = F3(
 							var valueName = $author$project$Morphir$IR$Name$fromString(
 								$stil4m$elm_syntax$Elm$Syntax$Node$value(
 									$stil4m$elm_syntax$Elm$Syntax$Node$value(_function.declaration).name));
+							var doc = A2(
+								$elm$core$Maybe$withDefault,
+								'',
+								A2(
+									$elm$core$Maybe$map,
+									A2(
+										$elm$core$Basics$composeR,
+										$stil4m$elm_syntax$Elm$Syntax$Node$value,
+										A2(
+											$elm$core$Basics$composeR,
+											$elm$core$String$dropLeft(3),
+											$elm$core$String$dropRight(2))),
+									_function.documentation));
 							var valueDef = A2(
 								$elm$core$Result$map,
 								$author$project$Morphir$IR$AccessControlled$public,
 								A2(
-									$author$project$Morphir$Elm$Frontend$mapFunction,
-									sourceFile,
-									A2($stil4m$elm_syntax$Elm$Syntax$Node$Node, range, _function)));
+									$elm$core$Result$map,
+									$author$project$Morphir$IR$Documented$Documented(doc),
+									A2(
+										$author$project$Morphir$Elm$Frontend$mapFunction,
+										sourceFile,
+										A2($stil4m$elm_syntax$Elm$Syntax$Node$Node, range, _function))));
 							return $elm$core$Maybe$Just(
 								A2(
 									$elm$core$Result$map,
@@ -38711,7 +39071,7 @@ var $author$project$Morphir$Elm$Frontend$resolveLocalNames = F2(
 										var loc = _v1.b;
 										return _Utils_Tuple2(name, loc);
 									},
-									valueDef.value.inputTypes));
+									valueDef.value.value.inputTypes));
 							return A2(
 								$elm$core$Result$mapError,
 								$elm$core$List$concat,
@@ -38721,11 +39081,14 @@ var $author$project$Morphir$Elm$Frontend$resolveLocalNames = F2(
 									A2(
 										$elm$core$Result$map,
 										$author$project$Morphir$IR$AccessControlled$AccessControlled(valueDef.access),
-										A3(
-											$author$project$Morphir$IR$Value$mapDefinition,
-											$author$project$Morphir$Elm$Frontend$rewriteTypes(moduleResolver),
-											rewriteValues(variables),
-											valueDef.value))));
+										A2(
+											$elm$core$Result$map,
+											$author$project$Morphir$IR$Documented$Documented(valueDef.value.doc),
+											A3(
+												$author$project$Morphir$IR$Value$mapDefinition,
+												$author$project$Morphir$Elm$Frontend$rewriteTypes(moduleResolver),
+												rewriteValues(variables),
+												valueDef.value.value)))));
 						},
 						$elm$core$Dict$toList(moduleDef.values)))));
 		return A3($elm$core$Result$map2, $author$project$Morphir$IR$Module$Definition, typesResult, valuesResult);
@@ -45787,9 +46150,9 @@ var $author$project$Morphir$Elm$Frontend$packageDefinitionFromSource = F4(
 					$author$project$Morphir$Graph$fromList(
 						A2(
 							$elm$core$List$map,
-							function (_v9) {
-								var moduleName = _v9.a;
-								var parsedFile = _v9.b;
+							function (_v6) {
+								var moduleName = _v6.a;
+								var parsedFile = _v6.b;
 								return _Utils_Tuple3(
 									_Utils_Tuple0,
 									moduleName,
@@ -45806,20 +46169,20 @@ var $author$project$Morphir$Elm$Frontend$packageDefinitionFromSource = F4(
 							allModules)));
 				return A2(
 					$elm$core$List$filter,
-					function (_v8) {
-						var moduleName = _v8.a;
+					function (_v5) {
+						var moduleName = _v5.a;
 						return A2($elm$core$Set$member, moduleName, allUsedModules);
 					},
 					allModules);
 			});
 		var sortModules = function (modules) {
-			var _v6 = $author$project$Morphir$Graph$topologicalSort(
+			var _v3 = $author$project$Morphir$Graph$topologicalSort(
 				$author$project$Morphir$Graph$fromList(
 					A2(
 						$elm$core$List$map,
-						function (_v7) {
-							var moduleName = _v7.a;
-							var parsedFile = _v7.b;
+						function (_v4) {
+							var moduleName = _v4.a;
+							var parsedFile = _v4.b;
 							return _Utils_Tuple3(
 								_Utils_Tuple0,
 								moduleName,
@@ -45834,8 +46197,8 @@ var $author$project$Morphir$Elm$Frontend$packageDefinitionFromSource = F4(
 									$stil4m$elm_syntax$Elm$RawFile$imports(parsedFile.rawFile)));
 						},
 						modules)));
-			var sortedModules = _v6.a;
-			var cycles = _v6.b;
+			var sortedModules = _v3.a;
+			var cycles = _v3.b;
 			return $author$project$Morphir$Graph$isEmpty(cycles) ? $elm$core$Result$Ok(
 				$elm$core$List$reverse(sortedModules)) : $elm$core$Result$Err(
 				_List_fromArray(
@@ -45848,7 +46211,6 @@ var $author$project$Morphir$Elm$Frontend$packageDefinitionFromSource = F4(
 				A2(
 					$elm$core$List$map,
 					function (sourceFile) {
-						var _v5 = A2($elm$core$Debug$log, 'Parsing source', sourceFile.path);
 						return A2(
 							$elm$core$Result$mapError,
 							$author$project$Morphir$Elm$Frontend$ParseError(sourceFile.path),
@@ -45884,9 +46246,9 @@ var $author$project$Morphir$Elm$Frontend$packageDefinitionFromSource = F4(
 						modules: $elm$core$Dict$fromList(
 							A2(
 								$elm$core$List$map,
-								function (_v2) {
-									var modulePath = _v2.a;
-									var m = _v2.b;
+								function (_v1) {
+									var modulePath = _v1.a;
+									var m = _v1.b;
 									return A2($elm$core$Set$member, modulePath, exposedModules) ? _Utils_Tuple2(
 										modulePath,
 										$author$project$Morphir$IR$AccessControlled$public(m)) : _Utils_Tuple2(
@@ -45900,10 +46262,6 @@ var $author$project$Morphir$Elm$Frontend$packageDefinitionFromSource = F4(
 					$elm$core$Result$andThen,
 					function (parsedFiles) {
 						var parsedFilesByModuleName = $elm$core$Dict$fromList(parsedFiles);
-						var _v1 = A2(
-							$elm$core$Debug$log,
-							'Parsed sources',
-							$elm$core$List$length(parsedFiles));
 						return A2(
 							$elm$core$Result$andThen,
 							A4($author$project$Morphir$Elm$Frontend$mapParsedFiles, opts, dependencies, packageInfo.name, parsedFilesByModuleName),
@@ -45919,9 +46277,9 @@ var $author$project$Morphir$Elm$Frontend$packageDefinitionFromSource = F4(
 						modules: $elm$core$Dict$fromList(
 							A2(
 								$elm$core$List$map,
-								function (_v4) {
-									var modulePath = _v4.a;
-									var m = _v4.b;
+								function (_v2) {
+									var modulePath = _v2.a;
+									var m = _v2.b;
 									return _Utils_Tuple2(
 										modulePath,
 										$author$project$Morphir$IR$AccessControlled$public(m));
@@ -45933,10 +46291,6 @@ var $author$project$Morphir$Elm$Frontend$packageDefinitionFromSource = F4(
 					$elm$core$Result$andThen,
 					function (parsedFiles) {
 						var parsedFilesByModuleName = $elm$core$Dict$fromList(parsedFiles);
-						var _v3 = A2(
-							$elm$core$Debug$log,
-							'Parsed sources',
-							$elm$core$List$length(parsedFiles));
 						return A2(
 							$elm$core$Result$andThen,
 							A4($author$project$Morphir$Elm$Frontend$mapParsedFiles, opts, dependencies, packageInfo.name, parsedFilesByModuleName),
@@ -46132,7 +46486,10 @@ var $author$project$Morphir$Elm$Frontend$mapSource = F4(
 											var typeError = error.b;
 											return A3(
 												mapSourceLocations,
-												'Type inference error: ' + $elm$core$Debug$toString(typeError),
+												'Type inference error: ' + A2(
+													$elm$json$Json$Encode$encode,
+													0,
+													$author$project$Morphir$Type$Infer$Codec$encodeTypeError(typeError)),
 												sourceLocation,
 												_List_Nil);
 									}
@@ -46295,9 +46652,7 @@ var $author$project$Morphir$Elm$Frontend$mapValueToFile = F3(
 		};
 		return A2(
 			$elm$core$Result$mapError,
-			function (errorList) {
-				return $elm$core$Debug$toString(errorList);
-			},
+			$elm$core$Basics$always('Unknown error'),
 			A2(
 				$elm$core$Result$map,
 				function (packageDef) {
@@ -46336,12 +46691,6 @@ var $mdgriffith$elm_ui$Element$minimum = F2(
 	function (i, l) {
 		return A2($mdgriffith$elm_ui$Internal$Model$Min, i, l);
 	});
-var $mdgriffith$elm_ui$Element$moveDown = function (y) {
-	return A2(
-		$mdgriffith$elm_ui$Internal$Model$TransformComponent,
-		$mdgriffith$elm_ui$Internal$Flag$moveY,
-		$mdgriffith$elm_ui$Internal$Model$MoveY(y));
-};
 var $mdgriffith$elm_ui$Internal$Model$MoveX = function (a) {
 	return {$: 'MoveX', a: a};
 };
@@ -61369,8 +61718,8 @@ var $author$project$Morphir$Web$DevelopApp$ModulePage$viewValue = F5(
 		return A3($author$project$Morphir$Visual$ViewValue$viewDefinition, config, valueFQName, valueDef);
 	});
 var $author$project$Morphir$Visual$XRayView$viewValueDefinition = F2(
-	function (viewValueAttr, accessControlledValueDef) {
-		return A2($author$project$Morphir$Visual$XRayView$viewValue, viewValueAttr, accessControlledValueDef.value.body);
+	function (viewValueAttr, valueDef) {
+		return A2($author$project$Morphir$Visual$XRayView$viewValue, viewValueAttr, valueDef.body);
 	});
 var $mdgriffith$elm_ui$Internal$Model$Padding = F5(
 	function (a, b, c, d, e) {
@@ -61654,14 +62003,14 @@ var $author$project$Morphir$Web$DevelopApp$ModulePage$viewPage = F5(
 																	theme)
 																])
 														}),
-														A5($author$project$Morphir$Web$DevelopApp$ModulePage$viewArgumentEditors, ir, handlers, model, valueFQName, accessControlledValueDef.value)
+														A5($author$project$Morphir$Web$DevelopApp$ModulePage$viewArgumentEditors, ir, handlers, model, valueFQName, accessControlledValueDef.value.value)
 													])),
 											function () {
 												var _v2 = model.viewType;
 												if (_v2.$ === 'InsightView') {
-													return A5($author$project$Morphir$Web$DevelopApp$ModulePage$viewValue, handlers, model, distribution, valueFQName, accessControlledValueDef.value);
+													return A5($author$project$Morphir$Web$DevelopApp$ModulePage$viewValue, handlers, model, distribution, valueFQName, accessControlledValueDef.value.value);
 												} else {
-													return A2($author$project$Morphir$Visual$XRayView$viewValueDefinition, $author$project$Morphir$Visual$XRayView$viewType, accessControlledValueDef);
+													return A2($author$project$Morphir$Visual$XRayView$viewValueDefinition, $author$project$Morphir$Visual$XRayView$viewType, accessControlledValueDef.value.value);
 												}
 											}()))) : $elm$core$Maybe$Nothing;
 							},
@@ -69766,7 +70115,7 @@ var $author$project$Morphir$Web$DevelopApp$viewAsCard = F6(
 							$mdgriffith$elm_ui$Element$el,
 							_List_fromArray(
 								[
-									$mdgriffith$elm_ui$Element$alignRight,
+									$mdgriffith$elm_ui$Element$alignLeft,
 									$mdgriffith$elm_ui$Element$Font$color(theme.colors.secondaryInformation)
 								]),
 							$mdgriffith$elm_ui$Element$text(_class))
@@ -69978,8 +70327,8 @@ var $author$project$Morphir$Web$DevelopApp$viewType = F4(
 				viewConstructors);
 		}
 	});
-var $author$project$Morphir$Web$DevelopApp$viewValue = F4(
-	function (theme, moduleName, valueName, valueDef) {
+var $author$project$Morphir$Web$DevelopApp$viewValue = F5(
+	function (theme, moduleName, valueName, valueDef, docs) {
 		var isData = $elm$core$List$isEmpty(valueDef.inputTypes);
 		var cardTitle = A2(
 			$mdgriffith$elm_ui$Element$link,
@@ -69999,7 +70348,7 @@ var $author$project$Morphir$Web$DevelopApp$viewValue = F4(
 			cardTitle,
 			isData ? 'value' : 'calculation',
 			backgroundColor,
-			'',
+			A3($author$project$Morphir$Web$DevelopApp$Common$ifThenElse, docs === '', 'Placeholder Documentation. Docs would go here, if whe had them. This would be the place for documentation. This documentation might be long. It might also include **markdown**. `monospaced code`', docs),
 			$mdgriffith$elm_ui$Element$none);
 	});
 var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
@@ -70019,12 +70368,9 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 							function (accessControlledModuleDef) {
 								return A2(
 									$elm$core$Maybe$map,
-									A2(
-										$elm$core$Basics$composeR,
-										function ($) {
-											return $.value;
-										},
-										A3($author$project$Morphir$Web$DevelopApp$viewValue, model.theme, moduleName, valueName)),
+									function (valueDef) {
+										return A5($author$project$Morphir$Web$DevelopApp$viewValue, model.theme, moduleName, valueName, valueDef.value.value, valueDef.value.doc);
+									},
 									A2($elm$core$Dict$get, valueName, accessControlledModuleDef.value.values));
 							},
 							A2($elm$core$Dict$get, moduleName, packageDef.modules)));
@@ -70103,8 +70449,26 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 						]))
 				]),
 			{
-				label: $mdgriffith$elm_ui$Element$text(
-					A3($author$project$Morphir$Web$DevelopApp$Common$ifThenElse, model.showModules, ' hide Modules ↑ ', ' show Modules ↓ ')),
+				label: A2(
+					$mdgriffith$elm_ui$Element$row,
+					_List_fromArray(
+						[
+							$mdgriffith$elm_ui$Element$spacing(
+							A2($author$project$Morphir$Visual$Theme$scaled, -6, model.theme))
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$mdgriffith$elm_ui$Element$el,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$width(
+									$mdgriffith$elm_ui$Element$px(20))
+								]),
+							$mdgriffith$elm_ui$Element$text(
+								A3($author$project$Morphir$Web$DevelopApp$Common$ifThenElse, model.showModules, '🗁', '🗀'))),
+							$mdgriffith$elm_ui$Element$text('Modules')
+						])),
 				onPress: $elm$core$Maybe$Just($author$project$Morphir$Web$DevelopApp$ToggleModulesMenu)
 			});
 		var scrollableListStyles = _List_fromArray(
@@ -70123,7 +70487,7 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 			var _v8 = A2($elm$core$Maybe$map, $elm$core$Tuple$second, model.selectedModule);
 			if (_v8.$ === 'Just') {
 				var moduleName = _v8.a;
-				return $author$project$Morphir$Web$DevelopApp$moduleNameToPathString(moduleName);
+				return '> ' + $author$project$Morphir$Web$DevelopApp$moduleNameToPathString(moduleName);
 			} else {
 				return '';
 			}
@@ -70300,7 +70664,7 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 									$elm$core$Dict$toList(packageDef.modules)))))));
 		};
 		var gray = A3($mdgriffith$elm_ui$Element$rgb, 0.9, 0.9, 0.9);
-		var switchViews = model.showModules ? A2(
+		var switchViews = (!model.showTypes) ? A2(
 			$mdgriffith$elm_ui$Element$column,
 			_List_fromArray(
 				[
@@ -70406,51 +70770,25 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 							A3(
 								$author$project$Morphir$Web$DevelopApp$Common$ifThenElse,
 								model.showModules,
-								$mdgriffith$elm_ui$Element$fillPortion(4),
-								$mdgriffith$elm_ui$Element$fillPortion(2))),
+								$mdgriffith$elm_ui$Element$fillPortion(5),
+								$mdgriffith$elm_ui$Element$fillPortion(3))),
 							$mdgriffith$elm_ui$Element$height($mdgriffith$elm_ui$Element$fill)
 						]),
 					_List_fromArray(
 						[
-							A3(
-							$author$project$Morphir$Web$DevelopApp$Common$ifThenElse,
-							model.showModules,
-							$mdgriffith$elm_ui$Element$none,
-							A2(
-								$mdgriffith$elm_ui$Element$row,
-								_List_fromArray(
-									[
-										$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
-										$mdgriffith$elm_ui$Element$padding(
-										A2($author$project$Morphir$Visual$Theme$scaled, -3, model.theme)),
-										$mdgriffith$elm_ui$Element$spacing(
-										A2($author$project$Morphir$Visual$Theme$scaled, 1, model.theme))
-									]),
-								_List_fromArray(
-									[
-										A2(
-										$mdgriffith$elm_ui$Element$el,
-										_List_fromArray(
-											[$mdgriffith$elm_ui$Element$centerX, $mdgriffith$elm_ui$Element$Font$bold]),
-										$mdgriffith$elm_ui$Element$text(pathToSelectedModule)),
-										A2(
-										$mdgriffith$elm_ui$Element$el,
-										_List_fromArray(
-											[$mdgriffith$elm_ui$Element$alignRight]),
-										toggleModulesMenu)
-									]))),
 							A2(
 							$mdgriffith$elm_ui$Element$row,
 							_List_fromArray(
 								[
 									$mdgriffith$elm_ui$Element$height($mdgriffith$elm_ui$Element$fill),
 									$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
-									$mdgriffith$elm_ui$Element$spacing(10)
+									$mdgriffith$elm_ui$Element$spacing(
+									A3($author$project$Morphir$Web$DevelopApp$Common$ifThenElse, model.showModules, 10, 0))
 								]),
 							_List_fromArray(
 								[
 									A2(
-									$mdgriffith$elm_ui$Element$column,
+									$mdgriffith$elm_ui$Element$row,
 									_List_fromArray(
 										[
 											$mdgriffith$elm_ui$Element$Background$color(gray),
@@ -70460,33 +70798,40 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 												$author$project$Morphir$Web$DevelopApp$Common$ifThenElse,
 												model.showModules,
 												$mdgriffith$elm_ui$Element$fillPortion(2),
-												$mdgriffith$elm_ui$Element$fillPortion(0)))
+												$mdgriffith$elm_ui$Element$fillPortion(0))),
+											A2(
+											$mdgriffith$elm_ui$Element$paddingXY,
+											0,
+											A2($author$project$Morphir$Visual$Theme$scaled, -3, model.theme))
 										]),
 									_List_fromArray(
 										[
 											A2(
-											$mdgriffith$elm_ui$Element$row,
+											$mdgriffith$elm_ui$Element$el,
 											_List_fromArray(
 												[
-													$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
-													A2(
-													$mdgriffith$elm_ui$Element$paddingXY,
-													0,
-													A2($author$project$Morphir$Visual$Theme$scaled, -3, model.theme))
+													$mdgriffith$elm_ui$Element$alignTop,
+													$mdgriffith$elm_ui$Element$rotate(
+													$elm$core$Basics$degrees(-90)),
+													$mdgriffith$elm_ui$Element$width(
+													$mdgriffith$elm_ui$Element$px(40)),
+													$mdgriffith$elm_ui$Element$moveDown(65),
+													$mdgriffith$elm_ui$Element$padding(
+													A2($author$project$Morphir$Visual$Theme$scaled, -6, model.theme))
 												]),
-											_List_fromArray(
-												[
-													A3(
-													$author$project$Morphir$Web$DevelopApp$Common$ifThenElse,
-													model.showModules,
-													A2(
-														$mdgriffith$elm_ui$Element$el,
-														_List_fromArray(
-															[$mdgriffith$elm_ui$Element$alignRight]),
-														toggleModulesMenu),
-													$mdgriffith$elm_ui$Element$none)
-												])),
-											A3($author$project$Morphir$Web$DevelopApp$Common$ifThenElse, model.showModules, moduleTree, $mdgriffith$elm_ui$Element$none)
+											toggleModulesMenu),
+											A3(
+											$author$project$Morphir$Web$DevelopApp$Common$ifThenElse,
+											model.showModules,
+											A2(
+												$mdgriffith$elm_ui$Element$el,
+												_List_fromArray(
+													[
+														$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
+														$mdgriffith$elm_ui$Element$height($mdgriffith$elm_ui$Element$fill)
+													]),
+												moduleTree),
+											$mdgriffith$elm_ui$Element$none)
 										])),
 									A2(
 									$mdgriffith$elm_ui$Element$column,
@@ -70499,7 +70844,9 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 												$author$project$Morphir$Web$DevelopApp$Common$ifThenElse,
 												model.showModules,
 												$mdgriffith$elm_ui$Element$fillPortion(3),
-												$mdgriffith$elm_ui$Element$fill))
+												$mdgriffith$elm_ui$Element$fill)),
+											$mdgriffith$elm_ui$Element$spacing(
+											A2($author$project$Morphir$Visual$Theme$scaled, -4, model.theme))
 										]),
 									_List_fromArray(
 										[
@@ -70529,6 +70876,15 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 													_List_fromArray(
 														[valueCheckbox, typeCheckbox]))
 												])),
+											A2(
+											$mdgriffith$elm_ui$Element$el,
+											_List_fromArray(
+												[
+													$mdgriffith$elm_ui$Element$Font$bold,
+													$mdgriffith$elm_ui$Element$paddingEach(
+													{bottom: 3, left: 5, right: 0, top: 0})
+												]),
+											$mdgriffith$elm_ui$Element$text(pathToSelectedModule)),
 											A2(
 											$mdgriffith$elm_ui$Element$el,
 											scrollableListStyles,

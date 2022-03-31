@@ -6,16 +6,19 @@ module Morphir.Elm.IncrementalFrontend exposing (..)
 import Dict exposing (Dict)
 import Elm.Parser
 import Elm.Processing as Processing exposing (ProcessContext)
+import Elm.RawFile as RawFile
 import Elm.Syntax.Declaration exposing (Declaration(..))
 import Elm.Syntax.File exposing (File)
 import Elm.Syntax.Node as Node exposing (Node(..))
 import Elm.Syntax.TypeAnnotation exposing (TypeAnnotation(..))
 import Morphir.Dependency.DAG as DAG exposing (CycleDetected(..), DAG)
+import Morphir.Elm.IncrementalResolve as IncrementalResolve
 import Morphir.Elm.ModuleName as ElmModuleName
 import Morphir.Elm.ParsedModule as ParsedModule exposing (ParsedModule)
 import Morphir.Elm.WellKnownOperators as WellKnownOperators
-import Morphir.File.FileChanges as FileChanges exposing (Change(..), FileChanges)
-import Morphir.IR.FQName exposing (FQName, fQName)
+import Morphir.File.FileChanges exposing (Change(..), FileChanges)
+import Morphir.File.Path exposing (Path)
+import Morphir.IR.FQName exposing (FQName)
 import Morphir.IR.Module exposing (ModuleName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package exposing (PackageName)
@@ -35,8 +38,9 @@ type Error
     = ModuleCycleDetected ModuleName ModuleName
     | TypeCycleDetected Name Name
     | InvalidModuleName ElmModuleName.ModuleName
-    | ParseError FileChanges.Path (List Parser.DeadEnd)
+    | ParseError Path (List Parser.DeadEnd)
     | RepoError Repo.Errors
+    | ResolveError ModuleName IncrementalResolve.Error
 
 
 applyFileChanges : FileChanges -> Repo -> Result Errors Repo
@@ -48,31 +52,62 @@ applyFileChanges fileChanges repo =
                 parsedModules
                     |> List.foldl
                         (\( moduleName, parsedModule ) repoResultForModule ->
-                            let
-                                typeNames : List Name
-                                typeNames =
-                                    extractTypeNames parsedModule
-                            in
-                            extractTypes parsedModule typeNames
-                                |> Result.andThen (orderTypesByDependency repo.packageName moduleName)
-                                |> Result.andThen
-                                    (\types ->
-                                        types
-                                            |> List.foldl
-                                                (\( typeName, typeDef ) repoResultForType ->
-                                                    repoResultForType
-                                                        |> Result.andThen
-                                                            (\repoForType ->
-                                                                repoForType
-                                                                    |> Repo.insertType moduleName typeName typeDef
-                                                                    |> Result.mapError (RepoError >> List.singleton)
-                                                            )
-                                                )
-                                                repoResultForModule
-                                    )
+                            repoResultForModule
+                                |> Result.andThen (processModule moduleName parsedModule)
                         )
                         (Ok repo)
             )
+
+
+processModule : ModuleName -> ParsedModule -> Repo -> Result (List Error) Repo
+processModule moduleName parsedModule repo =
+    let
+        typeNames : List Name
+        typeNames =
+            extractTypeNames parsedModule
+
+        localNames : IncrementalResolve.VisibleNames
+        localNames =
+            { types = Set.fromList typeNames
+            , constructors = Set.empty
+            , values = Set.empty
+            }
+
+        resolveTypeName : List String -> String -> Result Errors FQName
+        resolveTypeName modName localName =
+            parsedModule
+                |> RawFile.imports
+                |> IncrementalResolve.resolveImports repo
+                |> Result.andThen
+                    (\resolvedImports ->
+                        IncrementalResolve.resolveLocalName
+                            repo
+                            moduleName
+                            localNames
+                            resolvedImports
+                            modName
+                            IncrementalResolve.Type
+                            localName
+                    )
+                |> Result.mapError (ResolveError moduleName >> List.singleton)
+    in
+    extractTypes resolveTypeName parsedModule typeNames
+        |> Result.andThen (orderTypesByDependency repo.packageName moduleName)
+        |> Result.andThen
+            (List.foldl
+                (\( typeName, typeDef ) repoResultForType ->
+                    repoResultForType
+                        |> Result.andThen (processType moduleName typeName typeDef)
+                )
+                (Ok repo)
+            )
+
+
+processType : ModuleName -> Name -> Type.Definition () -> Repo -> Result (List Error) Repo
+processType moduleName typeName typeDef repo =
+    repo
+        |> Repo.insertType moduleName typeName typeDef
+        |> Result.mapError (RepoError >> List.singleton)
 
 
 {-| convert New or Updated Elm modules into ParsedModules for further processing
@@ -99,7 +134,7 @@ parseElmModules fileChanges =
 
 {-| Converts an elm source into a ParsedModule.
 -}
-parseSource : ( FileChanges.Path, String ) -> Result Error ParsedModule
+parseSource : ( Path, String ) -> Result Error ParsedModule
 parseSource ( path, content ) =
     Elm.Parser.parse content
         |> Result.mapError (ParseError path)
@@ -124,10 +159,6 @@ orderElmModulesByDependency repo parsedModules =
                     )
                 |> Dict.fromList
 
-        moduleGraph : DAG ModuleName
-        moduleGraph =
-            DAG.empty
-
         foldFunction : ParsedModule -> Result Errors (DAG ModuleName) -> Result Errors (DAG ModuleName)
         foldFunction parsedModule graph =
             let
@@ -135,13 +166,14 @@ orderElmModulesByDependency repo parsedModules =
                 validateIfModuleExistInPackage modName =
                     Path.isPrefixOf repo.packageName modName
 
-                moduleDependencies : List ModuleName
+                moduleDependencies : Set ModuleName
                 moduleDependencies =
                     ParsedModule.importedModules parsedModule
                         |> List.filterMap
                             (\modName ->
                                 ElmModuleName.toIRModuleName repo.packageName modName
                             )
+                        |> Set.fromList
 
                 insertEdge : ModuleName -> ModuleName -> Result Errors (DAG ModuleName) -> Result Errors (DAG ModuleName)
                 insertEdge fromModuleName toModule dag =
@@ -166,12 +198,15 @@ orderElmModulesByDependency repo parsedModules =
                 |> Result.fromMaybe [ InvalidModuleName elmModuleName ]
                 |> Result.andThen
                     (\fromModuleName ->
-                        moduleDependencies
-                            |> List.foldl (insertEdge fromModuleName) graph
+                        graph
+                            |> Result.andThen
+                                (DAG.insertNode fromModuleName moduleDependencies
+                                    >> Result.mapError (\(DAG.CycleDetected from to) -> [ ModuleCycleDetected from to ])
+                                )
                     )
     in
     parsedModules
-        |> List.foldl foldFunction (Ok moduleGraph)
+        |> List.foldl foldFunction (Ok DAG.empty)
         |> Result.map
             (\graph ->
                 graph
@@ -219,8 +254,8 @@ extractTypeNames parsedModule =
         |> extractTypeNamesFromFile
 
 
-extractTypes : ParsedModule -> List Name -> Result Errors (List ( Name, Type.Definition () ))
-extractTypes parsedModule typeNames =
+extractTypes : (List String -> String -> Result Errors FQName) -> ParsedModule -> List Name -> Result Errors (List ( Name, Type.Definition () ))
+extractTypes resolveTypeName parsedModule typeNames =
     let
         declarationsInParsedModule : List Declaration
         declarationsInParsedModule =
@@ -262,7 +297,7 @@ extractTypes parsedModule typeNames =
                                                 constructor.arguments
                                                     |> List.indexedMap
                                                         (\index arg ->
-                                                            mapAnnotationToMorphirType arg
+                                                            mapAnnotationToMorphirType resolveTypeName arg
                                                                 |> Result.map
                                                                     (\argType ->
                                                                         ( [ "arg", String.fromInt (index + 1) ]
@@ -300,7 +335,7 @@ extractTypes parsedModule typeNames =
                                 |> List.map (Node.value >> Name.fromString)
                     in
                     typeAlias.typeAnnotation
-                        |> mapAnnotationToMorphirType
+                        |> mapAnnotationToMorphirType resolveTypeName
                         |> Result.map
                             (\tpe ->
                                 ( typeAlias.name
@@ -317,23 +352,18 @@ extractTypes parsedModule typeNames =
     typeNameToDefinition
 
 
-mapAnnotationToMorphirType : Node TypeAnnotation -> Result Errors (Type ())
-mapAnnotationToMorphirType (Node range typeAnnotation) =
+mapAnnotationToMorphirType : (List String -> String -> Result Errors FQName) -> Node TypeAnnotation -> Result Errors (Type ())
+mapAnnotationToMorphirType resolveTypeName (Node range typeAnnotation) =
     case typeAnnotation of
         GenericType varName ->
             Ok (Type.Variable () (varName |> Name.fromString))
 
         Typed (Node _ ( moduleName, localName )) argNodes ->
-            Result.map
-                (Type.Reference ()
-                    (fQName
-                        []
-                        (List.map Name.fromString moduleName)
-                        (Name.fromString localName)
-                    )
-                )
+            Result.map2
+                (Type.Reference ())
+                (resolveTypeName moduleName localName)
                 (argNodes
-                    |> List.map mapAnnotationToMorphirType
+                    |> List.map (mapAnnotationToMorphirType resolveTypeName)
                     |> ResultList.keepAllErrors
                     |> Result.mapError List.concat
                 )
@@ -343,7 +373,7 @@ mapAnnotationToMorphirType (Node range typeAnnotation) =
 
         Tupled typeAnnotationNodes ->
             typeAnnotationNodes
-                |> List.map mapAnnotationToMorphirType
+                |> List.map (mapAnnotationToMorphirType resolveTypeName)
                 |> ResultList.keepAllErrors
                 |> Result.mapError List.concat
                 |> Result.map (Type.Tuple ())
@@ -353,7 +383,7 @@ mapAnnotationToMorphirType (Node range typeAnnotation) =
                 |> List.map Node.value
                 |> List.map
                     (\( Node _ argName, fieldTypeNode ) ->
-                        mapAnnotationToMorphirType fieldTypeNode
+                        mapAnnotationToMorphirType resolveTypeName fieldTypeNode
                             |> Result.map (Type.Field (Name.fromString argName))
                     )
                 |> ResultList.keepAllErrors
@@ -365,7 +395,7 @@ mapAnnotationToMorphirType (Node range typeAnnotation) =
                 |> List.map Node.value
                 |> List.map
                     (\( Node _ ags, fieldTypeNode ) ->
-                        mapAnnotationToMorphirType fieldTypeNode
+                        mapAnnotationToMorphirType resolveTypeName fieldTypeNode
                             |> Result.map (Type.Field (Name.fromString ags))
                     )
                 |> ResultList.keepAllErrors
@@ -375,8 +405,8 @@ mapAnnotationToMorphirType (Node range typeAnnotation) =
         FunctionTypeAnnotation argTypeNode returnTypeNode ->
             Result.map2
                 (Type.Function ())
-                (mapAnnotationToMorphirType argTypeNode)
-                (mapAnnotationToMorphirType returnTypeNode)
+                (mapAnnotationToMorphirType resolveTypeName argTypeNode)
+                (mapAnnotationToMorphirType resolveTypeName returnTypeNode)
 
 
 {-| Order types topologically by their dependencies. The purpose of this function is to allow us to insert the types

@@ -117,49 +117,48 @@ depList =
 
 
 dagToGraph : DAG FQName -> Graph
-
-
-dagToGrpah =
+dagToGraph =
     Debug.todo "Implement"
 
 
-extractTypesAndValues : ModuleName -> Distribution -> Graph
-extractTypesAndValues moduleName (Library packageName _ packageDefinition) =
-    case lookupModuleDefinition moduleName packageDefinition of
-        Just moduleDef ->
-            let
-                typeDefToType : Type.Definition ta -> List (Type ta)
-                typeDefToType typeDef =
-                    case typeDef of
-                        Type.TypeAliasDefinition _ typ ->
-                            [ typ ]
 
-                        Type.CustomTypeDefinition lists accessControlled ->
-                            accessControlled
-                                |> .value
-                                |> Dict.toList
-                                |> List.map Tuple.second
-                                |> List.concat
-                                |> List.map Tuple.second
-
-                t : Set ( FQName, Set FQName )
-                t =
-                    Dict.toList moduleDef.types
-                        |> List.map
-                            (\( typeName, accessControlDefinition ) ->
-                                accessControlDefinition
-                                    |> .value
-                                    |> .value
-                                    |> (\def ->
-                                            def
-                                                |> typeDefToType
-                                       )
-                            )
-            in
-            empty
-
-        Nothing ->
-            empty
+--extractTypesAndValues : ModuleName -> Distribution -> Graph
+--extractTypesAndValues moduleName (Library packageName _ packageDefinition) =
+--    case lookupModuleDefinition moduleName packageDefinition of
+--        Just moduleDef ->
+--            let
+--                typeDefToType : Type.Definition ta -> List (Type ta)
+--                typeDefToType typeDef =
+--                    case typeDef of
+--                        Type.TypeAliasDefinition _ typ ->
+--                            [ typ ]
+--
+--                        Type.CustomTypeDefinition lists accessControlled ->
+--                            accessControlled
+--                                |> .value
+--                                |> Dict.toList
+--                                |> List.map Tuple.second
+--                                |> List.concat
+--                                |> List.map Tuple.second
+--
+--                t : Set ( FQName, Set FQName )
+--                t =
+--                    Dict.toList moduleDef.types
+--                        |> List.map
+--                            (\( typeName, accessControlDefinition ) ->
+--                                accessControlDefinition
+--                                    |> .value
+--                                    |> .value
+--                                    |> (\def ->
+--                                            def
+--                                                |> typeDefToType
+--                                       )
+--                            )
+--            in
+--            empty
+--
+--        Nothing ->
+--            empty
 
 
 depListAsGraph : Graph
