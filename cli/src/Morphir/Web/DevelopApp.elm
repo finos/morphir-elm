@@ -5,36 +5,7 @@ import Array.Extra
 import Browser
 import Browser.Navigation as Nav
 import Dict exposing (Dict)
-import Element
-    exposing
-        ( Element
-        , alignRight
-        , alignTop
-        , centerX
-        , column
-        , el
-        , fill
-        , fillPortion
-        , height
-        , html
-        , image
-        , layout
-        , link
-        , mouseOver
-        , none
-        , padding
-        , paddingXY
-        , paragraph
-        , pointer
-        , px
-        , rgb
-        , rgba
-        , row
-        , scrollbars
-        , spacing
-        , text
-        , width
-        )
+import Element exposing (Attribute, Element, alignRight, alignTop, centerX, column, el, fill, fillPortion, height, html, htmlAttribute, image, layout, link, mouseOver, none, padding, paddingXY, paragraph, pointer, px, rgb, rgba, row, scrollbars, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events exposing (onClick)
@@ -66,6 +37,7 @@ import Morphir.Visual.XRayView as XRayView
 import Morphir.Web.DevelopApp.Common exposing (ifThenElse, insertInList, viewAsCard)
 import Morphir.Web.DevelopApp.FunctionPage as FunctionPage
 import Morphir.Web.DevelopApp.ModulePage as ModulePage exposing (ViewType(..), makeURL)
+import Morphir.Web.Graph.Graph as Graph exposing (Edge, Graph, Node)
 import Ordering
 import Parser exposing (deadEndsToString)
 import Set exposing (Set)
@@ -1117,6 +1089,11 @@ viewModuleModel theme moduleModel distribution =
         moduleModel
 
 
+viewGraph : Graph -> Element msg
+viewGraph graph =
+    Graph.visGraph graph |> html
+
+
 viewHome : Model -> PackageName -> Package.Definition () (Type ()) -> Element Msg
 viewHome model packageName packageDef =
     let
@@ -1363,6 +1340,26 @@ viewHome model packageName packageDef =
 
                 _ ->
                     ""
+
+        switchViews : Element Msg
+        switchViews =
+            if model.showModules then
+                column
+                    [ height fill
+                    , width (ifThenElse model.showModules (fillPortion 6) (fillPortion 7))
+                    , Background.color model.theme.colors.lightest
+                    ]
+                    [ column [ width fill, height (fillPortion 1), scrollbars, padding (model.theme |> Theme.scaled 1) ] [ viewDefinition model.selectedDefinition ]
+                    , column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
+                        [ el
+                            [ height fill, width fill ]
+                            (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.selectedDefinition)
+                        ]
+                    ]
+
+            else
+                column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
+                    [ viewGraph Graph.depListAsGraph ]
     in
     row [ width fill, height fill, Background.color gray, spacing 10 ]
         [ column
@@ -1420,12 +1417,7 @@ viewHome model packageName packageDef =
             , width (ifThenElse model.showModules (fillPortion 6) (fillPortion 7))
             , Background.color model.theme.colors.lightest
             ]
-            [ column [ width fill, height (fillPortion 2), scrollbars, padding (model.theme |> Theme.scaled 1) ] [ viewDefinition model.selectedDefinition ]
-            , column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
-                [ el [ height fill, width fill ]
-                    (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.selectedDefinition)
-                ]
-            ]
+            [ switchViews ]
         ]
 
 
