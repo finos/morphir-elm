@@ -1,3 +1,8 @@
+/**
+    The VisGraph class is defined to create a Custom Element which embeds the vis-graph library.
+    This makes it possible to create graphs in Elm
+**/
+
 class VisGraph extends HTMLElement {
     constructor() {
         super();
@@ -8,13 +13,10 @@ class VisGraph extends HTMLElement {
 
         var graphObject = JSON.parse(this.getAttribute('graph'))
 
-
-        // create an array with nodes
         var nodes = new vis.DataSet(
             graphObject.nodes
         );
 
-        // create an array with edges
         var edges = new vis.DataSet(
             graphObject.edges
         );
@@ -33,6 +35,7 @@ class VisGraph extends HTMLElement {
                     direction: "UD",
                     sortMethod: "directed",
                 },
+
             },
             edges: {
                 smooth: true,
@@ -43,7 +46,6 @@ class VisGraph extends HTMLElement {
             width: "1000px"
         };
 
-        // initialize your network!
         var network = new vis.Network(this, data, options);
 
     }

@@ -5620,6 +5620,13 @@ var $author$project$Morphir$Web$DevelopApp$ServerReady = {$: 'ServerReady'};
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
 var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
+var $author$project$Morphir$Dependency$DAG$DAG = function (a) {
+	return {$: 'DAG', a: a};
+};
+var $author$project$Morphir$Dependency$DAG$empty = $author$project$Morphir$Dependency$DAG$DAG($elm$core$Dict$empty);
+var $author$project$Morphir$IR$Repo$empty = function (packageName) {
+	return {dependencies: $elm$core$Dict$empty, moduleDependencies: $author$project$Morphir$Dependency$DAG$empty, modules: $elm$core$Dict$empty, nativeFunctions: $elm$core$Dict$empty, packageName: packageName, typeDependencies: $author$project$Morphir$Dependency$DAG$empty, valueDependencies: $author$project$Morphir$Dependency$DAG$empty};
+};
 var $elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
@@ -5667,6 +5674,9 @@ var $author$project$Morphir$Visual$Theme$fromConfig = function (maybeConfig) {
 	} else {
 		return {colors: $author$project$Morphir$Visual$Theme$defaultColors, decimalDigit: 2, fontSize: 12};
 	}
+};
+var $elm$http$Http$BadBody = function (a) {
+	return {$: 'BadBody', a: a};
 };
 var $author$project$Morphir$Web$DevelopApp$HttpError = function (a) {
 	return {$: 'HttpError', a: a};
@@ -8121,9 +8131,6 @@ var $elm$core$Result$mapError = F2(
 				f(e));
 		}
 	});
-var $elm$http$Http$BadBody = function (a) {
-	return {$: 'BadBody', a: a};
-};
 var $elm$http$Http$BadStatus = function (a) {
 	return {$: 'BadStatus', a: a};
 };
@@ -8168,6 +8175,800 @@ var $elm$http$Http$expectJson = F2(
 						A2($elm$json$Json$Decode$decodeString, decoder, string));
 				}));
 	});
+var $elm$core$Result$andThen = F2(
+	function (callback, result) {
+		if (result.$ === 'Ok') {
+			var value = result.a;
+			return callback(value);
+		} else {
+			var msg = result.a;
+			return $elm$core$Result$Err(msg);
+		}
+	});
+var $author$project$Morphir$IR$Repo$ModuleAlreadyExist = function (a) {
+	return {$: 'ModuleAlreadyExist', a: a};
+};
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $author$project$Morphir$IR$AccessControlled$private = function (value) {
+	return A2($author$project$Morphir$IR$AccessControlled$AccessControlled, $author$project$Morphir$IR$AccessControlled$Private, value);
+};
+var $author$project$Morphir$IR$Repo$insertModule = F3(
+	function (moduleName, moduleDef, repo) {
+		var validationErrors = function () {
+			var _v0 = A2($elm$core$Dict$get, moduleName, repo.modules);
+			if (_v0.$ === 'Just') {
+				return $elm$core$Maybe$Just(
+					_List_fromArray(
+						[
+							$author$project$Morphir$IR$Repo$ModuleAlreadyExist(moduleName)
+						]));
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		}();
+		return A2(
+			$elm$core$Maybe$withDefault,
+			$elm$core$Result$Ok(
+				_Utils_update(
+					repo,
+					{
+						modules: A3(
+							$elm$core$Dict$insert,
+							moduleName,
+							$author$project$Morphir$IR$AccessControlled$private(moduleDef),
+							repo.modules)
+					})),
+			A2($elm$core$Maybe$map, $elm$core$Result$Err, validationErrors));
+	});
+var $elm$core$List$maybeCons = F3(
+	function (f, mx, xs) {
+		var _v0 = f(mx);
+		if (_v0.$ === 'Just') {
+			var x = _v0.a;
+			return A2($elm$core$List$cons, x, xs);
+		} else {
+			return xs;
+		}
+	});
+var $elm$core$List$filterMap = F2(
+	function (f, xs) {
+		return A3(
+			$elm$core$List$foldr,
+			$elm$core$List$maybeCons(f),
+			_List_Nil,
+			xs);
+	});
+var $elm$core$List$maximum = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(
+			A3($elm$core$List$foldl, $elm$core$Basics$max, x, xs));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Morphir$Dependency$DAG$forwardTopologicalOrdering = function (_v0) {
+	var edgesByNode = _v0.a;
+	var dagList = A2(
+		$elm$core$List$map,
+		function (_v3) {
+			var fromNode = _v3.a;
+			var _v4 = _v3.b;
+			var fromNodeLevel = _v4.b;
+			return _Utils_Tuple2(fromNode, fromNodeLevel);
+		},
+		$elm$core$Dict$toList(edgesByNode));
+	var maxLevel = A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$List$maximum(
+			A2(
+				$elm$core$List$map,
+				function (_v2) {
+					var level = _v2.b;
+					return level;
+				},
+				dagList)));
+	return A2(
+		$elm$core$List$map,
+		function (level) {
+			return A2(
+				$elm$core$List$filterMap,
+				function (_v1) {
+					var fromNode = _v1.a;
+					var fromNodeLevel = _v1.b;
+					return _Utils_eq(fromNodeLevel, level) ? $elm$core$Maybe$Just(fromNode) : $elm$core$Maybe$Nothing;
+				},
+				dagList);
+		},
+		A2($elm$core$List$range, 0, maxLevel));
+};
+var $author$project$Morphir$Dependency$DAG$backwardTopologicalOrdering = function (dag) {
+	return $elm$core$List$reverse(
+		$author$project$Morphir$Dependency$DAG$forwardTopologicalOrdering(dag));
+};
+var $elm$core$List$append = F2(
+	function (xs, ys) {
+		if (!ys.b) {
+			return xs;
+		} else {
+			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
+		}
+	});
+var $elm$core$List$concat = function (lists) {
+	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
+};
+var $elm$core$Set$insert = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+	});
+var $elm$core$Dict$foldl = F3(
+	function (func, acc, dict) {
+		foldl:
+		while (true) {
+			if (dict.$ === 'RBEmpty_elm_builtin') {
+				return acc;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var $temp$func = func,
+					$temp$acc = A3(
+					func,
+					key,
+					value,
+					A3($elm$core$Dict$foldl, func, acc, left)),
+					$temp$dict = right;
+				func = $temp$func;
+				acc = $temp$acc;
+				dict = $temp$dict;
+				continue foldl;
+			}
+		}
+	});
+var $elm$core$Dict$union = F2(
+	function (t1, t2) {
+		return A3($elm$core$Dict$foldl, $elm$core$Dict$insert, t2, t1);
+	});
+var $elm$core$Set$union = F2(
+	function (_v0, _v1) {
+		var dict1 = _v0.a;
+		var dict2 = _v1.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2($elm$core$Dict$union, dict1, dict2));
+	});
+var $author$project$Morphir$IR$Type$collectReferences = function (tpe) {
+	var collectUnion = function (values) {
+		return A3(
+			$elm$core$List$foldl,
+			$elm$core$Set$union,
+			$elm$core$Set$empty,
+			A2($elm$core$List$map, $author$project$Morphir$IR$Type$collectReferences, values));
+	};
+	switch (tpe.$) {
+		case 'Variable':
+			return $elm$core$Set$empty;
+		case 'Reference':
+			var fQName = tpe.b;
+			var args = tpe.c;
+			return A2(
+				$elm$core$Set$insert,
+				fQName,
+				collectUnion(args));
+		case 'Tuple':
+			var elements = tpe.b;
+			return collectUnion(elements);
+		case 'Record':
+			var fields = tpe.b;
+			return collectUnion(
+				A2(
+					$elm$core$List$map,
+					function ($) {
+						return $.tpe;
+					},
+					fields));
+		case 'ExtensibleRecord':
+			var fields = tpe.c;
+			return collectUnion(
+				A2(
+					$elm$core$List$map,
+					function ($) {
+						return $.tpe;
+					},
+					fields));
+		case 'Function':
+			var argType = tpe.b;
+			var returnType = tpe.c;
+			return collectUnion(
+				_List_fromArray(
+					[argType, returnType]));
+		default:
+			return $elm$core$Set$empty;
+	}
+};
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
+	});
+var $elm$core$Dict$values = function (dict) {
+	return A3(
+		$elm$core$Dict$foldr,
+		F3(
+			function (key, value, valueList) {
+				return A2($elm$core$List$cons, value, valueList);
+			}),
+		_List_Nil,
+		dict);
+};
+var $author$project$Morphir$IR$Module$collectTypeReferences = function (moduleDef) {
+	var valueRefs = A3(
+		$elm$core$List$foldl,
+		$elm$core$Set$union,
+		$elm$core$Set$empty,
+		A2(
+			$elm$core$List$concatMap,
+			function (valueDef) {
+				return A2(
+					$elm$core$List$map,
+					$author$project$Morphir$IR$Type$collectReferences,
+					A2(
+						$elm$core$List$cons,
+						valueDef.value.value.outputType,
+						A2(
+							$elm$core$List$map,
+							function (_v2) {
+								var tpe = _v2.c;
+								return tpe;
+							},
+							valueDef.value.value.inputTypes)));
+			},
+			$elm$core$Dict$values(moduleDef.values)));
+	var typeRefs = A3(
+		$elm$core$List$foldl,
+		$elm$core$Set$union,
+		$elm$core$Set$empty,
+		A2(
+			$elm$core$List$map,
+			function (typeDef) {
+				var _v0 = typeDef.value.value;
+				if (_v0.$ === 'TypeAliasDefinition') {
+					var tpe = _v0.b;
+					return $author$project$Morphir$IR$Type$collectReferences(tpe);
+				} else {
+					var ctors = _v0.b;
+					return A3(
+						$elm$core$List$foldl,
+						$elm$core$Set$union,
+						$elm$core$Set$empty,
+						A2(
+							$elm$core$List$concatMap,
+							function (ctorArgs) {
+								return A2(
+									$elm$core$List$map,
+									function (_v1) {
+										var tpe = _v1.b;
+										return $author$project$Morphir$IR$Type$collectReferences(tpe);
+									},
+									ctorArgs);
+							},
+							$elm$core$Dict$values(ctors.value)));
+				}
+			},
+			$elm$core$Dict$values(moduleDef.types)));
+	return A2($elm$core$Set$union, typeRefs, valueRefs);
+};
+var $elm$core$Tuple$second = function (_v0) {
+	var y = _v0.b;
+	return y;
+};
+var $elm$core$Dict$singleton = F2(
+	function (key, value) {
+		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
+	});
+var $elm$core$Set$singleton = function (key) {
+	return $elm$core$Set$Set_elm_builtin(
+		A2($elm$core$Dict$singleton, key, _Utils_Tuple0));
+};
+var $author$project$Morphir$IR$Value$collectReferences = function (value) {
+	collectReferences:
+	while (true) {
+		var collectUnion = function (values) {
+			return A3(
+				$elm$core$List$foldl,
+				$elm$core$Set$union,
+				$elm$core$Set$empty,
+				A2($elm$core$List$map, $author$project$Morphir$IR$Value$collectReferences, values));
+		};
+		switch (value.$) {
+			case 'Tuple':
+				var elements = value.b;
+				return collectUnion(elements);
+			case 'List':
+				var items = value.b;
+				return collectUnion(items);
+			case 'Record':
+				var fields = value.b;
+				return collectUnion(
+					A2($elm$core$List$map, $elm$core$Tuple$second, fields));
+			case 'Reference':
+				var fQName = value.b;
+				return $elm$core$Set$singleton(fQName);
+			case 'Field':
+				var subjectValue = value.b;
+				var $temp$value = subjectValue;
+				value = $temp$value;
+				continue collectReferences;
+			case 'Apply':
+				var _function = value.b;
+				var argument = value.c;
+				return collectUnion(
+					_List_fromArray(
+						[_function, argument]));
+			case 'Lambda':
+				var body = value.c;
+				var $temp$value = body;
+				value = $temp$value;
+				continue collectReferences;
+			case 'LetDefinition':
+				var valueDefinition = value.c;
+				var inValue = value.d;
+				return collectUnion(
+					_List_fromArray(
+						[valueDefinition.body, inValue]));
+			case 'LetRecursion':
+				var valueDefinitions = value.b;
+				var inValue = value.c;
+				return A3(
+					$elm$core$List$foldl,
+					$elm$core$Set$union,
+					$elm$core$Set$empty,
+					A2(
+						$elm$core$List$append,
+						_List_fromArray(
+							[
+								$author$project$Morphir$IR$Value$collectReferences(inValue)
+							]),
+						A2(
+							$elm$core$List$map,
+							function (_v1) {
+								var def = _v1.b;
+								return $author$project$Morphir$IR$Value$collectReferences(def.body);
+							},
+							$elm$core$Dict$toList(valueDefinitions))));
+			case 'Destructure':
+				var valueToDestruct = value.c;
+				var inValue = value.d;
+				return collectUnion(
+					_List_fromArray(
+						[valueToDestruct, inValue]));
+			case 'IfThenElse':
+				var condition = value.b;
+				var thenBranch = value.c;
+				var elseBranch = value.d;
+				return collectUnion(
+					_List_fromArray(
+						[condition, thenBranch, elseBranch]));
+			case 'PatternMatch':
+				var branchOutOn = value.b;
+				var cases = value.c;
+				return A2(
+					$elm$core$Set$union,
+					$author$project$Morphir$IR$Value$collectReferences(branchOutOn),
+					collectUnion(
+						A2($elm$core$List$map, $elm$core$Tuple$second, cases)));
+			case 'UpdateRecord':
+				var valueToUpdate = value.b;
+				var fieldsToUpdate = value.c;
+				return A2(
+					$elm$core$Set$union,
+					$author$project$Morphir$IR$Value$collectReferences(valueToUpdate),
+					collectUnion(
+						A2($elm$core$List$map, $elm$core$Tuple$second, fieldsToUpdate)));
+			default:
+				return $elm$core$Set$empty;
+		}
+	}
+};
+var $author$project$Morphir$IR$Module$collectValueReferences = function (moduleDef) {
+	return A3(
+		$elm$core$List$foldl,
+		$elm$core$Set$union,
+		$elm$core$Set$empty,
+		A2(
+			$elm$core$List$map,
+			function (valueDef) {
+				return $author$project$Morphir$IR$Value$collectReferences(valueDef.value.value.body);
+			},
+			$elm$core$Dict$values(moduleDef.values)));
+};
+var $author$project$Morphir$IR$Module$collectReferences = function (moduleDef) {
+	return A2(
+		$elm$core$Set$union,
+		$author$project$Morphir$IR$Module$collectTypeReferences(moduleDef),
+		$author$project$Morphir$IR$Module$collectValueReferences(moduleDef));
+};
+var $elm$core$Set$foldl = F3(
+	function (func, initialState, _v0) {
+		var dict = _v0.a;
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (key, _v1, state) {
+					return A2(func, key, state);
+				}),
+			initialState,
+			dict);
+	});
+var $elm$core$Set$fromList = function (list) {
+	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
+};
+var $elm$core$Set$map = F2(
+	function (func, set) {
+		return $elm$core$Set$fromList(
+			A3(
+				$elm$core$Set$foldl,
+				F2(
+					function (x, xs) {
+						return A2(
+							$elm$core$List$cons,
+							func(x),
+							xs);
+					}),
+				_List_Nil,
+				set));
+	});
+var $author$project$Morphir$IR$Module$dependsOnModules = function (moduleDef) {
+	return A2(
+		$elm$core$Set$map,
+		function (_v0) {
+			var packageName = _v0.a;
+			var moduleName = _v0.b;
+			return _Utils_Tuple2(packageName, moduleName);
+		},
+		$author$project$Morphir$IR$Module$collectReferences(moduleDef));
+};
+var $elm$core$Dict$filter = F2(
+	function (isGood, dict) {
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (k, v, d) {
+					return A2(isGood, k, v) ? A3($elm$core$Dict$insert, k, v, d) : d;
+				}),
+			$elm$core$Dict$empty,
+			dict);
+	});
+var $elm$core$Set$filter = F2(
+	function (isGood, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2(
+				$elm$core$Dict$filter,
+				F2(
+					function (key, _v1) {
+						return isGood(key);
+					}),
+				dict));
+	});
+var $author$project$Morphir$Dependency$DAG$CycleDetected = F2(
+	function (a, b) {
+		return {$: 'CycleDetected', a: a, b: b};
+	});
+var $elm$core$Dict$map = F2(
+	function (func, dict) {
+		if (dict.$ === 'RBEmpty_elm_builtin') {
+			return $elm$core$Dict$RBEmpty_elm_builtin;
+		} else {
+			var color = dict.a;
+			var key = dict.b;
+			var value = dict.c;
+			var left = dict.d;
+			var right = dict.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				color,
+				key,
+				A2(func, key, value),
+				A2($elm$core$Dict$map, func, left),
+				A2($elm$core$Dict$map, func, right));
+		}
+	});
+var $elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$get, key, dict);
+		if (_v0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var $elm$core$Set$member = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return A2($elm$core$Dict$member, key, dict);
+	});
+var $elm$core$Set$remove = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A2($elm$core$Dict$remove, key, dict));
+	});
+var $author$project$Morphir$Dependency$DAG$insertEdge = F3(
+	function (from, to, _v0) {
+		var edgesByNodes = _v0.a;
+		var shiftTransitively = F3(
+			function (by, n, _v1) {
+				var e = _v1.a;
+				var _v2 = A2($elm$core$Dict$get, n, e);
+				if (_v2.$ === 'Just') {
+					var _v3 = _v2.a;
+					var toNodes = _v3.a;
+					var level = _v3.b;
+					return A3(
+						$elm$core$Set$foldl,
+						shiftTransitively(by),
+						$author$project$Morphir$Dependency$DAG$DAG(
+							A3(
+								$elm$core$Dict$insert,
+								n,
+								_Utils_Tuple2(toNodes, level + by),
+								e)),
+						A2($elm$core$Set$remove, n, toNodes));
+				} else {
+					return $author$project$Morphir$Dependency$DAG$DAG(e);
+				}
+			});
+		var shiftAll = F2(
+			function (by, _v15) {
+				var e = _v15.a;
+				return $author$project$Morphir$Dependency$DAG$DAG(
+					A2(
+						$elm$core$Dict$map,
+						F2(
+							function (_v13, _v14) {
+								var toNodes = _v14.a;
+								var level = _v14.b;
+								return _Utils_Tuple2(toNodes, level + by);
+							}),
+						e));
+			});
+		if (_Utils_eq(from, to)) {
+			var _v4 = A2($elm$core$Dict$get, from, edgesByNodes);
+			if (_v4.$ === 'Just') {
+				var _v5 = _v4.a;
+				var fromEdges = _v5.a;
+				var fromLevel = _v5.b;
+				return $elm$core$Result$Ok(
+					$author$project$Morphir$Dependency$DAG$DAG(
+						A3(
+							$elm$core$Dict$insert,
+							from,
+							_Utils_Tuple2(
+								A2($elm$core$Set$insert, to, fromEdges),
+								fromLevel),
+							edgesByNodes)));
+			} else {
+				return $elm$core$Result$Ok(
+					$author$project$Morphir$Dependency$DAG$DAG(
+						A3(
+							$elm$core$Dict$insert,
+							from,
+							_Utils_Tuple2(
+								$elm$core$Set$singleton(to),
+								0),
+							edgesByNodes)));
+			}
+		} else {
+			var _v6 = A2($elm$core$Dict$get, to, edgesByNodes);
+			if (_v6.$ === 'Just') {
+				var _v7 = _v6.a;
+				var toEdges = _v7.a;
+				var toLevel = _v7.b;
+				if (A2($elm$core$Set$member, from, toEdges)) {
+					return $elm$core$Result$Err(
+						A2($author$project$Morphir$Dependency$DAG$CycleDetected, from, to));
+				} else {
+					var _v8 = A2($elm$core$Dict$get, from, edgesByNodes);
+					if (_v8.$ === 'Just') {
+						var _v9 = _v8.a;
+						var fromEdges = _v9.a;
+						var fromLevel = _v9.b;
+						return A2($elm$core$Set$member, to, fromEdges) ? $elm$core$Result$Ok(
+							$author$project$Morphir$Dependency$DAG$DAG(edgesByNodes)) : ((_Utils_cmp(fromLevel, toLevel) < 0) ? $elm$core$Result$Ok(
+							$author$project$Morphir$Dependency$DAG$DAG(
+								A3(
+									$elm$core$Dict$insert,
+									from,
+									_Utils_Tuple2(
+										A2($elm$core$Set$insert, to, fromEdges),
+										fromLevel),
+									edgesByNodes))) : (_Utils_eq(fromLevel, toLevel) ? $elm$core$Result$Ok(
+							A3(
+								shiftTransitively,
+								1,
+								to,
+								$author$project$Morphir$Dependency$DAG$DAG(
+									A3(
+										$elm$core$Dict$insert,
+										from,
+										_Utils_Tuple2(
+											A2($elm$core$Set$insert, to, fromEdges),
+											fromLevel),
+										edgesByNodes)))) : $elm$core$Result$Err(
+							A2($author$project$Morphir$Dependency$DAG$CycleDetected, from, to))));
+					} else {
+						return $elm$core$Result$Ok(
+							(!toLevel) ? function (_v10) {
+								var e = _v10.a;
+								return $author$project$Morphir$Dependency$DAG$DAG(
+									A3(
+										$elm$core$Dict$insert,
+										from,
+										_Utils_Tuple2(
+											$elm$core$Set$singleton(to),
+											0),
+										e));
+							}(
+								A2(
+									shiftAll,
+									1,
+									$author$project$Morphir$Dependency$DAG$DAG(edgesByNodes))) : $author$project$Morphir$Dependency$DAG$DAG(
+								A3(
+									$elm$core$Dict$insert,
+									from,
+									_Utils_Tuple2(
+										$elm$core$Set$singleton(to),
+										toLevel - 1),
+									edgesByNodes)));
+					}
+				}
+			} else {
+				var _v11 = A2($elm$core$Dict$get, from, edgesByNodes);
+				if (_v11.$ === 'Just') {
+					var _v12 = _v11.a;
+					var fromEdges = _v12.a;
+					var fromLevel = _v12.b;
+					return _Utils_eq(from, to) ? $elm$core$Result$Ok(
+						$author$project$Morphir$Dependency$DAG$DAG(edgesByNodes)) : $elm$core$Result$Ok(
+						$author$project$Morphir$Dependency$DAG$DAG(
+							A3(
+								$elm$core$Dict$insert,
+								to,
+								_Utils_Tuple2($elm$core$Set$empty, fromLevel + 1),
+								A3(
+									$elm$core$Dict$insert,
+									from,
+									_Utils_Tuple2(
+										A2($elm$core$Set$insert, to, fromEdges),
+										fromLevel),
+									edgesByNodes))));
+				} else {
+					return $elm$core$Result$Ok(
+						$author$project$Morphir$Dependency$DAG$DAG(
+							A3(
+								$elm$core$Dict$insert,
+								to,
+								_Utils_Tuple2($elm$core$Set$empty, 1),
+								A3(
+									$elm$core$Dict$insert,
+									from,
+									_Utils_Tuple2(
+										$elm$core$Set$singleton(to),
+										0),
+									edgesByNodes))));
+				}
+			}
+		}
+	});
+var $author$project$Morphir$Dependency$DAG$insertNode = F3(
+	function (fromNode, toNodes, _v0) {
+		var edgesByNode = _v0.a;
+		var insertEdges = F2(
+			function (nodes, d) {
+				return A3(
+					$elm$core$List$foldl,
+					F2(
+						function (toNode, dagResultSoFar) {
+							return A2(
+								$elm$core$Result$andThen,
+								A2($author$project$Morphir$Dependency$DAG$insertEdge, fromNode, toNode),
+								dagResultSoFar);
+						}),
+					$elm$core$Result$Ok(d),
+					$elm$core$Set$toList(nodes));
+			});
+		return A2($elm$core$Dict$member, fromNode, edgesByNode) ? A2(
+			insertEdges,
+			toNodes,
+			$author$project$Morphir$Dependency$DAG$DAG(edgesByNode)) : A2(
+			insertEdges,
+			toNodes,
+			$author$project$Morphir$Dependency$DAG$DAG(
+				A3(
+					$elm$core$Dict$insert,
+					fromNode,
+					_Utils_Tuple2($elm$core$Set$empty, 0),
+					edgesByNode)));
+	});
+var $elm$core$Result$withDefault = F2(
+	function (def, result) {
+		if (result.$ === 'Ok') {
+			var a = result.a;
+			return a;
+		} else {
+			return def;
+		}
+	});
+var $author$project$Morphir$IR$Package$modulesOrderedByDependency = F2(
+	function (packageName, packageDef) {
+		var moduleDependencies = A3(
+			$elm$core$List$foldl,
+			F2(
+				function (_v0, dagSoFar) {
+					var moduleName = _v0.a;
+					var accessControlledModuleDef = _v0.b;
+					var dependsOnModules = A2(
+						$elm$core$Set$map,
+						$elm$core$Tuple$second,
+						A2(
+							$elm$core$Set$filter,
+							function (_v1) {
+								var dependsOnPackage = _v1.a;
+								return _Utils_eq(dependsOnPackage, packageName);
+							},
+							$author$project$Morphir$IR$Module$dependsOnModules(accessControlledModuleDef.value)));
+					return A2(
+						$elm$core$Result$withDefault,
+						dagSoFar,
+						A3($author$project$Morphir$Dependency$DAG$insertNode, moduleName, dependsOnModules, dagSoFar));
+				}),
+			$author$project$Morphir$Dependency$DAG$empty,
+			$elm$core$Dict$toList(packageDef.modules));
+		return A2(
+			$elm$core$List$filterMap,
+			function (moduleName) {
+				return A2(
+					$elm$core$Maybe$map,
+					$elm$core$Tuple$pair(moduleName),
+					A2($elm$core$Dict$get, moduleName, packageDef.modules));
+			},
+			$elm$core$List$concat(
+				$author$project$Morphir$Dependency$DAG$backwardTopologicalOrdering(moduleDependencies)));
+	});
+var $author$project$Morphir$IR$Repo$fromDistribution = function (distro) {
+	var packageName = distro.a;
+	var packageDef = distro.c;
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (_v1, repoResultSoFar) {
+				var moduleName = _v1.a;
+				var accessControlledModuleDef = _v1.b;
+				return A2(
+					$elm$core$Result$andThen,
+					function (repoSoFar) {
+						return A3($author$project$Morphir$IR$Repo$insertModule, moduleName, accessControlledModuleDef.value, repoSoFar);
+					},
+					repoResultSoFar);
+			}),
+		$elm$core$Result$Ok(
+			$author$project$Morphir$IR$Repo$empty(packageName)),
+		A2($author$project$Morphir$IR$Package$modulesOrderedByDependency, packageName, packageDef));
+};
 var $elm$http$Http$emptyBody = _Http_emptyBody;
 var $elm$http$Http$Request = function (a) {
 	return {$: 'Request', a: a};
@@ -8249,24 +9050,6 @@ var $elm$http$Http$onEffects = F4(
 					A2($elm$http$Http$State, reqs, subs));
 			},
 			A3($elm$http$Http$updateReqs, router, cmds, state.reqs));
-	});
-var $elm$core$List$maybeCons = F3(
-	function (f, mx, xs) {
-		var _v0 = f(mx);
-		if (_v0.$ === 'Just') {
-			var x = _v0.a;
-			return A2($elm$core$List$cons, x, xs);
-		} else {
-			return xs;
-		}
-	});
-var $elm$core$List$filterMap = F2(
-	function (f, xs) {
-		return A3(
-			$elm$core$List$foldr,
-			$elm$core$List$maybeCons(f),
-			_List_Nil,
-			xs);
 	});
 var $elm$http$Http$maybeSend = F4(
 	function (router, desiredTracker, progress, _v0) {
@@ -8351,7 +9134,16 @@ var $author$project$Morphir$Web$DevelopApp$httpMakeModel = $elm$http$Http$get(
 					return $author$project$Morphir$Web$DevelopApp$HttpError(httpError);
 				} else {
 					var result = response.a;
-					return $author$project$Morphir$Web$DevelopApp$ServerGetIRResponse(result);
+					var _v1 = $author$project$Morphir$IR$Repo$fromDistribution(result);
+					if (_v1.$ === 'Ok') {
+						var repo = _v1.a;
+						return $author$project$Morphir$Web$DevelopApp$ServerGetIRResponse(
+							_Utils_Tuple2(result, repo));
+					} else {
+						var error = _v1.a;
+						return $author$project$Morphir$Web$DevelopApp$HttpError(
+							$elm$http$Http$BadBody('Could not transform Distribution to Repo'));
+					}
 				}
 			},
 			$author$project$Morphir$IR$Distribution$Codec$decodeVersionedDistribution),
@@ -8523,22 +9315,6 @@ var $elm$url$Url$Parser$map = F2(
 						A5($elm$url$Url$Parser$State, visited, unvisited, params, frag, subValue)));
 			});
 	});
-var $elm$core$List$append = F2(
-	function (xs, ys) {
-		if (!ys.b) {
-			return xs;
-		} else {
-			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
-		}
-	});
-var $elm$core$List$concat = function (lists) {
-	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
-};
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
-	});
 var $elm$url$Url$Parser$oneOf = function (parsers) {
 	return $elm$url$Url$Parser$Parser(
 		function (state) {
@@ -8703,16 +9479,6 @@ var $elm$core$String$dropRight = F2(
 		return (n < 1) ? string : A3($elm$core$String$slice, 0, -n, string);
 	});
 var $elm$core$String$endsWith = _String_endsWith;
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
 var $elm$url$Url$Parser$Internal$Parser = function (a) {
 	return {$: 'Parser', a: a};
 };
@@ -8855,6 +9621,7 @@ var $author$project$Morphir$Web$DevelopApp$init = F3(
 				functionStates: $elm$core$Dict$empty,
 				irState: $author$project$Morphir$Web$DevelopApp$IRLoading,
 				key: key,
+				repo: $author$project$Morphir$IR$Repo$empty(_List_Nil),
 				searchText: '',
 				selectedDefinition: $elm$core$Maybe$Nothing,
 				selectedModule: $elm$core$Maybe$Nothing,
@@ -9221,16 +9988,6 @@ var $author$project$Morphir$Correctness$Test$TestCase = F3(
 	function (inputs, expectedOutput, description) {
 		return {description: description, expectedOutput: expectedOutput, inputs: inputs};
 	});
-var $elm$core$Result$andThen = F2(
-	function (callback, result) {
-		if (result.$ === 'Ok') {
-			var value = result.a;
-			return callback(value);
-		} else {
-			var msg = result.a;
-			return $elm$core$Result$Err(msg);
-		}
-	});
 var $elm$core$Result$fromMaybe = F2(
 	function (err, maybe) {
 		if (maybe.$ === 'Just') {
@@ -9310,10 +10067,6 @@ var $author$project$Morphir$IR$SDK$Maybe$nothing = function (va) {
 		$author$project$Morphir$IR$Value$Constructor,
 		va,
 		A2($author$project$Morphir$IR$SDK$Common$toFQName, $author$project$Morphir$IR$SDK$Maybe$moduleName, 'Nothing'));
-};
-var $elm$core$Tuple$second = function (_v0) {
-	var y = _v0.b;
-	return y;
 };
 var $author$project$Morphir$IR$Type$substituteTypeVariables = F2(
 	function (mapping, original) {
@@ -11924,12 +12677,6 @@ var $author$project$Morphir$Visual$ValueEditor$initRecordEditor = F3(
 				recordEditor($elm$core$Dict$empty));
 		}
 	});
-var $elm$core$Set$insert = F2(
-	function (key, _v0) {
-		var dict = _v0.a;
-		return $elm$core$Set$Set_elm_builtin(
-			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
-	});
 var $elm$core$List$drop = F2(
 	function (n, list) {
 		drop:
@@ -12227,15 +12974,6 @@ var $author$project$Morphir$Web$DevelopApp$ModulePage$makeURL = function (model)
 			}()
 			]));
 };
-var $elm$core$Dict$member = F2(
-	function (key, dict) {
-		var _v0 = A2($elm$core$Dict$get, key, dict);
-		if (_v0.$ === 'Just') {
-			return true;
-		} else {
-			return false;
-		}
-	});
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$core$Basics$not = _Basics_not;
 var $elm$core$Elm$JsArray$push = _JsArray_push;
@@ -12318,12 +13056,6 @@ var $elm$core$Array$push = F2(
 			array);
 	});
 var $elm$browser$Browser$Navigation$pushUrl = _Browser_pushUrl;
-var $elm$core$Set$remove = F2(
-	function (key, _v0) {
-		var dict = _v0.a;
-		return $elm$core$Set$Set_elm_builtin(
-			A2($elm$core$Dict$remove, key, dict));
-	});
 var $elm$core$Elm$JsArray$appendN = _JsArray_appendN;
 var $elm$core$Elm$JsArray$slice = _JsArray_slice;
 var $elm$core$Array$appendHelpBuilder = F2(
@@ -12687,10 +13419,6 @@ var $elm$core$Array$set = F3(
 			A4($elm$core$Array$setHelp, startShift, index, value, tree),
 			tail));
 	});
-var $elm$core$Dict$singleton = F2(
-	function (key, value) {
-		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
-	});
 var $elm$url$Url$addPort = F2(
 	function (maybePort, starter) {
 		if (maybePort.$ === 'Nothing') {
@@ -12747,9 +13475,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				$elm$core$Platform$Cmd$none);
 		};
 		var getDistribution = function () {
-			var _v28 = model.irState;
-			if (_v28.$ === 'IRLoaded') {
-				var distribution = _v28.a;
+			var _v29 = model.irState;
+			if (_v29.$ === 'IRLoaded') {
+				var distribution = _v29.a;
 				return distribution;
 			} else {
 				return A3($author$project$Morphir$IR$Distribution$Library, _List_Nil, $elm$core$Dict$empty, $author$project$Morphir$IR$Package$emptyDefinition);
@@ -12798,20 +13526,23 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 						$elm$core$Platform$Cmd$none);
 				}
 			case 'ServerGetIRResponse':
-				var distribution = _v0.a;
+				var _v3 = _v0.a;
+				var distribution = _v3.a;
+				var repo = _v3.b;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							irState: $author$project$Morphir$Web$DevelopApp$IRLoaded(distribution)
+							irState: $author$project$Morphir$Web$DevelopApp$IRLoaded(distribution),
+							repo: repo
 						}),
 					$author$project$Morphir$Web$DevelopApp$httpTestModel(
 						$author$project$Morphir$IR$fromDistribution(distribution)));
 			case 'ValueFilterChanged':
 				var filterString = _v0.a;
-				var _v3 = model.currentPage;
-				if (_v3.$ === 'Module') {
-					var moduleModel = _v3.a;
+				var _v4 = model.currentPage;
+				if (_v4.$ === 'Module') {
+					var moduleModel = _v4.a;
 					var newModuleModel = _Utils_update(
 						moduleModel,
 						{
@@ -12835,9 +13566,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				var moduleName = fQName.b;
 				var localName = fQName.c;
 				var isFunctionPresent = _v0.b;
-				var _v4 = model.currentPage;
-				if (_v4.$ === 'Module') {
-					var moduleModel = _v4.a;
+				var _v5 = model.currentPage;
+				if (_v5.$ === 'Module') {
+					var moduleModel = _v5.a;
 					return A2(
 						$elm$core$Dict$member,
 						_Utils_Tuple2(fQName, localName),
@@ -12909,9 +13640,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 								moduleModel.argState)
 						});
 				};
-				var _v5 = model.currentPage;
-				if (_v5.$ === 'Module') {
-					var moduleModel = _v5.a;
+				var _v6 = model.currentPage;
+				if (_v6.$ === 'Module') {
+					var moduleModel = _v6.a;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
@@ -12935,9 +13666,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 							popupVariables: A2($author$project$Morphir$Visual$Config$PopupScreenRecord, varIndex, maybeRawValue)
 						});
 				};
-				var _v7 = model.currentPage;
-				if (_v7.$ === 'Module') {
-					var moduleModel = _v7.a;
+				var _v8 = model.currentPage;
+				if (_v8.$ === 'Module') {
+					var moduleModel = _v8.a;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
@@ -12958,9 +13689,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 							popupVariables: A2($author$project$Morphir$Visual$Config$PopupScreenRecord, varIndex, $elm$core$Maybe$Nothing)
 						});
 				};
-				var _v8 = model.currentPage;
-				if (_v8.$ === 'Module') {
-					var moduleModel = _v8.a;
+				var _v9 = model.currentPage;
+				if (_v9.$ === 'Module') {
+					var moduleModel = _v9.a;
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
@@ -12977,17 +13708,17 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				var newFunctionState = $elm$core$Dict$fromList(
 					A2(
 						$elm$core$List$map,
-						function (_v9) {
-							var fQName = _v9.a;
+						function (_v10) {
+							var fQName = _v10.a;
 							var packagePath = fQName.a;
 							var modulePath = fQName.b;
 							var localName = fQName.c;
-							var testCasesList = _v9.b;
+							var testCasesList = _v10.b;
 							var testCaseStates = $elm$core$Array$fromList(
 								A2(
 									$elm$core$List$map,
 									function (testcase) {
-										var _v10 = A2(
+										var _v11 = A2(
 											$elm$core$Maybe$withDefault,
 											_Utils_Tuple2(
 												_List_Nil,
@@ -12998,8 +13729,8 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 													return _Utils_Tuple2(valueSpec.inputs, valueSpec.output);
 												},
 												A4($author$project$Morphir$IR$Distribution$lookupValueSpecification, packagePath, modulePath, localName, getDistribution)));
-										var inputArgs = _v10.a;
-										var outputArgs = _v10.b;
+										var inputArgs = _v11.a;
+										var outputArgs = _v11.b;
 										return {
 											descriptionState: testcase.description,
 											editMode: false,
@@ -13013,9 +13744,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 												A3(
 													$elm$core$List$map2,
 													F2(
-														function (_v11, input) {
-															var argName = _v11.a;
-															var argType = _v11.b;
+														function (_v12, input) {
+															var argName = _v12.a;
+															var argType = _v12.b;
 															return _Utils_Tuple2(
 																argName,
 																A3(
@@ -13047,9 +13778,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				var localName = fQName.c;
 				var isFunctionPresent = _v0.c;
 				var newFunctionState = function () {
-					var _v12 = model.currentPage;
-					if (_v12.$ === 'Function') {
-						var functionName = _v12.a;
+					var _v13 = model.currentPage;
+					if (_v13.$ === 'Function') {
+						var functionName = _v13.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13109,9 +13840,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				var varIndex = _v0.b;
 				var maybeValue = _v0.c;
 				var newFunctionState = function () {
-					var _v13 = model.currentPage;
-					if (_v13.$ === 'Function') {
-						var fQName = _v13.a;
+					var _v14 = model.currentPage;
+					if (_v14.$ === 'Function') {
+						var fQName = _v14.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13155,9 +13886,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				var testCaseIndex = _v0.a;
 				var varIndex = _v0.b;
 				var newFunctionState = function () {
-					var _v14 = model.currentPage;
-					if (_v14.$ === 'Function') {
-						var fQName = _v14.a;
+					var _v15 = model.currentPage;
+					if (_v15.$ === 'Function') {
+						var fQName = _v15.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13202,9 +13933,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				var argName = _v0.b;
 				var editorState = _v0.c;
 				var newFunctionState = function () {
-					var _v15 = model.currentPage;
-					if (_v15.$ === 'Function') {
-						var fQName = _v15.a;
+					var _v16 = model.currentPage;
+					if (_v16.$ === 'Function') {
+						var fQName = _v16.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13248,9 +13979,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				var testCaseIndex = _v0.a;
 				var editorState = _v0.b;
 				var newFunctionState = function () {
-					var _v16 = model.currentPage;
-					if (_v16.$ === 'Function') {
-						var fQName = _v16.a;
+					var _v17 = model.currentPage;
+					if (_v17.$ === 'Function') {
+						var fQName = _v17.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13292,9 +14023,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				var testCaseIndex = _v0.a;
 				var description = _v0.b;
 				var newFunctionState = function () {
-					var _v17 = model.currentPage;
-					if (_v17.$ === 'Function') {
-						var fQName = _v17.a;
+					var _v18 = model.currentPage;
+					if (_v18.$ === 'Function') {
+						var fQName = _v18.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13334,14 +14065,14 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 					$elm$core$Platform$Cmd$none);
 			case 'FunctionAddTestCase':
 				var newFunctionState = function () {
-					var _v18 = model.currentPage;
-					if (_v18.$ === 'Function') {
-						var fQName = _v18.a;
+					var _v19 = model.currentPage;
+					if (_v19.$ === 'Function') {
+						var fQName = _v19.a;
 						var packagePath = fQName.a;
 						var modulePath = fQName.b;
 						var localName = fQName.c;
 						var emptyFunctionModel = A3($author$project$Morphir$Web$DevelopApp$FunctionPage$Model, fQName, $elm$core$Array$empty, _List_Nil);
-						var _v19 = A2(
+						var _v20 = A2(
 							$elm$core$Maybe$withDefault,
 							_Utils_Tuple2(
 								_List_Nil,
@@ -13352,8 +14083,8 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 									return _Utils_Tuple2(valueSpec.inputs, valueSpec.output);
 								},
 								A4($author$project$Morphir$IR$Distribution$lookupValueSpecification, packagePath, modulePath, localName, getDistribution)));
-						var inputArgValues = _v19.a;
-						var outputValue = _v19.b;
+						var inputArgValues = _v20.a;
+						var outputValue = _v20.b;
 						var updatedModelState = function (functionModel) {
 							var testCaseStates = A2(
 								$elm$core$Array$push,
@@ -13365,9 +14096,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 									inputStates: $elm$core$Dict$fromList(
 										A2(
 											$elm$core$List$map,
-											function (_v20) {
-												var argName = _v20.a;
-												var argType = _v20.b;
+											function (_v21) {
+												var argName = _v21.a;
+												var argType = _v21.b;
 												return _Utils_Tuple2(
 													argName,
 													A3($author$project$Morphir$Visual$ValueEditor$initEditorState, getIR, argType, $elm$core$Maybe$Nothing));
@@ -13401,9 +14132,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 			case 'FunctionCloneTestCase':
 				var testCaseIndex = _v0.a;
 				var newFunctionState = function () {
-					var _v21 = model.currentPage;
-					if (_v21.$ === 'Function') {
-						var fQName = _v21.a;
+					var _v22 = model.currentPage;
+					if (_v22.$ === 'Function') {
+						var fQName = _v22.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13437,9 +14168,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 			case 'FunctionDeleteTestCase':
 				var testCaseIndex = _v0.a;
 				var newFunctionState = function () {
-					var _v22 = model.currentPage;
-					if (_v22.$ === 'Function') {
-						var functionName = _v22.a;
+					var _v23 = model.currentPage;
+					if (_v23.$ === 'Function') {
+						var functionName = _v23.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13470,9 +14201,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 			case 'FunctionEditTestCase':
 				var testCaseIndex = _v0.a;
 				var newFunctionState = function () {
-					var _v23 = model.currentPage;
-					if (_v23.$ === 'Function') {
-						var fQName = _v23.a;
+					var _v24 = model.currentPage;
+					if (_v24.$ === 'Function') {
+						var fQName = _v24.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13513,9 +14244,9 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 			case 'FunctionSaveTestCase':
 				var testCaseIndex = _v0.a;
 				var newFunctionState = function () {
-					var _v24 = model.currentPage;
-					if (_v24.$ === 'Function') {
-						var fQName = _v24.a;
+					var _v25 = model.currentPage;
+					if (_v25.$ === 'Function') {
+						var fQName = _v25.a;
 						var updatedModelState = A2(
 							$elm$core$Maybe$withDefault,
 							model.functionStates,
@@ -13529,8 +14260,8 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 											var isInputEmpty = A3(
 												$elm$core$List$foldl,
 												F2(
-													function (_v25, val2) {
-														var argValue = _v25.b;
+													function (_v26, val2) {
+														var argValue = _v26.b;
 														return _Utils_eq(argValue.lastValidValue, $elm$core$Maybe$Nothing) || val2;
 													}),
 												false,
@@ -13576,10 +14307,10 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 				if (isEditModeOn) {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				} else {
-					var _v26 = functionModel.functionName;
-					var packagePath = _v26.a;
-					var modulePath = _v26.b;
-					var localName = _v26.c;
+					var _v27 = functionModel.functionName;
+					var packagePath = _v27.a;
+					var modulePath = _v27.b;
+					var localName = _v27.c;
 					var argNames = A2(
 						$elm$core$Maybe$withDefault,
 						_List_Nil,
@@ -13603,8 +14334,8 @@ var $author$project$Morphir$Web$DevelopApp$update = F2(
 										testCaseState.expectedOutputState.lastValidValue),
 									inputs: A2(
 										$elm$core$List$map,
-										function (_v27) {
-											var name = _v27.a;
+										function (_v28) {
+											var name = _v28.a;
 											return A2(
 												$elm$core$Maybe$withDefault,
 												$author$project$Morphir$IR$Value$Unit(_Utils_Tuple0),
@@ -13970,11 +14701,6 @@ var $mdgriffith$elm_ui$Internal$Model$getStyleName = function (style) {
 				$mdgriffith$elm_ui$Internal$Model$transformClass(x));
 	}
 };
-var $elm$core$Set$member = F2(
-	function (key, _v0) {
-		var dict = _v0.a;
-		return A2($elm$core$Dict$member, key, dict);
-	});
 var $mdgriffith$elm_ui$Internal$Model$reduceStyles = F2(
 	function (style, nevermind) {
 		var cache = nevermind.a;
@@ -16947,16 +17673,6 @@ var $elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
-var $elm$core$List$maximum = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(
-			A3($elm$core$List$foldl, $elm$core$Basics$max, x, xs));
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
 var $elm$core$List$minimum = function (list) {
 	if (list.b) {
 		var x = list.a;
@@ -19857,6 +20573,82 @@ var $mdgriffith$elm_ui$Element$Font$color = function (fontColor) {
 			'color',
 			fontColor));
 };
+var $author$project$Morphir$Web$Graph$Graph$Graph = F2(
+	function (nodes, edges) {
+		return {edges: edges, nodes: nodes};
+	});
+var $author$project$Morphir$Dependency$DAG$toList = function (_v0) {
+	var dict = _v0.a;
+	return $elm$core$Dict$toList(
+		A2(
+			$elm$core$Dict$map,
+			F2(
+				function (_v1, _v2) {
+					var a = _v2.a;
+					return a;
+				}),
+			dict));
+};
+var $author$project$Morphir$Web$Graph$Graph$dagListAsGraph = function (dag) {
+	var dagAsList = A2(
+		$elm$core$List$map,
+		function (_v2) {
+			var node = _v2.a;
+			var nodeSet = _v2.b;
+			return _Utils_Tuple2(
+				$author$project$Morphir$IR$FQName$toString(node),
+				A2(
+					$elm$core$List$map,
+					$author$project$Morphir$IR$FQName$toString,
+					$elm$core$Set$toList(nodeSet)));
+		},
+		$author$project$Morphir$Dependency$DAG$toList(dag));
+	var indexByNode = $elm$core$Dict$fromList(
+		A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (index, item) {
+					return _Utils_Tuple2(item.a, index);
+				}),
+			dagAsList));
+	return A2(
+		$author$project$Morphir$Web$Graph$Graph$Graph,
+		A2(
+			$elm$core$List$map,
+			function (_v0) {
+				var item = _v0.a;
+				var index = _v0.b;
+				return {id: index, label: item};
+			},
+			$elm$core$Dict$toList(indexByNode)),
+		A3(
+			$elm$core$List$foldl,
+			F2(
+				function (_v1, edgeListSoFar) {
+					var fromNode = _v1.a;
+					var edges = _v1.b;
+					return A2(
+						$elm$core$List$append,
+						edgeListSoFar,
+						A2(
+							$elm$core$List$map,
+							function (toNode) {
+								return {
+									from: A2(
+										$elm$core$Maybe$withDefault,
+										-1,
+										A2($elm$core$Dict$get, fromNode, indexByNode)),
+									to: A2(
+										$elm$core$Maybe$withDefault,
+										-1,
+										A2($elm$core$Dict$get, toNode, indexByNode))
+								};
+							},
+							edges));
+				}),
+			_List_Nil,
+			dagAsList));
+};
 var $mdgriffith$elm_ui$Internal$Flag$fontAlignment = $mdgriffith$elm_ui$Internal$Flag$flag(12);
 var $mdgriffith$elm_ui$Element$Font$center = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$fontAlignment, $mdgriffith$elm_ui$Internal$Style$classes.textCenter);
 var $mdgriffith$elm_ui$Internal$Model$CenterX = {$: 'CenterX'};
@@ -20228,90 +21020,6 @@ var $author$project$Morphir$Web$DevelopApp$definitionName = function (definition
 		return typeName;
 	}
 };
-var $author$project$Morphir$Web$Graph$Graph$Graph = F2(
-	function (nodes, edges) {
-		return {edges: edges, nodes: nodes};
-	});
-var $author$project$Morphir$Web$Graph$Graph$depList = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		'a',
-		_List_fromArray(
-			['b', 'c', 'e', 'k'])),
-		_Utils_Tuple2(
-		'k',
-		_List_fromArray(
-			['j'])),
-		_Utils_Tuple2('u', _List_Nil),
-		_Utils_Tuple2('b', _List_Nil),
-		_Utils_Tuple2(
-		'c',
-		_List_fromArray(
-			['f'])),
-		_Utils_Tuple2(
-		'e',
-		_List_fromArray(
-			['k', 'f', 'g'])),
-		_Utils_Tuple2('j', _List_Nil),
-		_Utils_Tuple2(
-		'x',
-		_List_fromArray(
-			['y'])),
-		_Utils_Tuple2('f', _List_Nil),
-		_Utils_Tuple2(
-		'g',
-		_List_fromArray(
-			['h', 'i', 'j'])),
-		_Utils_Tuple2('h', _List_Nil),
-		_Utils_Tuple2('i', _List_Nil)
-	]);
-var $author$project$Morphir$Web$Graph$Graph$depListAsGraph = function () {
-	var indexByNode = $elm$core$Dict$fromList(
-		A2(
-			$elm$core$List$indexedMap,
-			F2(
-				function (index, item) {
-					return _Utils_Tuple2(item.a, index);
-				}),
-			$author$project$Morphir$Web$Graph$Graph$depList));
-	return A2(
-		$author$project$Morphir$Web$Graph$Graph$Graph,
-		A2(
-			$elm$core$List$map,
-			function (_v0) {
-				var item = _v0.a;
-				var index = _v0.b;
-				return {id: index, label: item};
-			},
-			$elm$core$Dict$toList(indexByNode)),
-		A3(
-			$elm$core$List$foldl,
-			F2(
-				function (_v1, edgeListSoFar) {
-					var fromNode = _v1.a;
-					var edges = _v1.b;
-					return A2(
-						$elm$core$List$append,
-						edgeListSoFar,
-						A2(
-							$elm$core$List$map,
-							function (toNode) {
-								return {
-									from: A2(
-										$elm$core$Maybe$withDefault,
-										-1,
-										A2($elm$core$Dict$get, fromNode, indexByNode)),
-									to: A2(
-										$elm$core$Maybe$withDefault,
-										-1,
-										A2($elm$core$Dict$get, toNode, indexByNode))
-								};
-							},
-							edges));
-				}),
-			_List_Nil,
-			$author$project$Morphir$Web$Graph$Graph$depList));
-}();
 var $mdgriffith$elm_ui$Element$fillPortion = $mdgriffith$elm_ui$Internal$Model$Fill;
 var $author$project$Morphir$Web$DevelopApp$Common$ifThenElse = F3(
 	function (boolValue, ifTrue, ifFalse) {
@@ -21252,10 +21960,6 @@ var $mdgriffith$elm_ui$Element$Input$search = $mdgriffith$elm_ui$Element$Input$t
 		spellchecked: false,
 		type_: $mdgriffith$elm_ui$Element$Input$TextInputNode('search')
 	});
-var $elm$core$Set$singleton = function (key) {
-	return $elm$core$Set$Set_elm_builtin(
-		A2($elm$core$Dict$singleton, key, _Utils_Tuple0));
-};
 var $elm$core$List$sortWith = _List_sortWith;
 var $mdgriffith$elm_ui$Element$map = $mdgriffith$elm_ui$Internal$Model$map;
 var $author$project$Morphir$Visual$Components$TreeLayout$viewSubTree = F4(
@@ -30211,28 +30915,6 @@ var $author$project$Morphir$Elm$Frontend$defaultDependencies = $elm$core$Dict$fr
 		[
 			_Utils_Tuple2($author$project$Morphir$IR$SDK$packageName, $author$project$Morphir$IR$SDK$packageSpec)
 		]));
-var $elm$core$Set$fromList = function (list) {
-	return A3($elm$core$List$foldl, $elm$core$Set$insert, $elm$core$Set$empty, list);
-};
-var $elm$core$Dict$map = F2(
-	function (func, dict) {
-		if (dict.$ === 'RBEmpty_elm_builtin') {
-			return $elm$core$Dict$RBEmpty_elm_builtin;
-		} else {
-			var color = dict.a;
-			var key = dict.b;
-			var value = dict.c;
-			var left = dict.d;
-			var right = dict.e;
-			return A5(
-				$elm$core$Dict$RBNode_elm_builtin,
-				color,
-				key,
-				A2(func, key, value),
-				A2($elm$core$Dict$map, func, left),
-				A2($elm$core$Dict$map, func, right));
-		}
-	});
 var $author$project$Morphir$IR$Type$mapFieldType = F2(
 	function (f, field) {
 		return A2(
@@ -31118,58 +31800,6 @@ var $author$project$Morphir$Graph$isEmpty = function (_v0) {
 	var edges = _v0.a;
 	return $elm$core$List$isEmpty(edges);
 };
-var $elm$core$Dict$foldl = F3(
-	function (func, acc, dict) {
-		foldl:
-		while (true) {
-			if (dict.$ === 'RBEmpty_elm_builtin') {
-				return acc;
-			} else {
-				var key = dict.b;
-				var value = dict.c;
-				var left = dict.d;
-				var right = dict.e;
-				var $temp$func = func,
-					$temp$acc = A3(
-					func,
-					key,
-					value,
-					A3($elm$core$Dict$foldl, func, acc, left)),
-					$temp$dict = right;
-				func = $temp$func;
-				acc = $temp$acc;
-				dict = $temp$dict;
-				continue foldl;
-			}
-		}
-	});
-var $elm$core$Set$foldl = F3(
-	function (func, initialState, _v0) {
-		var dict = _v0.a;
-		return A3(
-			$elm$core$Dict$foldl,
-			F3(
-				function (key, _v1, state) {
-					return A2(func, key, state);
-				}),
-			initialState,
-			dict);
-	});
-var $elm$core$Set$map = F2(
-	function (func, set) {
-		return $elm$core$Set$fromList(
-			A3(
-				$elm$core$Set$foldl,
-				F2(
-					function (x, xs) {
-						return A2(
-							$elm$core$List$cons,
-							func(x),
-							xs);
-					}),
-				_List_Nil,
-				set));
-	});
 var $author$project$Morphir$Elm$Frontend$ProcessedFile = F2(
 	function (parsedFile, file) {
 		return {file: file, parsedFile: parsedFile};
@@ -31504,16 +32134,6 @@ var $author$project$Morphir$Elm$Frontend$Resolve$ImportedNames = F3(
 	function (typeNames, ctorNames, valueNames) {
 		return {ctorNames: ctorNames, typeNames: typeNames, valueNames: valueNames};
 	});
-var $elm$core$Dict$values = function (dict) {
-	return A3(
-		$elm$core$Dict$foldr,
-		F3(
-			function (key, value, valueList) {
-				return A2($elm$core$List$cons, value, valueList);
-			}),
-		_List_Nil,
-		dict);
-};
 var $author$project$Morphir$Elm$Frontend$Resolve$collectImportedNames = F2(
 	function (getModulesExposedNames, imports) {
 		return A3(
@@ -32441,9 +33061,6 @@ var $author$project$Morphir$IR$Type$typeAliasDefinition = F2(
 	function (typeParams, typeExp) {
 		return A2($author$project$Morphir$IR$Type$TypeAliasDefinition, typeParams, typeExp);
 	});
-var $author$project$Morphir$IR$AccessControlled$private = function (value) {
-	return A2($author$project$Morphir$IR$AccessControlled$AccessControlled, $author$project$Morphir$IR$AccessControlled$Private, value);
-};
 var $author$project$Morphir$IR$AccessControlled$public = function (value) {
 	return A2($author$project$Morphir$IR$AccessControlled$AccessControlled, $author$project$Morphir$IR$AccessControlled$Public, value);
 };
@@ -34301,17 +34918,6 @@ var $author$project$Morphir$Type$MetaType$MetaRef = F4(
 	function (a, b, c, d) {
 		return {$: 'MetaRef', a: a, b: b, c: c, d: d};
 	});
-var $elm$core$Dict$union = F2(
-	function (t1, t2) {
-		return A3($elm$core$Dict$foldl, $elm$core$Dict$insert, t2, t1);
-	});
-var $elm$core$Set$union = F2(
-	function (_v0, _v1) {
-		var dict1 = _v0.a;
-		var dict2 = _v1.a;
-		return $elm$core$Set$Set_elm_builtin(
-			A2($elm$core$Dict$union, dict1, dict2));
-	});
 var $author$project$Morphir$Type$MetaType$variables = function (metaType) {
 	switch (metaType.$) {
 		case 'MetaVar':
@@ -34552,15 +35158,6 @@ var $author$project$Morphir$Type$MetaType$MetaVar = function (a) {
 	return {$: 'MetaVar', a: a};
 };
 var $author$project$Morphir$Type$MetaType$metaVar = $author$project$Morphir$Type$MetaType$MetaVar;
-var $elm$core$Result$withDefault = F2(
-	function (def, result) {
-		if (result.$ === 'Ok') {
-			var a = result.a;
-			return a;
-		} else {
-			return def;
-		}
-	});
 var $author$project$Morphir$Type$MetaTypeMapping$concreteTypeToMetaType = F4(
 	function (baseVar, ir, varToMeta, tpe) {
 		switch (tpe.$) {
@@ -35905,17 +36502,6 @@ var $elm$core$Dict$diff = F2(
 				}),
 			t1,
 			t2);
-	});
-var $elm$core$Dict$filter = F2(
-	function (isGood, dict) {
-		return A3(
-			$elm$core$Dict$foldl,
-			F3(
-				function (k, v, d) {
-					return A2(isGood, k, v) ? A3($elm$core$Dict$insert, k, v, d) : d;
-				}),
-			$elm$core$Dict$empty,
-			dict);
 	});
 var $elm$core$Dict$intersect = F2(
 	function (t1, t2) {
@@ -70727,7 +71313,8 @@ var $author$project$Morphir$Web$DevelopApp$viewHome = F3(
 				]),
 			_List_fromArray(
 				[
-					$author$project$Morphir$Web$DevelopApp$viewGraph($author$project$Morphir$Web$Graph$Graph$depListAsGraph)
+					$author$project$Morphir$Web$DevelopApp$viewGraph(
+					$author$project$Morphir$Web$Graph$Graph$dagListAsGraph(model.repo.typeDependencies))
 				]));
 		var definitionFilter = A2(
 			$mdgriffith$elm_ui$Element$Input$search,

@@ -6,9 +6,9 @@ import Elm.Syntax.Module exposing (Module)
 import Html exposing (..)
 import Html.Attributes exposing (attribute)
 import Json.Encode as Encode exposing (..)
-import Morphir.Dependency.DAG exposing (DAG)
+import Morphir.Dependency.DAG as DAG exposing (DAG)
 import Morphir.IR.Distribution exposing (Distribution(..))
-import Morphir.IR.FQName exposing (FQName)
+import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Module exposing (ModuleName)
 import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Package exposing (lookupModuleDefinition)
@@ -116,49 +116,50 @@ depList =
     ]
 
 
-dagToGraph : DAG FQName -> Graph
-dagToGraph =
-    Debug.todo "Implement"
+dagListAsGraph : DAG FQName -> Graph
+dagListAsGraph dag =
+    let
+        dagAsList : List ( String, List String )
+        dagAsList =
+            DAG.toList dag
+                |> List.map
+                    (\( node, nodeSet ) ->
+                        ( node |> FQName.toString
+                        , Set.toList nodeSet
+                            |> List.map FQName.toString
+                        )
+                    )
 
-
-
---extractTypesAndValues : ModuleName -> Distribution -> Graph
---extractTypesAndValues moduleName (Library packageName _ packageDefinition) =
---    case lookupModuleDefinition moduleName packageDefinition of
---        Just moduleDef ->
---            let
---                typeDefToType : Type.Definition ta -> List (Type ta)
---                typeDefToType typeDef =
---                    case typeDef of
---                        Type.TypeAliasDefinition _ typ ->
---                            [ typ ]
---
---                        Type.CustomTypeDefinition lists accessControlled ->
---                            accessControlled
---                                |> .value
---                                |> Dict.toList
---                                |> List.map Tuple.second
---                                |> List.concat
---                                |> List.map Tuple.second
---
---                t : Set ( FQName, Set FQName )
---                t =
---                    Dict.toList moduleDef.types
---                        |> List.map
---                            (\( typeName, accessControlDefinition ) ->
---                                accessControlDefinition
---                                    |> .value
---                                    |> .value
---                                    |> (\def ->
---                                            def
---                                                |> typeDefToType
---                                       )
---                            )
---            in
---            empty
---
---        Nothing ->
---            empty
+        indexByNode : Dict String Int
+        indexByNode =
+            dagAsList
+                |> List.indexedMap
+                    (\index item ->
+                        ( Tuple.first item
+                        , index
+                        )
+                    )
+                |> Dict.fromList
+    in
+    Graph
+        (indexByNode
+            |> Dict.toList
+            |> List.map (\( item, index ) -> { label = item, id = index })
+        )
+        (dagAsList
+            |> List.foldl
+                (\( fromNode, edges ) edgeListSoFar ->
+                    edges
+                        |> List.map
+                            (\toNode ->
+                                { from = Dict.get fromNode indexByNode |> Maybe.withDefault -1
+                                , to = Dict.get toNode indexByNode |> Maybe.withDefault -1
+                                }
+                            )
+                        |> List.append edgeListSoFar
+                )
+                []
+        )
 
 
 depListAsGraph : Graph

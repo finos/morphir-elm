@@ -58,6 +58,7 @@ import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package exposing (PackageName)
 import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.QName exposing (QName(..))
+import Morphir.IR.Repo as Repo exposing (Repo)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (RawValue, Value)
 import Morphir.Visual.Common exposing (nameToText, nameToTitleText)
@@ -114,6 +115,7 @@ type alias Model =
     , showTypes : Bool
     , simpleDefinitionDetailsModel : ModulePage.Model
     , showModules : Bool
+    , repo : Repo
     }
 
 
@@ -164,6 +166,7 @@ init _ url key =
             , showSearchBar = False
             }
       , showModules = True
+      , repo = Repo.empty []
       }
     , Cmd.batch [ httpMakeModel ]
     )
@@ -177,7 +180,7 @@ type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | HttpError Http.Error
-    | ServerGetIRResponse Distribution
+    | ServerGetIRResponse ( Distribution, Repo )
     | ServerGetTestsResponse TestSuite
     | ExpandReference FQName Bool
     | ExpandVariable Int (Maybe RawValue)
@@ -251,11 +254,17 @@ update msg model =
                     , Cmd.none
                     )
 
-        ServerGetIRResponse distribution ->
-            ( { model | irState = IRLoaded distribution }
+        ServerGetIRResponse ( distribution, repo ) ->
+            --case Repo.fromDistribution distribution of
+            --    Ok repo ->
+            ( { model | irState = IRLoaded distribution, repo = repo }
             , httpTestModel (IR.fromDistribution distribution)
             )
 
+        --Err error ->
+        --    ( { model | serverState = ServerHttpError () }
+        --    , Cmd.none
+        --    )
         ValueFilterChanged filterString ->
             case model.currentPage of
                 Module moduleModel ->
@@ -1393,7 +1402,7 @@ viewHome model packageName packageDef =
 
             else
                 column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
-                    [ viewGraph Graph.depListAsGraph ]
+                    [ viewGraph (Graph.dagListAsGraph model.repo.typeDependencies) ]
     in
     row [ width fill, height fill, Background.color gray, spacing 10 ]
         [ column
@@ -1704,7 +1713,12 @@ httpMakeModel =
                             HttpError httpError
 
                         Ok result ->
-                            ServerGetIRResponse result
+                            case Repo.fromDistribution result of
+                                Ok repo ->
+                                    ServerGetIRResponse ( result, repo )
+
+                                Err error ->
+                                    HttpError (Http.BadBody "Could not transform Distribution to Repo")
                 )
                 DistributionCodec.decodeVersionedDistribution
         }
