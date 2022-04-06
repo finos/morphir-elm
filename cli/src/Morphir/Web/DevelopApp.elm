@@ -1,4 +1,4 @@
-module Morphir.Web.DevelopApp exposing (IRState(..), Model, Msg(..), Page(..), ServerState(..), httpMakeModel, init, main, routeParser, subscriptions, toRoute, update, view, viewBody, viewHeader, viewTitle)
+module Morphir.Web.DevelopApp exposing (IRState(..), Model, Msg(..), Page(..), ServerState(..), httpMakeModel, init, main, routeParser, subscriptions, toRoute, topUrlWithoutHome, update, view, viewBody, viewHeader, viewTitle)
 
 import Array
 import Array.Extra
@@ -49,6 +49,7 @@ import Markdown.Parser as Markdown
 import Markdown.Renderer
 import Morphir.Correctness.Codec exposing (decodeTestSuite, encodeTestSuite)
 import Morphir.Correctness.Test exposing (TestSuite)
+import Morphir.Dependency.DAG as DAG
 import Morphir.IR as IR exposing (IR)
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
 import Morphir.IR.Distribution.Codec as DistributionCodec
@@ -67,7 +68,7 @@ import Morphir.Visual.Config exposing (PopupScreenRecord)
 import Morphir.Visual.Theme as Theme exposing (Theme)
 import Morphir.Visual.ValueEditor as ValueEditor
 import Morphir.Visual.XRayView as XRayView
-import Morphir.Web.DevelopApp.Common exposing (ifThenElse, insertInList, viewAsCard)
+import Morphir.Web.DevelopApp.Common exposing (ifThenElse, insertInList, pathToDisplayString, pathToUrl, urlFragmentToNodePath, viewAsCard)
 import Morphir.Web.DevelopApp.FunctionPage as FunctionPage
 import Morphir.Web.DevelopApp.ModulePage as ModulePage exposing (ViewType(..), makeURL)
 import Morphir.Web.Graph.Graph as Graph exposing (Edge, Graph, Node)
@@ -107,15 +108,22 @@ type alias Model =
     , serverState : ServerState
     , testSuite : TestSuite
     , functionStates : Dict FQName FunctionPage.Model
-    , collapsedModules : Set TreeLayout.NodePath
-    , selectedModule : Maybe ( TreeLayout.NodePath, ModuleName )
-    , selectedDefinition : Maybe Definition
+    , collapsedModules : Set (TreeLayout.NodePath ModuleName)
     , searchText : String
     , showValues : Bool
     , showTypes : Bool
     , simpleDefinitionDetailsModel : ModulePage.Model
     , showModules : Bool
+    , showGraph : Bool
     , repo : Repo
+    , homeState : HomeState
+    }
+
+
+type alias HomeState =
+    { selectedPackage : Maybe PackageName
+    , selectedModule : Maybe ( TreeLayout.NodePath ModuleName, ModuleName )
+    , selectedDefinition : Maybe Definition
     }
 
 
@@ -135,7 +143,7 @@ type ServerState
 
 
 type Page
-    = Home
+    = Home HomeState
     | Module ModulePage.Model
     | Function FQName
     | NotFound
@@ -151,8 +159,6 @@ init _ url key =
       , testSuite = Dict.empty
       , functionStates = Dict.empty
       , collapsedModules = Set.empty
-      , selectedModule = Nothing
-      , selectedDefinition = Nothing
       , searchText = ""
       , showValues = True
       , showTypes = True
@@ -166,7 +172,13 @@ init _ url key =
             , showSearchBar = False
             }
       , showModules = True
+      , showGraph = False
       , repo = Repo.empty []
+      , homeState =
+            { selectedPackage = Nothing
+            , selectedModule = Nothing
+            , selectedDefinition = Nothing
+            }
       }
     , Cmd.batch [ httpMakeModel ]
     )
@@ -200,14 +212,15 @@ type Msg
     | FunctionEditTestCase Int
     | FunctionSaveTestCase Int
     | SaveTestSuite FunctionPage.Model
-    | ExpandModule TreeLayout.NodePath
-    | CollapseModule TreeLayout.NodePath
-    | SelectModule TreeLayout.NodePath ModuleName
+    | ExpandModule (TreeLayout.NodePath ModuleName)
+    | CollapseModule (TreeLayout.NodePath ModuleName)
+    | SelectModule (TreeLayout.NodePath ModuleName) ModuleName
     | SelectDefinition Definition
     | SearchDefinition String
     | ToggleValues Bool
     | ToggleTypes Bool
     | ToggleModulesMenu
+    | ToggleGraph Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -891,15 +904,23 @@ update msg model =
             ( { model | collapsedModules = model.collapsedModules |> Set.insert nodePath }, Cmd.none )
 
         SelectModule nodePath moduleName ->
+            let
+                oldState =
+                    model.homeState
+            in
             ( { model
-                | selectedModule = Just ( nodePath, moduleName )
-                , selectedDefinition = Nothing
+                | homeState =
+                    { oldState | selectedModule = Just ( nodePath, moduleName ), selectedDefinition = Nothing }
               }
             , Cmd.none
             )
 
         SelectDefinition definition ->
-            ( { model | selectedDefinition = Just definition }, Cmd.none )
+            let
+                oldState =
+                    model.homeState
+            in
+            ( { model | homeState = { oldState | selectedDefinition = Just definition } }, Cmd.none )
 
         SearchDefinition defName ->
             ( { model | searchText = defName }, Cmd.none )
@@ -913,6 +934,13 @@ update msg model =
         ToggleModulesMenu ->
             ( { model
                 | showModules = not model.showModules
+              }
+            , Cmd.none
+            )
+
+        ToggleGraph isToggled ->
+            ( { model
+                | showGraph = not model.showGraph
               }
             , Cmd.none
             )
@@ -934,17 +962,100 @@ subscriptions _ =
 routeParser : UrlParser.Parser (Page -> a) a
 routeParser =
     UrlParser.oneOf
-        [ UrlParser.map Home UrlParser.top
+        [ UrlParser.map Home (UrlParser.oneOf [ topUrlWithoutHome, topUrlWithHome, packageUrl, modelUrl, definitionUrl ])
         , UrlParser.map Module ModulePage.routeParser
         , UrlParser.map Function FunctionPage.routeParser
-        , UrlParser.map (always Home) UrlParser.string
         ]
+
+
+updateHomeState : String -> String -> String -> HomeState
+updateHomeState pack mod def =
+    let
+        toTypeOrValue m d =
+            case String.uncons d of
+                Just ( first, _ ) ->
+                    if Char.isLower first then
+                        Just (Value ( Path.fromString m, Name.fromString d ))
+
+                    else
+                        Just (Type ( Path.fromString m, Name.fromString d ))
+
+                _ ->
+                    Nothing
+    in
+    if pack == "" then
+        { selectedPackage = Nothing
+        , selectedModule = Nothing
+        , selectedDefinition = Nothing
+        }
+
+    else if mod == "" then
+        { selectedPackage = Just (Path.fromString pack)
+        , selectedModule = Just ( urlFragmentToNodePath mod, [] )
+        , selectedDefinition = Nothing
+        }
+
+    else
+        { selectedPackage = Just (Path.fromString pack)
+        , selectedModule = Just ( urlFragmentToNodePath mod, Path.fromString mod )
+        , selectedDefinition = ifThenElse (def == "") Nothing (toTypeOrValue mod def)
+        }
 
 
 toRoute : Url -> Page
 toRoute url =
     UrlParser.parse routeParser url
         |> Maybe.withDefault NotFound
+
+
+topUrl : UrlParser.Parser HomeState a -> UrlParser.Parser (a -> b) b
+topUrl =
+    UrlParser.map
+        (updateHomeState "" "" "")
+
+
+topUrlWithHome : UrlParser.Parser (HomeState -> a) a
+topUrlWithHome =
+    topUrl <| UrlParser.s "home"
+
+
+topUrlWithoutHome : UrlParser.Parser (HomeState -> a) a
+topUrlWithoutHome =
+    topUrl <| UrlParser.top
+
+
+packageUrl : UrlParser.Parser (HomeState -> a) a
+packageUrl =
+    UrlParser.map
+        (\pack ->
+            updateHomeState pack "" ""
+        )
+    <|
+        UrlParser.s "home"
+            </> UrlParser.string
+
+
+modelUrl : UrlParser.Parser (HomeState -> a) a
+modelUrl =
+    UrlParser.map
+        (\pack mod ->
+            updateHomeState pack mod ""
+        )
+    <|
+        UrlParser.s "home"
+            </> UrlParser.string
+            </> UrlParser.string
+
+
+definitionUrl : UrlParser.Parser (HomeState -> a) a
+definitionUrl =
+    UrlParser.map
+        updateHomeState
+    <|
+        UrlParser.s "home"
+            </> UrlParser.string
+            </> UrlParser.string
+            </> UrlParser.string
 
 
 
@@ -992,7 +1103,7 @@ view model =
 viewTitle : Model -> String
 viewTitle model =
     case model.currentPage of
-        Home ->
+        Home _ ->
             "Morphir - Home"
 
         Module moduleModel ->
@@ -1073,8 +1184,8 @@ viewBody model =
 
         IRLoaded ((Library packageName _ packageDef) as distribution) ->
             case model.currentPage of
-                Home ->
-                    viewHome model packageName packageDef
+                Home newHomeState ->
+                    viewHome { model | homeState = newHomeState } packageName packageDef
 
                 Module moduleModel ->
                     viewModuleModel model.theme moduleModel distribution
@@ -1129,8 +1240,8 @@ viewModuleModel theme moduleModel distribution =
         moduleModel
 
 
-viewGraph : Graph -> Element msg
-viewGraph graph =
+viewGraph : HomeState -> Graph -> Element msg
+viewGraph homeState graph =
     Graph.visGraph graph |> html
 
 
@@ -1189,14 +1300,15 @@ viewHome model packageName packageDef =
         moduleDefinitionsAsUiElements : ModuleName -> Module.Definition () (Type ()) -> List ( Definition, Element Msg )
         moduleDefinitionsAsUiElements moduleName moduleDef =
             let
-                createUiElement : Element Msg -> Definition -> Name -> Element Msg
-                createUiElement icon definition name =
+                createUiElement : Element Msg -> Definition -> Name -> (Name -> String) -> Element Msg
+                createUiElement icon definition name nameTransformation =
                     viewAsLabel
                         (SelectDefinition definition)
                         model.theme
                         icon
                         (text (nameToText name))
-                        (moduleNameToPathString moduleName)
+                        (pathToDisplayString moduleName)
+                        ("/home" ++ pathToUrl packageName ++ pathToUrl moduleName ++ "/" ++ nameTransformation name)
 
                 types : List ( Definition, Element Msg )
                 types =
@@ -1205,7 +1317,7 @@ viewHome model packageName packageDef =
                         |> List.map
                             (\( typeName, _ ) ->
                                 ( Type ( moduleName, typeName )
-                                , createUiElement (el [ Font.color (rgba 0 0.639 0.882 0.6) ] (text "ⓣ ")) (Type ( moduleName, typeName )) typeName
+                                , createUiElement (el [ Font.color (rgba 0 0.639 0.882 0.6) ] (text "ⓣ ")) (Type ( moduleName, typeName )) typeName Name.toTitleCase
                                 )
                             )
 
@@ -1216,7 +1328,7 @@ viewHome model packageName packageDef =
                         |> List.map
                             (\( valueName, _ ) ->
                                 ( Value ( moduleName, valueName )
-                                , createUiElement (el [ Font.color (rgba 1 0.411 0 0.6) ] (text "ⓥ ")) (Value ( moduleName, valueName )) valueName
+                                , createUiElement (el [ Font.color (rgba 1 0.411 0 0.6) ] (text "ⓥ ")) (Value ( moduleName, valueName )) valueName Name.toCamelCase
                                 )
                             )
             in
@@ -1263,7 +1375,7 @@ viewHome model packageName packageDef =
                     in
                     List.map
                         (\( def, elem ) ->
-                            case model.selectedDefinition of
+                            case model.homeState.selectedDefinition of
                                 Just selected ->
                                     if selected == def then
                                         paintIfSelected elem
@@ -1342,6 +1454,16 @@ viewHome model packageName packageDef =
                 , label = Element.Input.labelLeft [] (text "types:")
                 }
 
+        graphCheckbox : Element Msg
+        graphCheckbox =
+            Element.Input.checkbox
+                [ width (fillPortion 2) ]
+                { onChange = ToggleGraph
+                , checked = model.showGraph
+                , icon = Element.Input.defaultCheckbox
+                , label = Element.Input.labelLeft [] (text "graph:")
+                }
+
         toggleModulesMenu : Element Msg
         toggleModulesMenu =
             Element.Input.button
@@ -1365,7 +1487,7 @@ viewHome model packageName packageDef =
                     , onExpand = ExpandModule
                     , collapsedPaths = model.collapsedModules
                     , selectedPaths =
-                        model.selectedModule
+                        model.homeState.selectedModule
                             |> Maybe.map (Tuple.first >> Set.singleton)
                             |> Maybe.withDefault Set.empty
                     }
@@ -1377,32 +1499,80 @@ viewHome model packageName packageDef =
 
         pathToSelectedModule : String
         pathToSelectedModule =
-            case model.selectedModule |> Maybe.map Tuple.second of
+            case model.homeState.selectedModule |> Maybe.map Tuple.second of
                 Just moduleName ->
-                    "> " ++ moduleNameToPathString moduleName
+                    "> " ++ pathToDisplayString moduleName
 
                 _ ->
-                    ""
+                    ">"
 
         switchViews : Element Msg
         switchViews =
-            if not model.showTypes then
+            let
+                filterDepsBySelectedModule : DAG.DAG ( comparable, ModuleName, Name ) -> List ( String, List String )
+                filterDepsBySelectedModule deps =
+                    deps
+                        |> DAG.toList
+                        |> List.filterMap
+                            (\( ( _, moduleName, localName ), fqNameSet ) ->
+                                case model.homeState.selectedModule of
+                                    Just ( _, selectedModName ) ->
+                                        if selectedModName == moduleName then
+                                            Just
+                                                ( localName
+                                                    |> Name.toHumanWords
+                                                    |> String.join " "
+                                                , Set.toList fqNameSet
+                                                    |> List.map
+                                                        (\( _, _, lName ) ->
+                                                            lName
+                                                                |> Name.toHumanWords
+                                                                |> String.join " "
+                                                        )
+                                                )
+
+                                        else
+                                            Nothing
+
+                                    Nothing ->
+                                        Just
+                                            ( localName
+                                                |> Name.toHumanWords
+                                                |> String.join " "
+                                            , Set.toList fqNameSet
+                                                |> List.map
+                                                    (\( _, _, lName ) ->
+                                                        lName
+                                                            |> Name.toHumanWords
+                                                            |> String.join " "
+                                                    )
+                                            )
+                            )
+
+                filterTypeDeps =
+                    filterDepsBySelectedModule (Repo.typeDependencies model.repo)
+
+                filterValueDeps =
+                    filterDepsBySelectedModule (Repo.valueDependencies model.repo)
+            in
+            if model.showGraph then
+                column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
+                    [ viewGraph model.homeState (Graph.dagListAsGraph filterTypeDeps)
+                    , viewGraph model.homeState (Graph.dagListAsGraph filterValueDeps)
+                    ]
+
+            else
                 column
                     [ height fill
                     , width (ifThenElse model.showModules (fillPortion 6) (fillPortion 7))
                     , Background.color model.theme.colors.lightest
                     ]
-                    [ column [ width fill, height (fillPortion 1), scrollbars, padding (model.theme |> Theme.scaled 1) ] [ viewDefinition model.selectedDefinition ]
+                    [ column [ width fill, height (fillPortion 2), scrollbars, padding (model.theme |> Theme.scaled 1) ] [ viewDefinition model.homeState.selectedDefinition ]
                     , column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
-                        [ el
-                            [ height fill, width fill ]
-                            (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.selectedDefinition)
+                        [ el [ height fill, width fill ]
+                            (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.homeState.selectedDefinition)
                         ]
                     ]
-
-            else
-                column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
-                    [ viewGraph (Graph.dagListAsGraph model.repo.typeDependencies) ]
     in
     row [ width fill, height fill, Background.color gray, spacing 10 ]
         [ column
@@ -1435,11 +1605,11 @@ viewHome model packageName packageDef =
                         , spacing (model.theme |> Theme.scaled 1)
                         , paddingXY 0 (model.theme |> Theme.scaled -5)
                         ]
-                        [ definitionFilter, row [ alignRight, spacing (model.theme |> Theme.scaled 1) ] [ valueCheckbox, typeCheckbox ] ]
+                        [ definitionFilter, row [ alignRight, spacing (model.theme |> Theme.scaled 1) ] [ valueCheckbox, typeCheckbox, graphCheckbox ] ]
                     , el [ Font.bold, paddingEach { bottom = 3, top = 0, left = 5, right = 0 } ] <| text pathToSelectedModule
                     , el
                         scrollableListStyles
-                        (viewDefinitionLabels (model.selectedModule |> Maybe.map Tuple.second))
+                        (viewDefinitionLabels (model.homeState.selectedModule |> Maybe.map Tuple.second))
                     ]
                 ]
             ]
@@ -1467,7 +1637,7 @@ viewType theme typeName typeDef docs =
                     \field ->
                         el
                             (Theme.labelStyles theme)
-                            (XRayView.viewType field.tpe)
+                            (XRayView.viewType pathToUrl field.tpe)
 
                 viewFields =
                     Theme.twoColumnTableView
@@ -1491,7 +1661,7 @@ viewType theme typeName typeDef docs =
                 (el
                     [ paddingXY 10 5
                     ]
-                    (XRayView.viewType body)
+                    (XRayView.viewType pathToUrl body)
                 )
 
         Type.CustomTypeDefinition _ accessControlledConstructors ->
@@ -1529,7 +1699,7 @@ viewType theme typeName typeDef docs =
                     else
                         case isNewType of
                             Just baseType ->
-                                el [ padding (theme |> Theme.scaled -2) ] (XRayView.viewType baseType)
+                                el [ padding (theme |> Theme.scaled -2) ] (XRayView.viewType pathToUrl baseType)
 
                             Nothing ->
                                 let
@@ -1544,7 +1714,7 @@ viewType theme typeName typeDef docs =
                                             el
                                                 (Theme.labelStyles theme)
                                                 (ctorArgs
-                                                    |> List.map (Tuple.second >> XRayView.viewType)
+                                                    |> List.map (Tuple.second >> XRayView.viewType pathToUrl)
                                                     |> row [ spacing 5 ]
                                                 )
                                 in
@@ -1575,7 +1745,7 @@ viewValue : Theme -> ModuleName -> Name -> Value.Definition () (Type ()) -> Stri
 viewValue theme moduleName valueName valueDef docs =
     let
         cardTitle =
-            link []
+            link [ pointer ]
                 { url =
                     "/module/" ++ (moduleName |> List.map Name.toTitleCase |> String.join ".") ++ "?filter=" ++ nameToText valueName
                 , label =
@@ -1674,27 +1844,31 @@ viewAsCard theme header class backgroundColor docs content =
         ]
 
 
-viewAsLabel : msg -> Theme -> Element msg -> Element msg -> String -> Element msg
-viewAsLabel clickMessage theme icon header class =
-    row
-        [ width fill
-        , Font.size (theme |> Theme.scaled 2)
-        , onClick clickMessage
-        , pointer
-        ]
-        [ icon
-        , el
-            [ Font.bold
-            , paddingXY (theme |> Theme.scaled -10) (theme |> Theme.scaled -3)
-            ]
-            header
-        , el
-            [ alignRight
-            , Font.color theme.colors.secondaryInformation
-            , paddingXY (theme |> Theme.scaled -10) (theme |> Theme.scaled -3)
-            ]
-            (el [] (text class))
-        ]
+viewAsLabel : msg -> Theme -> Element msg -> Element msg -> String -> String -> Element msg
+viewAsLabel clickMessage theme icon header class url =
+    let
+        elem =
+            row
+                [ width fill
+                , Font.size (theme |> Theme.scaled 2)
+                , onClick clickMessage
+                , pointer
+                ]
+                [ icon
+                , el
+                    [ Font.bold
+                    , paddingXY (theme |> Theme.scaled -10) (theme |> Theme.scaled -3)
+                    ]
+                    header
+                , el
+                    [ alignRight
+                    , Font.color theme.colors.secondaryInformation
+                    , paddingXY (theme |> Theme.scaled -10) (theme |> Theme.scaled -3)
+                    ]
+                    (el [] (text class))
+                ]
+    in
+    link [ width fill, pointer ] { label = elem, url = url }
 
 
 
@@ -1718,6 +1892,10 @@ httpMakeModel =
                                     ServerGetIRResponse ( result, repo )
 
                                 Err error ->
+                                    let
+                                        _ =
+                                            Debug.log "e" error
+                                    in
                                     HttpError (Http.BadBody "Could not transform Distribution to Repo")
                 )
                 DistributionCodec.decodeVersionedDistribution
@@ -1770,20 +1948,22 @@ httpSaveTestSuite ir testSuite =
         }
 
 
-viewModuleNames : PackageName -> ModuleName -> List ModuleName -> TreeLayout.Node Msg
-viewModuleNames packageName currentModule moduleNames =
+viewModuleNames : PackageName -> ModuleName -> List ModuleName -> TreeLayout.Node ModuleName Msg
+viewModuleNames packageName parentModule allModuleNames =
     let
+        currentModuleName : Maybe Name
         currentModuleName =
-            currentModule
+            parentModule
                 |> List.reverse
                 |> List.head
 
+        childModuleNames : List Name
         childModuleNames =
-            moduleNames
+            allModuleNames
                 |> List.filterMap
                     (\moduleName ->
-                        if currentModule |> Path.isPrefixOf moduleName then
-                            moduleName |> List.drop (List.length currentModule) |> List.head
+                        if parentModule |> Path.isPrefixOf moduleName then
+                            moduleName |> List.drop (List.length parentModule) |> List.head
 
                         else
                             Nothing
@@ -1792,28 +1972,25 @@ viewModuleNames packageName currentModule moduleNames =
                 |> Set.toList
     in
     TreeLayout.Node
-        (\nodePath ->
+        (\_ ->
             case currentModuleName of
                 Just name ->
-                    el
-                        [ onClick (SelectModule nodePath currentModule)
-                        , pointer
-                        ]
-                        (text (name |> nameToTitleText))
+                    link [ pointer ] { label = text (name |> nameToTitleText), url = "/home" ++ pathToUrl packageName ++ pathToUrl parentModule }
 
                 Nothing ->
-                    el
-                        [ onClick (SelectModule nodePath currentModule)
-                        , pointer
-                        ]
-                        (text (packageName |> List.map nameToTitleText |> String.join " - "))
+                    link [ pointer ] { label = text (pathToUrl packageName), url = "/home" ++ pathToUrl packageName }
         )
         Array.empty
         (childModuleNames
             |> List.map
                 (\name ->
-                    viewModuleNames packageName (currentModule ++ [ name ]) moduleNames
+                    let
+                        moduleName =
+                            parentModule ++ [ name ]
+                    in
+                    ( moduleName, viewModuleNames packageName moduleName allModuleNames )
                 )
+            |> Dict.fromList
         )
 
 
@@ -1825,11 +2002,6 @@ definitionName definition =
 
         Type ( _, typeName ) ->
             typeName
-
-
-moduleNameToPathString : ModuleName -> String
-moduleNameToPathString moduleName =
-    Path.toString (Name.toHumanWords >> String.join " ") " > " moduleName
 
 
 viewDefinitionDetails : Theme -> IRState -> ModulePage.Model -> Maybe Definition -> Element Msg

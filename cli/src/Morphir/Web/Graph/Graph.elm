@@ -1,37 +1,13 @@
 module Morphir.Web.Graph.Graph exposing (..)
 
-import Browser
 import Dict exposing (Dict)
-import Elm.Syntax.Module exposing (Module)
 import Html exposing (..)
 import Html.Attributes exposing (attribute)
 import Json.Encode as Encode exposing (..)
 import Morphir.Dependency.DAG as DAG exposing (DAG)
-import Morphir.IR.Distribution exposing (Distribution(..))
 import Morphir.IR.FQName as FQName exposing (FQName)
-import Morphir.IR.Module exposing (ModuleName)
-import Morphir.IR.Name exposing (Name)
-import Morphir.IR.Package exposing (lookupModuleDefinition)
-import Morphir.IR.Type as Type exposing (Type)
+import Morphir.IR.Name as Name
 import Set exposing (Set)
-
-
-
--- initialModel : Graph
--- initialModel =
---     exampleGraph
--- init : () -> ( Graph, Cmd Msg )
--- init _ =
---     ( initialModel, Cmd.none )
---MAIN
--- main : Program () Graph Msg
--- main =
---     Browser.element
---         { init = init
---         , view = view
---         , update = update
---         , subscriptions = \_ -> Sub.none
---         }
 
 
 type alias Node =
@@ -116,20 +92,19 @@ depList =
     ]
 
 
-dagListAsGraph : DAG FQName -> Graph
-dagListAsGraph dag =
+dagListAsGraph : List ( String, List String ) -> Graph
+dagListAsGraph dagAsList =
     let
-        dagAsList : List ( String, List String )
-        dagAsList =
-            DAG.toList dag
-                |> List.map
-                    (\( node, nodeSet ) ->
-                        ( node |> FQName.toString
-                        , Set.toList nodeSet
-                            |> List.map FQName.toString
-                        )
-                    )
-
+        --dagAsList : List ( String, List String )
+        --dagAsList =
+        --    DAG.toList dag
+        --        |> List.map
+        --            (\( ( _, _, localName ), nodeSet ) ->
+        --                ( localName |> Name.toHumanWords |> String.join " "
+        --                , Set.toList nodeSet
+        --                    |> List.map (\( _, _, lName ) -> lName |> Name.toHumanWords |> String.join " ")
+        --                )
+        --            )
         indexByNode : Dict String Int
         indexByNode =
             dagAsList
