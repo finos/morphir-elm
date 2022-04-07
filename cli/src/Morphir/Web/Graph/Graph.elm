@@ -29,48 +29,6 @@ empty =
     { nodes = [], edges = [] }
 
 
-
---MODEL
---type Msg
---    = UpdateGraph Graph
---
---
---
-----UPDATE
---
---
---update : Msg -> Graph -> ( Graph, Cmd Msg )
---update msg graph =
---    case msg of
---        UpdateGraph newGraph ->
---            ( newGraph, Cmd.none )
---VIS GRAPH
-
-
-encodeNode : Node -> Encode.Value
-encodeNode node =
-    Encode.object <|
-        [ ( "id", Encode.int node.id )
-        , ( "label", Encode.string node.label )
-        ]
-
-
-encodeEdge : Edge -> Encode.Value
-encodeEdge edge =
-    Encode.object <|
-        [ ( "to", Encode.int edge.to )
-        , ( "from", Encode.int edge.from )
-        ]
-
-
-encodeGraph : Graph -> Encode.Value
-encodeGraph g =
-    Encode.object <|
-        [ ( "nodes", Encode.list encodeNode g.nodes )
-        , ( "edges", Encode.list encodeEdge g.edges )
-        ]
-
-
 exampleGraph : Graph
 exampleGraph =
     Graph [ { id = 1, label = "F" }, { id = 3, label = "G" } ] [ { from = 1, to = 3 } ]
@@ -95,16 +53,6 @@ depList =
 dagListAsGraph : List ( String, List String ) -> Graph
 dagListAsGraph dagAsList =
     let
-        --dagAsList : List ( String, List String )
-        --dagAsList =
-        --    DAG.toList dag
-        --        |> List.map
-        --            (\( ( _, _, localName ), nodeSet ) ->
-        --                ( localName |> Name.toHumanWords |> String.join " "
-        --                , Set.toList nodeSet
-        --                    |> List.map (\( _, _, lName ) -> lName |> Name.toHumanWords |> String.join " ")
-        --                )
-        --            )
         indexByNode : Dict String Int
         indexByNode =
             dagAsList
@@ -167,16 +115,33 @@ depListAsGraph =
         )
 
 
-
---VIEW
---view : String -> String -> Graph -> Html msg
---view width height graphValue =
---    visGraph width height depListAsGraph
-
-
 visGraph : Graph -> Html msg
 visGraph graphContent =
     node "vis-graph"
         [ attribute "graph" (encodeGraph graphContent |> Encode.encode 0)
         ]
         []
+
+
+encodeNode : Node -> Encode.Value
+encodeNode node =
+    Encode.object <|
+        [ ( "id", Encode.int node.id )
+        , ( "label", Encode.string node.label )
+        ]
+
+
+encodeEdge : Edge -> Encode.Value
+encodeEdge edge =
+    Encode.object <|
+        [ ( "to", Encode.int edge.to )
+        , ( "from", Encode.int edge.from )
+        ]
+
+
+encodeGraph : Graph -> Encode.Value
+encodeGraph g =
+    Encode.object <|
+        [ ( "nodes", Encode.list encodeNode g.nodes )
+        , ( "edges", Encode.list encodeEdge g.edges )
+        ]

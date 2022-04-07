@@ -268,16 +268,10 @@ update msg model =
                     )
 
         ServerGetIRResponse ( distribution, repo ) ->
-            --case Repo.fromDistribution distribution of
-            --    Ok repo ->
             ( { model | irState = IRLoaded distribution, repo = repo }
             , httpTestModel (IR.fromDistribution distribution)
             )
 
-        --Err error ->
-        --    ( { model | serverState = ServerHttpError () }
-        --    , Cmd.none
-        --    )
         ValueFilterChanged filterString ->
             case model.currentPage of
                 Module moduleModel ->

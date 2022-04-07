@@ -30,12 +30,11 @@ class VisGraph extends HTMLElement {
             layout: {
                 hierarchical: {
                     nodeSpacing: 100,
-                    levelSeparation: 80,
-
-                    direction: "UD",
+                    levelSeparation: 200,
+                    direction: "DU",
                     sortMethod: "directed",
+                    edgeMinimization: true
                 },
-
             },
             edges: {
                 smooth: true,
@@ -43,7 +42,11 @@ class VisGraph extends HTMLElement {
             },
             autoResize: false,
             height: "1000px",
-            width: "1000px"
+            width: "1000px",
+            nodes: {
+                physics: false
+            },
+            title: "FQName"
         };
 
         var network = new vis.Network(this, data, options);
