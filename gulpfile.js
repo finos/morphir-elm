@@ -130,11 +130,7 @@ async function testUnit(cb) {
     await execa('elm-test');
 }
 
-<<<<<<< HEAD
-async function compileCli2Ts(cb) {
-=======
 async function compileCli2Ts() {
->>>>>>> c3a67ad91014394512e6e2f0972451e3c105d38e
     src('./cli2/*.ts').pipe(tsProject()).pipe(dest('./cli2/lib/'))
 }
 
@@ -251,11 +247,7 @@ const test =
 exports.clean = clean;
 exports.makeCLI = makeCLI;
 exports.makeDevCLI = makeDevCLI;
-<<<<<<< HEAD
-exports.makeCLI2 = makeCLI2;
-=======
 exports.buildCLI2 = buildCLI2;
->>>>>>> c3a67ad91014394512e6e2f0972451e3c105d38e
 exports.build = build;
 exports.test = test;
 exports.testIntegration = testIntegration;

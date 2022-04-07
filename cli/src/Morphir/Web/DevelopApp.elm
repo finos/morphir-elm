@@ -114,7 +114,6 @@ type alias Model =
     , showTypes : Bool
     , simpleDefinitionDetailsModel : ModulePage.Model
     , showModules : Bool
-    , showGraph : Bool
     , repo : Repo
     , homeState : HomeState
     }
@@ -172,7 +171,6 @@ init _ url key =
             , showSearchBar = False
             }
       , showModules = True
-      , showGraph = False
       , repo = Repo.empty []
       , homeState =
             { selectedPackage = Nothing
@@ -220,7 +218,6 @@ type Msg
     | ToggleValues Bool
     | ToggleTypes Bool
     | ToggleModulesMenu
-    | ToggleGraph Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -932,13 +929,6 @@ update msg model =
             , Cmd.none
             )
 
-        ToggleGraph isToggled ->
-            ( { model
-                | showGraph = not model.showGraph
-              }
-            , Cmd.none
-            )
-
 
 
 -- SUBSCRIPTIONS
@@ -1448,16 +1438,6 @@ viewHome model packageName packageDef =
                 , label = Element.Input.labelLeft [] (text "types:")
                 }
 
-        graphCheckbox : Element Msg
-        graphCheckbox =
-            Element.Input.checkbox
-                [ width (fillPortion 2) ]
-                { onChange = ToggleGraph
-                , checked = model.showGraph
-                , icon = Element.Input.defaultCheckbox
-                , label = Element.Input.labelLeft [] (text "graph:")
-                }
-
         toggleModulesMenu : Element Msg
         toggleModulesMenu =
             Element.Input.button
@@ -1549,7 +1529,7 @@ viewHome model packageName packageDef =
                 filterValueDeps =
                     filterDepsBySelectedModule (Repo.valueDependencies model.repo)
             in
-            if model.showGraph then
+            if model.homeState.selectedDefinition == Nothing then
                 column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
                     [ viewGraph model.homeState (Graph.dagListAsGraph filterTypeDeps)
                     , viewGraph model.homeState (Graph.dagListAsGraph filterValueDeps)
@@ -1599,7 +1579,7 @@ viewHome model packageName packageDef =
                         , spacing (model.theme |> Theme.scaled 1)
                         , paddingXY 0 (model.theme |> Theme.scaled -5)
                         ]
-                        [ definitionFilter, row [ alignRight, spacing (model.theme |> Theme.scaled 1) ] [ valueCheckbox, typeCheckbox, graphCheckbox ] ]
+                        [ definitionFilter, row [ alignRight, spacing (model.theme |> Theme.scaled 1) ] [ valueCheckbox, typeCheckbox ] ]
                     , el [ Font.bold, paddingEach { bottom = 3, top = 0, left = 5, right = 0 } ] <| text pathToSelectedModule
                     , el
                         scrollableListStyles
