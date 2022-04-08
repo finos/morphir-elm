@@ -14,7 +14,7 @@ class VisGraph extends HTMLElement {
         var graphObject = JSON.parse(this.getAttribute('graph'))
 
         var nodes = new vis.DataSet(
-            graphObject.nodes
+            graphObject.nodes,
         );
 
         var edges = new vis.DataSet(
@@ -39,14 +39,16 @@ class VisGraph extends HTMLElement {
             edges: {
                 smooth: true,
                 arrows: "to",
+                title: "Display FQName here"
             },
             autoResize: false,
             height: "1000px",
             width: "1000px",
             nodes: {
                 physics: false
+
             },
-            title: "FQName"
+
         };
 
         var network = new vis.Network(this, data, options);

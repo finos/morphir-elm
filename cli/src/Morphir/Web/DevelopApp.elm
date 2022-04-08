@@ -1,4 +1,4 @@
-module Morphir.Web.DevelopApp exposing (IRState(..), Model, Msg(..), Page(..), ServerState(..), httpMakeModel, init, main, routeParser, subscriptions, toRoute, topUrlWithoutHome, update, view, viewBody, viewHeader, viewTitle)
+module Morphir.Web.DevelopApp exposing (HomeState, IRState(..), Model, Msg(..), Page(..), ServerState(..), httpMakeModel, init, main, routeParser, subscriptions, toRoute, topUrlWithoutHome, update, view, viewBody, viewHeader, viewTitle)
 
 import Array
 import Array.Extra
@@ -1224,9 +1224,10 @@ viewModuleModel theme moduleModel distribution =
         moduleModel
 
 
-viewGraph : HomeState -> Graph -> Element msg
-viewGraph homeState graph =
-    Graph.visGraph graph |> html
+
+--viewGraph : HomeState -> Graph -> Element msg
+--viewGraph homeState graph =
+--    Graph.visGraph graph |> html
 
 
 viewHome : Model -> PackageName -> Package.Definition () (Type ()) -> Element Msg
@@ -1479,74 +1480,6 @@ viewHome model packageName packageDef =
 
                 _ ->
                     ">"
-
-        switchViews : Element Msg
-        switchViews =
-            let
-                filterDepsBySelectedModule : DAG.DAG ( comparable, ModuleName, Name ) -> List ( String, List String )
-                filterDepsBySelectedModule deps =
-                    deps
-                        |> DAG.toList
-                        |> List.filterMap
-                            (\( ( _, moduleName, localName ), fqNameSet ) ->
-                                case model.homeState.selectedModule of
-                                    Just ( _, selectedModName ) ->
-                                        if selectedModName == moduleName then
-                                            Just
-                                                ( localName
-                                                    |> Name.toHumanWords
-                                                    |> String.join " "
-                                                , Set.toList fqNameSet
-                                                    |> List.map
-                                                        (\( _, _, lName ) ->
-                                                            lName
-                                                                |> Name.toHumanWords
-                                                                |> String.join " "
-                                                        )
-                                                )
-
-                                        else
-                                            Nothing
-
-                                    Nothing ->
-                                        Just
-                                            ( localName
-                                                |> Name.toHumanWords
-                                                |> String.join " "
-                                            , Set.toList fqNameSet
-                                                |> List.map
-                                                    (\( _, _, lName ) ->
-                                                        lName
-                                                            |> Name.toHumanWords
-                                                            |> String.join " "
-                                                    )
-                                            )
-                            )
-
-                filterTypeDeps =
-                    filterDepsBySelectedModule (Repo.typeDependencies model.repo)
-
-                filterValueDeps =
-                    filterDepsBySelectedModule (Repo.valueDependencies model.repo)
-            in
-            if model.homeState.selectedDefinition == Nothing then
-                column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
-                    [ viewGraph model.homeState (Graph.dagListAsGraph filterTypeDeps)
-                    , viewGraph model.homeState (Graph.dagListAsGraph filterValueDeps)
-                    ]
-
-            else
-                column
-                    [ height fill
-                    , width (ifThenElse model.showModules (fillPortion 6) (fillPortion 7))
-                    , Background.color model.theme.colors.lightest
-                    ]
-                    [ column [ width fill, height (fillPortion 2), scrollbars, padding (model.theme |> Theme.scaled 1) ] [ viewDefinition model.homeState.selectedDefinition ]
-                    , column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
-                        [ el [ height fill, width fill ]
-                            (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.homeState.selectedDefinition)
-                        ]
-                    ]
     in
     row [ width fill, height fill, Background.color gray, spacing 10 ]
         [ column
@@ -1592,7 +1525,18 @@ viewHome model packageName packageDef =
             , width (ifThenElse model.showModules (fillPortion 6) (fillPortion 7))
             , Background.color model.theme.colors.lightest
             ]
-            [ switchViews ]
+            [ column
+                [ height fill
+                , width (ifThenElse model.showModules (fillPortion 6) (fillPortion 7))
+                , Background.color model.theme.colors.lightest
+                ]
+                [ column [ width fill, height (fillPortion 2), scrollbars, padding (model.theme |> Theme.scaled 1) ] [ viewDefinition model.homeState.selectedDefinition ]
+                , column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
+                    [ el [ height fill, width fill ]
+                        (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.homeState.selectedDefinition)
+                    ]
+                ]
+            ]
         ]
 
 
