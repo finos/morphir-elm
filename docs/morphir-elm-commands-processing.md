@@ -14,10 +14,10 @@ Morphir-elm uses the elm [javascript-interop](https://guide.elm-lang.org/interop
 NodeJS environment and the Elm platform. Code validation and the generation of the IR happens
 withing Elm.
 
-## Command Description
+## `morphir-elm make`
 Here's a list of the commands along with the supported options for each command and what they mean.
 
-### `morphir-elm make`
+### Command Description
 
 This command reads elm sources, translates to Morphir IR and outputs the IR into JSON.
 
@@ -28,9 +28,7 @@ This command reads elm sources, translates to Morphir IR and outputs the IR into
 |    `-h`, `--help`     |      -       | Output usage information.                                                                 |
 
 ## Command Process
-Here's a description of the processes involved with running each of these command
-
-### `morphir-elm make`
+Here's a description of the processes involved with running the `morphir-elm make` command
 
 The entry point for this command can be found [here](https://github.com/finos/morphir-elm/blob/main/cli/morphir-elm-make.js).
 
