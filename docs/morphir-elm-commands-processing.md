@@ -1,4 +1,4 @@
-# Morphir-elm Command Processes
+# Morphir-elm Commands Processing
 
 
 The purpose of the document is to explain what happens when morphir-elm commands are run.
