@@ -71,6 +71,7 @@ import Morphir.Visual.XRayView as XRayView
 import Morphir.Web.DevelopApp.Common exposing (ifThenElse, insertInList, pathToDisplayString, pathToUrl, urlFragmentToNodePath, viewAsCard)
 import Morphir.Web.DevelopApp.FunctionPage as FunctionPage
 import Morphir.Web.DevelopApp.ModulePage as ModulePage exposing (ViewType(..), makeURL)
+import Morphir.Web.Graph.DependencyGraph exposing (dependencyGraph)
 import Morphir.Web.Graph.Graph as Graph exposing (Edge, Graph, Node)
 import Ordering
 import Parser exposing (deadEndsToString)
@@ -1530,11 +1531,15 @@ viewHome model packageName packageDef =
                 , width (ifThenElse model.showModules (fillPortion 6) (fillPortion 7))
                 , Background.color model.theme.colors.lightest
                 ]
-                [ column [ width fill, height (fillPortion 2), scrollbars, padding (model.theme |> Theme.scaled 1) ] [ viewDefinition model.homeState.selectedDefinition ]
+                [ column
+                    [ width fill, height (fillPortion 2), scrollbars, padding (model.theme |> Theme.scaled 1) ]
+                    [ viewDefinition model.homeState.selectedDefinition ]
                 , column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
                     [ el [ height fill, width fill ]
                         (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.homeState.selectedDefinition)
                     ]
+
+                --, dependencyGraph model.homeState.selectedModule model.repo
                 ]
             ]
         ]

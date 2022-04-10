@@ -16,18 +16,22 @@ import Morphir.Dependency.DAG as DAG
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Repo as Repo exposing (Repo)
-import Morphir.Web.DevelopApp exposing (HomeState, Model, Msg)
+import Morphir.Visual.Components.TreeLayout as TreeLayout
 import Morphir.Web.Graph.Graph as Graph exposing (Edge, Graph, Node)
 import Set exposing (Set)
 
 
-viewGraph : HomeState -> Graph -> Element msg
-viewGraph homeState graph =
+type alias SelectedModule =
+    Maybe ( TreeLayout.NodePath ModuleName, ModuleName )
+
+
+viewGraph : Graph -> Element msg
+viewGraph graph =
     Graph.visGraph graph |> html
 
 
-dependencyGraph : Model -> Element Msg
-dependencyGraph model =
+dependencyGraph : SelectedModule -> Repo -> Element msg
+dependencyGraph selectedModule repo =
     let
         gray =
             rgb 0.9 0.9 0.9
@@ -38,7 +42,7 @@ dependencyGraph model =
                 |> DAG.toList
                 |> List.filterMap
                     (\( ( _, moduleName, localName ), fqNameSet ) ->
-                        case model.homeState.selectedModule of
+                        case selectedModule of
                             Just ( _, selectedModName ) ->
                                 if selectedModName == moduleName then
                                     Just
@@ -73,12 +77,12 @@ dependencyGraph model =
                     )
 
         filterTypeDeps =
-            filterDepsBySelectedModule (Repo.typeDependencies model.repo)
+            filterDepsBySelectedModule (Repo.typeDependencies repo)
 
         filterValueDeps =
-            filterDepsBySelectedModule (Repo.valueDependencies model.repo)
+            filterDepsBySelectedModule (Repo.valueDependencies repo)
     in
     column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
-        [ viewGraph model.homeState (Graph.dagListAsGraph filterTypeDeps)
-        , viewGraph model.homeState (Graph.dagListAsGraph filterValueDeps)
+        [ viewGraph (Graph.dagListAsGraph filterTypeDeps)
+        , viewGraph (Graph.dagListAsGraph filterValueDeps)
         ]
