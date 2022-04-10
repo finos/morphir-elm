@@ -13,9 +13,9 @@ work outside a browser and has no way to interact with the terminal.
 Morphir-elm uses the elm [javascript-interop](https://guide.elm-lang.org/interop) (i.e. ports) feature to foster communication between the
 NodeJS environment and the Elm platform. Code validation and the generation of the IR happens
 withing Elm.
-
-## `morphir-elm make`
 Here's a list of the commands along with the supported options for each command and what they mean.
+
+# `morphir-elm make`
 
 ### Command Description
 
@@ -27,7 +27,7 @@ This command reads elm sources, translates to Morphir IR and outputs the IR into
 | `-p`, `--project-dir` | &lt;path&gt; | Root directory of the project where morphir.json is located.<br/>(default: ".")           |
 |    `-h`, `--help`     |      -       | Output usage information.                                                                 |
 
-## Command Process
+### Command Process
 Here's a description of the processes involved with running the `morphir-elm make` command
 
 The entry point for this command can be found [here](https://github.com/finos/morphir-elm/blob/main/cli/morphir-elm-make.js).
@@ -52,3 +52,22 @@ The update function identifies which port the message came through and carries o
 The Morphir IR is generated after validation and parsing, and a command is sent out to NodeJS to end the 
 process with either a success _(which creates the morphir-ir.json and write to it)_ or with a failure which
 outputs a failure and message showing where the error might have occurred.
+
+# `morphir-elm gen`
+
+### Command Description
+
+This command reads the Morphir IR and generates the target sources in the specified language.
+
+
+|            Option            |                   Requires                   | Description                                                                                              |
+|:----------------------------:|:--------------------------------------------:|:---------------------------------------------------------------------------------------------------------|
+|       `-i`, `--input`        |                 &lt;path&gt;                 | Source location where the Morphir IR will be loaded from.<br/>(default: "morphir-ir.json")               |
+|       `-o`, `--output`       |                 &lt;path&gt;                 | Target location where the generate code will be saved<br/>(default: "./dist")                            |
+|       `-t`, `--target`       |                 &lt;type&gt;                 | Language to Generate (Scala <code>h</code> SpringBoot  cypher  tri  TypeScript) <br />(default: "Scala") |                                                                  |
+|   `-e`, `--target-version`   |               &lt;version&gt;                | Language version to generate.<br/>(default: "2.11")                                                      |
+|     `-c`, `--copy-deps`      |            &lt;True or False&gt;             | Copy the dependencies used by the generated code to the output path (True False) <br/>(default: "False") |
+| `-m`, `--modules-to-include` | &lt;comma separated list of module names&gt; | Limit the set of modules that will be included.                                                          |
+
+### Command Process
+Here's a description of the processes involved with running the `morphir-elm gen` command
