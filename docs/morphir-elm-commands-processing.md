@@ -17,8 +17,8 @@ Here's a list of the commands along with the supported options for each command 
 <br /> <br /> The following commands are described in this document: <br />
 [1. morphir-elm make](#morphir-elm-make) <br />
 [2. morphir-elm gen](#morphir-elm-gen) <br />
-[3. morphir-elm develop](#develop) <br />
-[4. morphir-elm test](#test) <br />
+[3. morphir-elm develop](#morphir-elm-develop) <br />
+[4. morphir-elm test](#morphir-elm-test) <br />
 
 # `morphir-elm make`
 
@@ -84,9 +84,9 @@ This command reads the Morphir IR and generates the target sources in the specif
 Here's a description of the processes involved with running the `morphir-elm gen` command <br />
 The execution process begins with the reading of the Morphir IR from the specified input path. Next, the morphir ir is 
 stringified and passed into JSON. The resulting object is given to the generate function.
-This generate function which does three things <br />
+This `generate` function which does three things <br />
 1. Subscribes to the jsonDecodeError port <br />
-2. Subcribes to the generateResults port <br />
+2. Subscribes to the generateResults port <br />
 3. Sends the IR together with options to the Elm program (CLI.elm) via the generate port. <br />
 
 
@@ -102,15 +102,25 @@ This command is used to test the test cases present in the morphir-ir.json.
 | `-p`, `--projectDir` | &lt;path&gt; | Root directory of the project where morphir.json is located.<br/>(default: ".") |
                                                               |
 
-### Command Process
-Here's a description of the processes involved with running the `morphir-elm make` command
+### Command Execution Process
+Here's a description of the processes involved with running the `morphir-elm make` command <br />
+This command invokes the test() function defined in [cli.js](https://github.com/finos/morphir-elm/blob/main/cli/cli.js).
+It takes the project directory (projectDir) as a argument and read content of the morphir-ir.json as well as the morphir-tests.json.
+The testResult() function is called with both arguments. <br />
+The testResult() function interfaces with the
+[CLI.elm](https://github.com/finos/morphir-elm/blob/main/cli/src/Morphir/Elm/CLI.elm) which defines the following ports: <br />
+1. jsonDecodeError -  sends jsonDecode error from the Elm ([CLI.elm](https://github.com/finos/morphir-elm/blob/main/cli/src/Morphir/Elm/CLI.elm)) to JavaScript ([cli.js](https://github.com/finos/morphir-elm/blob/main/cli/cli.js)) <br />
+2. runTestCasesResultError - sends errors resulting from running the test cases from the Elm ([CLI.elm](https://github.com/finos/morphir-elm/blob/main/cli/src/Morphir/Elm/CLI.elm)) to JavaScript [cli.js](https://github.com/finos/morphir-elm/blob/main/cli/cli.js)) <br />
+3. runTestCasesResult -  sends the results of the test cases from the Elm ([CLI.elm](https://github.com/finos/morphir-elm/blob/main/cli/src/Morphir/Elm/CLI.elm)) to JavaScript [cli.js](https://github.com/finos/morphir-elm/blob/main/cli/cli.js)) <br />
+4. runTestCases -  receives the test cases to be run sent from Javascript ([cli.js](https://github.com/finos/morphir-elm/blob/main/cli/cli.js)) to Elm ([CLI.elm](https://github.com/finos/morphir-elm/blob/main/cli/src/Morphir/Elm/CLI.elm)) <br />
 
 
 # `morphir-elm develop`
 
 ### Command Description
 
-This command starts a web server and exposes the developer tools via a web UI
+This command starts a web server and exposes the developer tools via a web UI. The entrypoint for the `morphir-elm develop` 
+command is specified in the [morphir-elm-develop.js]([CLI.elm](https://github.com/finos/morphir-elm/blob/main/cli/src/Morphir/Elm/CLI.elm)) file.
 
 
 |     Option     |   Requires   | Description                                                                          |
@@ -120,5 +130,13 @@ This command starts a web server and exposes the developer tools via a web UI
 | `-i`, `--path` | &lt;path&gt; | Root directory of the project where the morphir.json is located <br />(default: ".") |                                                                  |
 
 ### Command Execution Process
-Here's a description of the processes involved with running the `morphir-elm develop` command
+Here's a description of the processes involved with running the `morphir-elm develop` command <br />
+The web pages is located inside the sever/web folder of the project directory.
+The following endpoints are exposed by the after by the `morphir-elm develop` command
+'/' <br />
+'/server/morphir.json - serves the content of the morphir.json file' <br />
+'/server/morphir-ir.json - serves the content fo the morphir-ir.json file' <br />
+'/server/morphir-tests.json - (GET) serves te content of the morphir-tests.json file' <br />
+'/server/morphir-tests.json - (POST) accepts a request as morphir-test.json as request body, creates the morphir-tests.json
+ and returns the content as response' <br />
 
