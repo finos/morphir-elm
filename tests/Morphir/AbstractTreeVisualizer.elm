@@ -159,7 +159,7 @@ drawTree listAll htmlAggregation =
                 (\indI elemInner ->
                     div
                         [ Html.Attributes.style "font-family" "consolas"
-                        , Html.Attributes.style "z-index" "100"
+                        , Html.Attributes.style "z-index.md" "100"
                         , Html.Attributes.style "padding" "10px 15px"
                         , Html.Attributes.style "position" "absolute"
                         , Html.Attributes.style "background-color" "#333"

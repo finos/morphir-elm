@@ -721,7 +721,7 @@ mapLetExpression nameResolver moduleName variables letBlock =
         letBlockToValue : List (Node Expression.LetDeclaration) -> Node Expression -> Result Errors (Value.Value () (Type ()))
         letBlockToValue declarationNodes inNode =
             let
-                -- build a dictionary from variable name to declaration index
+                -- build a dictionary from variable name to declaration index.md
                 declarationIndexForName : Dict String Int
                 declarationIndexForName =
                     declarationNodes
