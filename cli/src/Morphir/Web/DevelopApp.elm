@@ -115,7 +115,6 @@ type alias Model =
     , showTypes : Bool
     , simpleDefinitionDetailsModel : ModulePage.Model
     , showModules : Bool
-    , repo : Repo
     , homeState : HomeState
     }
 
@@ -172,7 +171,6 @@ init _ url key =
             , showSearchBar = False
             }
       , showModules = True
-      , repo = Repo.empty []
       , homeState =
             { selectedPackage = Nothing
             , selectedModule = Nothing
@@ -191,7 +189,7 @@ type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | HttpError Http.Error
-    | ServerGetIRResponse ( Distribution, Repo )
+    | ServerGetIRResponse Distribution
     | ServerGetTestsResponse TestSuite
     | ExpandReference FQName Bool
     | ExpandVariable Int (Maybe RawValue)
@@ -265,8 +263,8 @@ update msg model =
                     , Cmd.none
                     )
 
-        ServerGetIRResponse ( distribution, repo ) ->
-            ( { model | irState = IRLoaded distribution, repo = repo }
+        ServerGetIRResponse distribution ->
+            ( { model | irState = IRLoaded distribution }
             , httpTestModel (IR.fromDistribution distribution)
             )
 
@@ -1538,8 +1536,6 @@ viewHome model packageName packageDef =
                     [ el [ height fill, width fill ]
                         (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.homeState.selectedDefinition)
                     ]
-
-                --, dependencyGraph model.homeState.selectedModule model.repo
                 ]
             ]
         ]
@@ -1810,16 +1806,7 @@ httpMakeModel =
                             HttpError httpError
 
                         Ok result ->
-                            case Repo.fromDistribution result of
-                                Ok repo ->
-                                    ServerGetIRResponse ( result, repo )
-
-                                Err error ->
-                                    let
-                                        _ =
-                                            Debug.log "e" error
-                                    in
-                                    HttpError (Http.BadBody "Could not transform Distribution to Repo")
+                            ServerGetIRResponse result
                 )
                 DistributionCodec.decodeVersionedDistribution
         }
