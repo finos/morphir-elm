@@ -1,85 +1,10 @@
 module Morphir.IR.Repo.Codec exposing (..)
 
 import Json.Encode as Encode
-import Morphir.IR.Module exposing (ModuleName)
-import Morphir.IR.Name as Name
+import Morphir.Dependency.DAG as DAG
+import Morphir.IR.FQName.Codec exposing (encodeFQName)
+import Morphir.IR.Path.Codec exposing (encodePath)
 import Morphir.IR.Repo exposing (Error(..), Errors)
-import Parser
-
-
-{-| convert a Morphir.IR.ModuleName into a string
--}
-moduleNameToString : ModuleName -> String
-moduleNameToString moduleName =
-    moduleName
-        |> List.map Name.toTitleCase
-        |> String.join "."
-
-
-{-| convert a Problem into a string in an attempt to produce a meaningful error
--}
-mapParserProblem : Parser.Problem -> String
-mapParserProblem problem =
-    case problem of
-        Parser.Expecting token ->
-            String.concat [ "Expecting: ", token ]
-
-        Parser.ExpectingInt ->
-            "Expecting integer"
-
-        Parser.ExpectingHex ->
-            "Expecting hexadecimal"
-
-        Parser.ExpectingOctal ->
-            "Expecting octal"
-
-        Parser.ExpectingBinary ->
-            "Expecting binary"
-
-        Parser.ExpectingFloat ->
-            "Expecting float"
-
-        Parser.ExpectingNumber ->
-            "Expecting number"
-
-        Parser.ExpectingVariable ->
-            "Expecting variable"
-
-        Parser.ExpectingSymbol symbol ->
-            String.concat [ "Expecting symbol: ", symbol ]
-
-        Parser.ExpectingKeyword keyword ->
-            String.concat [ "Expecting keyword: ", keyword ]
-
-        Parser.ExpectingEnd ->
-            "Expecting end"
-
-        Parser.UnexpectedChar ->
-            "Unexpected character"
-
-        Parser.Problem message ->
-            String.concat [ "Problem: ", message ]
-
-        Parser.BadRepeat ->
-            "Bad repeat"
-
-
-{-| encode a Parser.DeadEnd into a List of String
--}
-encodeParserDeadEnd : List Parser.DeadEnd -> Encode.Value
-encodeParserDeadEnd deadEnds =
-    deadEnds
-        |> List.map
-            (\{ row, col, problem } ->
-                String.concat
-                    [ mapParserProblem problem
-                    , " at line "
-                    , String.fromInt row
-                    , ":"
-                    , String.fromInt col
-                    ]
-            )
-        |> Encode.list Encode.string
 
 
 {-| encode a Repo Error
@@ -88,28 +13,57 @@ encodeError : Error -> Encode.Value
 encodeError error =
     case error of
         ModuleNotFound moduleName ->
-            moduleName
-                |> moduleNameToString
-                |> (\moduleNameAsString ->
-                        String.concat [ "Module not found: ", moduleNameAsString ]
-                   )
-                |> Encode.string
+            Encode.list identity
+                [ Encode.string "ModuleNotFound"
+                , encodePath moduleName
+                ]
 
         ModuleHasDependents moduleName dependentModuleNames ->
             Encode.list identity
-                [ Encode.string
-                    (String.concat
-                        [ "The following modules depend on "
-                        , moduleName |> moduleNameToString
-                        ]
-                    )
-                , Encode.set
-                    (moduleNameToString >> Encode.string)
-                    dependentModuleNames
+                [ Encode.string "ModuleHasDependents"
+                , encodePath moduleName
+                , Encode.set encodePath dependentModuleNames
                 ]
 
-        ParseError filepath deadEnds ->
+        ModuleAlreadyExist moduleName ->
             Encode.list identity
-                [ Encode.string (String.concat [ "Error in ", filepath ])
-                , encodeParserDeadEnd deadEnds
+                [ Encode.string "ModuleAlreadyExist"
+                , encodePath moduleName
+                ]
+
+        TypeAlreadyExist typeName ->
+            Encode.list identity
+                [ Encode.string "TypeAlreadyExist"
+                , encodeFQName typeName
+                ]
+
+        DependencyAlreadyExists packageName ->
+            Encode.list identity
+                [ Encode.string "DependencyAlreadyExists"
+                , encodePath packageName
+                ]
+
+        ValueAlreadyExist valueName ->
+            [ Encode.string "ValueAlreadyExist"
+            , Encode.list Encode.string valueName
+            ]
+                |> Encode.list identity
+
+        TypeCycleDetected typeName ->
+            [ Encode.string "TypeCycleDetected"
+            , Encode.list Encode.string typeName
+            ]
+                |> Encode.list identity
+
+        ValueCycleDetected valueName ->
+            [ Encode.string "ValueCycleDetected"
+            , Encode.list Encode.string valueName
+            ]
+                |> Encode.list identity
+
+        ModuleCycleDetected (DAG.CycleDetected from to) ->
+            Encode.list identity
+                [ Encode.string "ModuleCycleDetected"
+                , encodePath from
+                , encodePath to
                 ]

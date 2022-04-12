@@ -1,0 +1,194 @@
+module Morphir.Elm.IncrementalFrontend.Codec exposing (..)
+
+import Elm.Syntax.Range as Range
+import Json.Encode as Encode
+import Morphir.Elm.Frontend.Mapper as Mapper
+import Morphir.Elm.IncrementalFrontend as IncrementalFrontend
+import Morphir.Elm.IncrementalResolve.Codec as IncrementalResolveCodec
+import Morphir.IR.FQName.Codec exposing (encodeFQName)
+import Morphir.IR.Name.Codec exposing (encodeName)
+import Morphir.IR.Path.Codec exposing (encodePath)
+import Morphir.IR.Repo.Codec as RepoCodec
+import Parser
+import Set
+
+
+encodeError : IncrementalFrontend.Error -> Encode.Value
+encodeError error =
+    let
+        encodeIRModuleName moduleName =
+            Encode.list (Encode.list Encode.string) moduleName
+
+        encodeElmModuleName moduleName =
+            Encode.list Encode.string moduleName
+
+        encodeProblem problem =
+            case problem of
+                Parser.Expecting token ->
+                    Encode.list Encode.string [ "Expecting", token ]
+
+                Parser.ExpectingInt ->
+                    Encode.string "ExpectingInt"
+
+                Parser.ExpectingHex ->
+                    Encode.string "ExpectingHex"
+
+                Parser.ExpectingOctal ->
+                    Encode.string "ExpectingOctal"
+
+                Parser.ExpectingBinary ->
+                    Encode.string "ExpectingBinary"
+
+                Parser.ExpectingFloat ->
+                    Encode.string "ExpectingFloat"
+
+                Parser.ExpectingNumber ->
+                    Encode.string "ExpectingNumber"
+
+                Parser.ExpectingVariable ->
+                    Encode.string "ExpectingVariable"
+
+                Parser.ExpectingSymbol symbol ->
+                    Encode.list Encode.string [ "Expecting symbol", symbol ]
+
+                Parser.ExpectingKeyword keyword ->
+                    Encode.list Encode.string [ "ExpectingKeyword", keyword ]
+
+                Parser.ExpectingEnd ->
+                    Encode.string "ExpectingEnd"
+
+                Parser.UnexpectedChar ->
+                    Encode.string "UnexpectedChar"
+
+                Parser.Problem message ->
+                    Encode.list Encode.string [ "Problem", message ]
+
+                Parser.BadRepeat ->
+                    Encode.string "BadRepeat"
+
+        encodeDeadEnd deadEnd =
+            deadEnd
+                |> (\{ row, col, problem } ->
+                        Encode.object
+                            [ ( "row", Encode.int row )
+                            , ( "col", Encode.int col )
+                            , ( "problem", encodeProblem problem )
+                            ]
+                   )
+    in
+    case error of
+        IncrementalFrontend.ModuleCycleDetected fromModuleName toModuleName ->
+            [ Encode.string "ModuleCycleDetected"
+            , encodeIRModuleName fromModuleName
+            , encodeIRModuleName toModuleName
+            ]
+                |> Encode.list identity
+
+        IncrementalFrontend.InvalidModuleName moduleName ->
+            [ Encode.string "InvalidModuleName"
+            , encodeElmModuleName moduleName
+            ]
+                |> Encode.list identity
+
+        IncrementalFrontend.ParseError path deadEnds ->
+            [ Encode.string "ParserError"
+            , Encode.string path
+            , Encode.list encodeDeadEnd deadEnds
+            ]
+                |> Encode.list identity
+
+        IncrementalFrontend.RepoError message errors ->
+            Encode.list identity
+                [ Encode.string "RepoError"
+                , Encode.string message
+                , Encode.list RepoCodec.encodeError errors
+                ]
+
+        IncrementalFrontend.TypeCycleDetected from to ->
+            Encode.list identity
+                [ Encode.string "TypeCycleDetected"
+                , encodeName from
+                , encodeName to
+                ]
+
+        IncrementalFrontend.ResolveError moduleName e ->
+            Encode.list identity
+                [ Encode.string "ResolveError"
+                , encodePath moduleName
+                , IncrementalResolveCodec.encodeError e
+                ]
+
+        IncrementalFrontend.ValueCycleDetected fromFQName toFQName ->
+            Encode.list identity
+                [ Encode.string "ValueCycleDetected"
+                , encodeFQName fromFQName
+                , encodeFQName toFQName
+                ]
+
+        IncrementalFrontend.MappingError errors ->
+            Encode.list encodeMappingError errors
+
+        IncrementalFrontend.InvalidSourceFilePath path message ->
+            Encode.list identity
+                [ Encode.string "InvalidSourceFilePath"
+                , Encode.string path
+                , Encode.string message
+                ]
+
+
+encodeMappingError : Mapper.Error -> Encode.Value
+encodeMappingError error =
+    case error of
+        Mapper.EmptyApply sourceLocation ->
+            Encode.list identity
+                [ Encode.string "EmptyApply"
+                , encodeSourceLocation sourceLocation
+                ]
+
+        Mapper.NotSupported sourceLocation string ->
+            Encode.list identity
+                [ Encode.string "EmptyApply"
+                , encodeSourceLocation sourceLocation
+                ]
+
+        Mapper.RecordPatternNotSupported sourceLocation ->
+            Encode.list identity
+                [ Encode.string "EmptyApply"
+                , encodeSourceLocation sourceLocation
+                ]
+
+        Mapper.ResolveError sourceLocation err ->
+            Encode.list identity
+                [ Encode.string "ResolveError"
+                , encodeSourceLocation sourceLocation
+                , IncrementalResolveCodec.encodeError err
+                ]
+
+        Mapper.SameNameAppearsMultipleTimesInPattern sourceLocation names ->
+            Encode.list identity
+                [ Encode.string "SameNameAppearsMultipleTimesInPattern"
+                , encodeSourceLocation sourceLocation
+                , names |> Set.toList |> Encode.list Encode.string
+                ]
+
+        Mapper.VariableNameCollision sourceLocation varName ->
+            Encode.list identity
+                [ Encode.string "VariableNameCollision"
+                , encodeSourceLocation sourceLocation
+                , Encode.string varName
+                ]
+
+        Mapper.UnresolvedVariable sourceLocation varName ->
+            Encode.list identity
+                [ Encode.string "UnresolvedVariable"
+                , encodeSourceLocation sourceLocation
+                , Encode.string varName
+                ]
+
+
+encodeSourceLocation : Mapper.SourceLocation -> Encode.Value
+encodeSourceLocation sourceLocation =
+    Encode.object
+        [ ( "location", Range.encode sourceLocation.location )
+        , ( "moduleName", Encode.list Encode.string sourceLocation.moduleName )
+        ]

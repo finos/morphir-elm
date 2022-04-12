@@ -1,4 +1,4 @@
-module Morphir.Web.DevelopApp exposing (IRState(..), Model, Msg(..), Page(..), ServerState(..), httpMakeModel, init, main, routeParser, subscriptions, toRoute, update, view, viewBody, viewHeader, viewTitle)
+module Morphir.Web.DevelopApp exposing (IRState(..), Model, Msg(..), Page(..), ServerState(..), httpMakeModel, init, main, routeParser, subscriptions, toRoute, topUrlWithoutHome, update, view, viewBody, viewHeader, viewTitle)
 
 import Array
 import Array.Extra
@@ -8,11 +8,11 @@ import Dict exposing (Dict)
 import Element
     exposing
         ( Element
+        , alignLeft
         , alignRight
         , alignTop
         , column
         , el
-        , explain
         , fill
         , fillPortion
         , height
@@ -20,18 +20,21 @@ import Element
         , image
         , layout
         , link
-        , maximum
+        , mouseOver
+        , moveDown
         , none
         , padding
+        , paddingEach
         , paddingXY
         , paragraph
         , pointer
         , px
         , rgb
+        , rgba
+        , rotate
         , row
         , scrollbars
         , spacing
-        , spacingXY
         , text
         , width
         )
@@ -40,11 +43,12 @@ import Element.Border as Border
 import Element.Events exposing (onClick)
 import Element.Font as Font
 import Element.Input
+import Html.Attributes exposing (name)
 import Http exposing (Error(..), emptyBody, jsonBody)
 import Markdown.Parser as Markdown
 import Markdown.Renderer
 import Morphir.Correctness.Codec exposing (decodeTestSuite, encodeTestSuite)
-import Morphir.Correctness.Test exposing (TestCase, TestCases, TestSuite)
+import Morphir.Correctness.Test exposing (TestSuite)
 import Morphir.IR as IR exposing (IR)
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
 import Morphir.IR.Distribution.Codec as DistributionCodec
@@ -52,18 +56,18 @@ import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package exposing (PackageName)
-import Morphir.IR.Path as Path
+import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.QName exposing (QName(..))
 import Morphir.IR.Type as Type exposing (Type)
-import Morphir.IR.Value as Value exposing (RawValue, TypedValue, Value)
+import Morphir.IR.Value as Value exposing (RawValue, Value)
 import Morphir.Visual.Common exposing (nameToText, nameToTitleText)
 import Morphir.Visual.Components.TreeLayout as TreeLayout
-import Morphir.Visual.Config exposing (Config, PopupScreenRecord)
+import Morphir.Visual.Config exposing (PopupScreenRecord)
 import Morphir.Visual.Theme as Theme exposing (Theme)
 import Morphir.Visual.ValueEditor as ValueEditor
 import Morphir.Visual.XRayView as XRayView
-import Morphir.Web.DevelopApp.Common exposing (ifThenElse, insertInList, viewAsCard)
-import Morphir.Web.DevelopApp.FunctionPage as FunctionPage exposing (TestCaseState)
+import Morphir.Web.DevelopApp.Common exposing (ifThenElse, insertInList, pathToDisplayString, pathToUrl, urlFragmentToNodePath, viewAsCard)
+import Morphir.Web.DevelopApp.FunctionPage as FunctionPage
 import Morphir.Web.DevelopApp.ModulePage as ModulePage exposing (ViewType(..), makeURL)
 import Ordering
 import Parser exposing (deadEndsToString)
@@ -101,12 +105,20 @@ type alias Model =
     , serverState : ServerState
     , testSuite : TestSuite
     , functionStates : Dict FQName FunctionPage.Model
-    , collapsedModules : Set TreeLayout.NodePath
-    , selectedModule : Maybe ( TreeLayout.NodePath, ModuleName )
-    , selectedDefinition : Maybe Definition
+    , collapsedModules : Set (TreeLayout.NodePath ModuleName)
     , searchText : String
     , showValues : Bool
     , showTypes : Bool
+    , simpleDefinitionDetailsModel : ModulePage.Model
+    , showModules : Bool
+    , homeState : HomeState
+    }
+
+
+type alias HomeState =
+    { selectedPackage : Maybe PackageName
+    , selectedModule : Maybe ( TreeLayout.NodePath ModuleName, ModuleName )
+    , selectedDefinition : Maybe Definition
     }
 
 
@@ -126,7 +138,7 @@ type ServerState
 
 
 type Page
-    = Home
+    = Home HomeState
     | Module ModulePage.Model
     | Function FQName
     | NotFound
@@ -142,11 +154,24 @@ init _ url key =
       , testSuite = Dict.empty
       , functionStates = Dict.empty
       , collapsedModules = Set.empty
-      , selectedModule = Nothing
-      , selectedDefinition = Nothing
       , searchText = ""
       , showValues = True
       , showTypes = True
+      , simpleDefinitionDetailsModel =
+            { filter = Just ""
+            , moduleName = []
+            , viewType = ModulePage.InsightView
+            , argState = Dict.empty
+            , expandedValues = Dict.empty
+            , popupVariables = PopupScreenRecord 0 Nothing
+            , showSearchBar = False
+            }
+      , showModules = True
+      , homeState =
+            { selectedPackage = Nothing
+            , selectedModule = Nothing
+            , selectedDefinition = Nothing
+            }
       }
     , Cmd.batch [ httpMakeModel ]
     )
@@ -180,13 +205,14 @@ type Msg
     | FunctionEditTestCase Int
     | FunctionSaveTestCase Int
     | SaveTestSuite FunctionPage.Model
-    | ExpandModule TreeLayout.NodePath
-    | CollapseModule TreeLayout.NodePath
-    | SelectModule TreeLayout.NodePath ModuleName
+    | ExpandModule (TreeLayout.NodePath ModuleName)
+    | CollapseModule (TreeLayout.NodePath ModuleName)
+    | SelectModule (TreeLayout.NodePath ModuleName) ModuleName
     | SelectDefinition Definition
     | SearchDefinition String
     | ToggleValues Bool
     | ToggleTypes Bool
+    | ToggleModulesMenu
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -204,6 +230,10 @@ update msg model =
         getIR : IR
         getIR =
             IR.fromDistribution getDistribution
+
+        updateSimpleDefinitionView : (ModulePage.Model -> ModulePage.Model) -> ( Model, Cmd msg )
+        updateSimpleDefinitionView updateModuleModel =
+            ( { model | simpleDefinitionDetailsModel = updateModuleModel model.simpleDefinitionDetailsModel }, Cmd.none )
     in
     case msg |> Debug.log "msg" of
         LinkClicked urlRequest ->
@@ -282,61 +312,58 @@ update msg model =
                     ( model, Cmd.none )
 
         ArgValueUpdated fQName argName rawValue ->
+            let
+                updateModuleModel : ModulePage.Model -> ModulePage.Model
+                updateModuleModel moduleModel =
+                    { moduleModel
+                        | argState =
+                            moduleModel.argState
+                                |> Dict.update fQName
+                                    (\maybeArgs ->
+                                        case maybeArgs of
+                                            Just args ->
+                                                args |> Dict.insert argName rawValue |> Just
+
+                                            Nothing ->
+                                                Dict.singleton argName rawValue |> Just
+                                    )
+                    }
+            in
             case model.currentPage of
                 Module moduleModel ->
-                    ( { model
-                        | currentPage =
-                            Module
-                                { moduleModel
-                                    | argState =
-                                        moduleModel.argState
-                                            |> Dict.update fQName
-                                                (\maybeArgs ->
-                                                    case maybeArgs of
-                                                        Just args ->
-                                                            args |> Dict.insert argName rawValue |> Just
-
-                                                        Nothing ->
-                                                            Dict.singleton argName rawValue |> Just
-                                                )
-                                }
-                      }
-                    , Cmd.none
-                    )
+                    ( { model | currentPage = Module (updateModuleModel moduleModel) }, Cmd.none )
 
                 _ ->
-                    ( model, Cmd.none )
+                    updateSimpleDefinitionView updateModuleModel
 
         InvalidArgValue _ _ _ ->
             ( model, Cmd.none )
 
         ExpandVariable varIndex maybeRawValue ->
+            let
+                updateModuleModel : ModulePage.Model -> ModulePage.Model
+                updateModuleModel moduleModel =
+                    { moduleModel | popupVariables = PopupScreenRecord varIndex maybeRawValue }
+            in
             case model.currentPage of
                 Module moduleModel ->
-                    ( { model
-                        | currentPage =
-                            Module
-                                { moduleModel | popupVariables = PopupScreenRecord varIndex maybeRawValue }
-                      }
-                    , Cmd.none
-                    )
+                    ( { model | currentPage = Module (updateModuleModel moduleModel) }, Cmd.none )
 
                 _ ->
-                    ( model, Cmd.none )
+                    updateSimpleDefinitionView updateModuleModel
 
         ShrinkVariable varIndex ->
+            let
+                updateModuleModel : ModulePage.Model -> ModulePage.Model
+                updateModuleModel moduleModel =
+                    { moduleModel | popupVariables = PopupScreenRecord varIndex Nothing }
+            in
             case model.currentPage of
                 Module moduleModel ->
-                    ( { model
-                        | currentPage =
-                            Module
-                                { moduleModel | popupVariables = PopupScreenRecord varIndex Nothing }
-                      }
-                    , Cmd.none
-                    )
+                    ( { model | currentPage = Module (updateModuleModel moduleModel) }, Cmd.none )
 
                 _ ->
-                    ( model, Cmd.none )
+                    updateSimpleDefinitionView updateModuleModel
 
         ServerGetTestsResponse testSuite ->
             let
@@ -863,15 +890,23 @@ update msg model =
             ( { model | collapsedModules = model.collapsedModules |> Set.insert nodePath }, Cmd.none )
 
         SelectModule nodePath moduleName ->
+            let
+                oldState =
+                    model.homeState
+            in
             ( { model
-                | selectedModule = Just ( nodePath, moduleName )
-                , selectedDefinition = Nothing
+                | homeState =
+                    { oldState | selectedModule = Just ( nodePath, moduleName ), selectedDefinition = Nothing }
               }
             , Cmd.none
             )
 
         SelectDefinition definition ->
-            ( { model | selectedDefinition = Just definition }, Cmd.none )
+            let
+                oldState =
+                    model.homeState
+            in
+            ( { model | homeState = { oldState | selectedDefinition = Just definition } }, Cmd.none )
 
         SearchDefinition defName ->
             ( { model | searchText = defName }, Cmd.none )
@@ -881,6 +916,13 @@ update msg model =
 
         ToggleTypes isToggled ->
             ( { model | showTypes = isToggled }, Cmd.none )
+
+        ToggleModulesMenu ->
+            ( { model
+                | showModules = not model.showModules
+              }
+            , Cmd.none
+            )
 
 
 
@@ -899,17 +941,100 @@ subscriptions _ =
 routeParser : UrlParser.Parser (Page -> a) a
 routeParser =
     UrlParser.oneOf
-        [ UrlParser.map Home UrlParser.top
+        [ UrlParser.map Home (UrlParser.oneOf [ topUrlWithoutHome, topUrlWithHome, packageUrl, modelUrl, definitionUrl ])
         , UrlParser.map Module ModulePage.routeParser
         , UrlParser.map Function FunctionPage.routeParser
-        , UrlParser.map (always Home) UrlParser.string
         ]
+
+
+updateHomeState : String -> String -> String -> HomeState
+updateHomeState pack mod def =
+    let
+        toTypeOrValue m d =
+            case String.uncons d of
+                Just ( first, _ ) ->
+                    if Char.isLower first then
+                        Just (Value ( Path.fromString m, Name.fromString d ))
+                    else
+                        Just (Type ( Path.fromString m, Name.fromString d ))
+
+
+                _ ->
+                    Nothing
+    in
+    if pack == "" then
+        { selectedPackage = Nothing
+        , selectedModule = Nothing
+        , selectedDefinition = Nothing
+        }
+
+    else if mod == "" then
+        { selectedPackage = Just (Path.fromString pack)
+        , selectedModule = Just ( urlFragmentToNodePath mod, [] )
+        , selectedDefinition = Nothing
+        }
+
+    else
+        { selectedPackage = Just (Path.fromString pack)
+        , selectedModule = Just ( urlFragmentToNodePath mod, Path.fromString mod )
+        , selectedDefinition = ifThenElse (def == "") Nothing (toTypeOrValue mod def)
+        }
 
 
 toRoute : Url -> Page
 toRoute url =
     UrlParser.parse routeParser url
         |> Maybe.withDefault NotFound
+
+
+topUrl : UrlParser.Parser HomeState a -> UrlParser.Parser (a -> b) b
+topUrl =
+    UrlParser.map
+        (updateHomeState "" "" "")
+
+
+topUrlWithHome : UrlParser.Parser (HomeState -> a) a
+topUrlWithHome =
+    topUrl <| UrlParser.s "home"
+
+
+topUrlWithoutHome : UrlParser.Parser (HomeState -> a) a
+topUrlWithoutHome =
+    topUrl <| UrlParser.top
+
+
+packageUrl : UrlParser.Parser (HomeState -> a) a
+packageUrl =
+    UrlParser.map
+        (\pack ->
+            updateHomeState pack "" ""
+        )
+    <|
+        UrlParser.s "home"
+            </> UrlParser.string
+
+
+modelUrl : UrlParser.Parser (HomeState -> a) a
+modelUrl =
+    UrlParser.map
+        (\pack mod ->
+            updateHomeState pack mod ""
+        )
+    <|
+        UrlParser.s "home"
+            </> UrlParser.string
+            </> UrlParser.string
+
+
+definitionUrl : UrlParser.Parser (HomeState -> a) a
+definitionUrl =
+    UrlParser.map
+        updateHomeState
+    <|
+        UrlParser.s "home"
+            </> UrlParser.string
+            </> UrlParser.string
+            </> UrlParser.string
 
 
 
@@ -957,7 +1082,7 @@ view model =
 viewTitle : Model -> String
 viewTitle model =
     case model.currentPage of
-        Home ->
+        Home _ ->
             "Morphir - Home"
 
         Module moduleModel ->
@@ -1038,22 +1163,11 @@ viewBody model =
 
         IRLoaded ((Library packageName _ packageDef) as distribution) ->
             case model.currentPage of
-                Home ->
-                    viewHome model packageName packageDef
+                Home newHomeState ->
+                    viewHome { model | homeState = newHomeState } packageName packageDef
 
                 Module moduleModel ->
-                    ModulePage.viewPage
-                        model.theme
-                        { expandReference = ExpandReference
-                        , expandVariable = ExpandVariable
-                        , shrinkVariable = ShrinkVariable
-                        , argValueUpdated = ArgValueUpdated
-                        , invalidArgValue = InvalidArgValue
-                        , jumpToTestCases = \fQName -> LinkClicked (Browser.External (Url.Builder.absolute [ "function", FQName.toString fQName ] []))
-                        }
-                        ValueFilterChanged
-                        distribution
-                        moduleModel
+                    viewModuleModel model.theme moduleModel distribution
 
                 NotFound ->
                     text "Route not found"
@@ -1089,33 +1203,37 @@ viewBody model =
                         functionPageModel
 
 
+viewModuleModel : Theme -> ModulePage.Model -> Distribution -> Element Msg
+viewModuleModel theme moduleModel distribution =
+    ModulePage.viewPage
+        theme
+        { expandReference = ExpandReference
+        , expandVariable = ExpandVariable
+        , shrinkVariable = ShrinkVariable
+        , argValueUpdated = ArgValueUpdated
+        , invalidArgValue = InvalidArgValue
+        , jumpToTestCases = \fQName -> LinkClicked (Browser.External (Url.Builder.absolute [ "function", FQName.toString fQName ] []))
+        }
+        ValueFilterChanged
+        distribution
+        moduleModel
+
+
 viewHome : Model -> PackageName -> Package.Definition () (Type ()) -> Element Msg
 viewHome model packageName packageDef =
     let
         gray =
             rgb 0.9 0.9 0.9
 
-        white =
-            rgb 1 1 1
-
         scrollableListStyles : List (Element.Attribute msg)
         scrollableListStyles =
             [ width fill
             , height fill
-            , Background.color white
+            , Background.color model.theme.colors.lightest
             , Border.rounded 3
             , scrollbars
             , paddingXY (model.theme |> Theme.scaled 3) (model.theme |> Theme.scaled -1)
             ]
-
-        columnHeading : String -> Element Msg
-        columnHeading headingText =
-            el
-                [ width fill
-                , padding (model.theme |> Theme.scaled -3)
-                , Font.size (model.theme |> Theme.scaled 3)
-                ]
-                (text headingText)
 
         viewDefinition : Maybe Definition -> Element msg
         viewDefinition maybeSelectedDefinition =
@@ -1129,7 +1247,10 @@ viewHome model packageName packageDef =
                                     (\accessControlledModuleDef ->
                                         accessControlledModuleDef.value.values
                                             |> Dict.get valueName
-                                            |> Maybe.map (.value >> viewValue model.theme moduleName valueName)
+                                            |> Maybe.map
+                                                (\valueDef ->
+                                                    viewValue model.theme moduleName valueName valueDef.value.value valueDef.value.doc
+                                                )
                                     )
                                 |> Maybe.withDefault none
 
@@ -1153,13 +1274,25 @@ viewHome model packageName packageDef =
         moduleDefinitionsAsUiElements : ModuleName -> Module.Definition () (Type ()) -> List ( Definition, Element Msg )
         moduleDefinitionsAsUiElements moduleName moduleDef =
             let
+                createUiElement : Element Msg -> Definition -> Name -> (Name -> String) -> Element Msg
+                createUiElement icon definition name nameTransformation =
+                    viewAsLabel
+                        (SelectDefinition definition)
+                        model.theme
+                        icon
+                        (text (nameToText name))
+                        (pathToDisplayString moduleName)
+                        ("/home" ++ pathToUrl packageName ++ pathToUrl moduleName ++ "/" ++ nameTransformation name)
+
                 types : List ( Definition, Element Msg )
                 types =
                     moduleDef.types
                         |> Dict.toList
                         |> List.map
-                            (\( typeName, typeDef ) ->
-                                ( Type ( moduleName, typeName ), viewTypeLabel model.theme moduleName typeName typeDef.value.value typeDef.value.doc )
+                            (\( typeName, _ ) ->
+                                ( Type ( moduleName, typeName )
+                                , createUiElement (el [ Font.color (rgba 0 0.639 0.882 0.6) ] (text "ⓣ ")) (Type ( moduleName, typeName )) typeName Name.toTitleCase
+                                )
                             )
 
                 values : List ( Definition, Element Msg )
@@ -1167,8 +1300,10 @@ viewHome model packageName packageDef =
                     moduleDef.values
                         |> Dict.toList
                         |> List.map
-                            (\( valueName, valueDef ) ->
-                                ( Value ( moduleName, valueName ), viewValueLabel model.theme (Value ( moduleName, valueName )) valueName valueDef.value )
+                            (\( valueName, _ ) ->
+                                ( Value ( moduleName, valueName )
+                                , createUiElement (el [ Font.color (rgba 1 0.411 0 0.6) ] (text "ⓥ ")) (Value ( moduleName, valueName )) valueName Name.toCamelCase
+                                )
                             )
             in
             ifThenElse model.showValues values [] ++ ifThenElse model.showTypes types []
@@ -1214,7 +1349,7 @@ viewHome model packageName packageDef =
                     in
                     List.map
                         (\( def, elem ) ->
-                            case model.selectedDefinition of
+                            case model.homeState.selectedDefinition of
                                 Just selected ->
                                     if selected == def then
                                         paintIfSelected elem
@@ -1270,7 +1405,7 @@ viewHome model packageName packageDef =
                 { onChange = SearchDefinition
                 , text = model.searchText
                 , placeholder = Just (Element.Input.placeholder [] (text "Search for a definition"))
-                , label = Element.Input.labelLeft [ padding (model.theme |> Theme.scaled -10) ] (columnHeading "Search:")
+                , label = Element.Input.labelHidden "Search"
                 }
 
         valueCheckbox : Element Msg
@@ -1292,32 +1427,31 @@ viewHome model packageName packageDef =
                 , icon = Element.Input.defaultCheckbox
                 , label = Element.Input.labelLeft [] (text "types:")
                 }
-    in
-    row
-        [ height fill
-        , width fill
-        , spacing 10
-        , Background.color gray
-        ]
-        [ column
-            [ Background.color gray
-            , height fill
-            , width (fillPortion 2)
-            ]
-            [ row
-                [ width fill
-                , spacing (model.theme |> Theme.scaled 1)
-                , padding (model.theme |> Theme.scaled -6)
+
+        toggleModulesMenu : Element Msg
+        toggleModulesMenu =
+            Element.Input.button
+                [ padding 7
+                , Background.color (rgba 0 0.639 0.882 0.6)
+                , Border.rounded 3
+                , Font.color model.theme.colors.lightest
+                , Font.bold
+                , Font.size (model.theme |> Theme.scaled 2)
+                , mouseOver [ Background.color (rgb 0 0.639 0.882) ]
                 ]
-                [ columnHeading "Modules" ]
-            , el
+                { onPress = Just ToggleModulesMenu
+                , label = row [ spacing (model.theme |> Theme.scaled -6) ] [ el [ width (px 20) ] <| text <| ifThenElse model.showModules "🗁" "🗀", text "Modules" ]
+                }
+
+        moduleTree =
+            el
                 scrollableListStyles
                 (TreeLayout.view TreeLayout.defaultTheme
                     { onCollapse = CollapseModule
                     , onExpand = ExpandModule
                     , collapsedPaths = model.collapsedModules
                     , selectedPaths =
-                        model.selectedModule
+                        model.homeState.selectedModule
                             |> Maybe.map (Tuple.first >> Set.singleton)
                             |> Maybe.withDefault Set.empty
                     }
@@ -1326,36 +1460,73 @@ viewHome model packageName packageDef =
                         (packageDef.modules |> Dict.keys)
                     )
                 )
-            ]
-        , column
-            [ Background.color gray
+
+        pathToSelectedModule : String
+        pathToSelectedModule =
+            case model.homeState.selectedModule |> Maybe.map Tuple.second of
+                Just moduleName ->
+                    "> " ++ pathToDisplayString moduleName
+
+                _ ->
+                    ">"
+    in
+    row [ width fill, height fill, Background.color gray, spacing 10 ]
+        [ column
+            [ width (ifThenElse model.showModules (fillPortion 5) (fillPortion 3))
             , height fill
-            , width (fillPortion 3)
             ]
             [ row
-                [ width fill
-                , spacing (model.theme |> Theme.scaled 1)
-                , padding (model.theme |> Theme.scaled -6)
+                [ height fill
+                , width fill
+                , spacing <| ifThenElse model.showModules 10 0
                 ]
-                [ definitionFilter, valueCheckbox, typeCheckbox ]
-            , el
-                scrollableListStyles
-                (viewDefinitionLabels (model.selectedModule |> Maybe.map Tuple.second))
+                [ row
+                    [ Background.color gray
+                    , height fill
+                    , width (ifThenElse model.showModules (fillPortion 2) (fillPortion 0))
+                    , paddingXY 0 (model.theme |> Theme.scaled -3)
+                    ]
+                    [ el [ alignTop, rotate (degrees -90), width (px 40), moveDown 65, padding (model.theme |> Theme.scaled -6) ] <|
+                        toggleModulesMenu
+                    , ifThenElse model.showModules (el [ width fill, height fill ] moduleTree) none
+                    ]
+                , column
+                    [ Background.color gray
+                    , height fill
+                    , width (ifThenElse model.showModules (fillPortion 3) fill)
+                    , spacing (model.theme |> Theme.scaled -4)
+                    ]
+                    [ row
+                        [ width fill
+                        , spacing (model.theme |> Theme.scaled 1)
+                        , paddingXY 0 (model.theme |> Theme.scaled -5)
+                        ]
+                        [ definitionFilter, row [ alignRight, spacing (model.theme |> Theme.scaled 1) ] [ valueCheckbox, typeCheckbox ] ]
+                    , el [ Font.bold, paddingEach { bottom = 3, top = 0, left = 5, right = 0 } ] <| text pathToSelectedModule
+                    , el
+                        scrollableListStyles
+                        (viewDefinitionLabels (model.homeState.selectedModule |> Maybe.map Tuple.second))
+                    ]
+                ]
             ]
         , column
             [ height fill
-            , width (fillPortion 6)
-            , padding (model.theme |> Theme.scaled 1)
-            , Background.color white
+            , width (ifThenElse model.showModules (fillPortion 6) (fillPortion 7))
+            , Background.color model.theme.colors.lightest
             ]
-            [ viewDefinition model.selectedDefinition ]
+            [ column [ width fill, height (fillPortion 2), scrollbars, padding (model.theme |> Theme.scaled 1) ] [ viewDefinition model.homeState.selectedDefinition ]
+            , column [ width fill, height (fillPortion 3), Border.widthXY 0 8, Border.color gray ]
+                [ el [ height fill, width fill ]
+                    (viewDefinitionDetails model.theme model.irState model.simpleDefinitionDetailsModel model.homeState.selectedDefinition)
+                ]
+            ]
         ]
 
 
 viewType : Theme -> Name -> Type.Definition () -> String -> Element msg
 viewType theme typeName typeDef docs =
     case typeDef of
-        Type.TypeAliasDefinition params (Type.Record _ fields) ->
+        Type.TypeAliasDefinition _ (Type.Record _ fields) ->
             let
                 fieldNames =
                     \field ->
@@ -1367,7 +1538,7 @@ viewType theme typeName typeDef docs =
                     \field ->
                         el
                             (Theme.labelStyles theme)
-                            (XRayView.viewType field.tpe)
+                            (XRayView.viewType pathToUrl field.tpe)
 
                 viewFields =
                     Theme.twoColumnTableView
@@ -1382,7 +1553,7 @@ viewType theme typeName typeDef docs =
                 docs
                 viewFields
 
-        Type.TypeAliasDefinition params body ->
+        Type.TypeAliasDefinition _ body ->
             viewAsCard theme
                 (typeName |> nameToTitleText |> text)
                 "is a"
@@ -1391,10 +1562,10 @@ viewType theme typeName typeDef docs =
                 (el
                     [ paddingXY 10 5
                     ]
-                    (XRayView.viewType body)
+                    (XRayView.viewType pathToUrl body)
                 )
 
-        Type.CustomTypeDefinition params accessControlledConstructors ->
+        Type.CustomTypeDefinition _ accessControlledConstructors ->
             let
                 isNewType : Maybe (Type ())
                 isNewType =
@@ -1429,7 +1600,7 @@ viewType theme typeName typeDef docs =
                     else
                         case isNewType of
                             Just baseType ->
-                                el [ padding (theme |> Theme.scaled -2) ] (XRayView.viewType baseType)
+                                el [ padding (theme |> Theme.scaled -2) ] (XRayView.viewType pathToUrl baseType)
 
                             Nothing ->
                                 let
@@ -1444,7 +1615,7 @@ viewType theme typeName typeDef docs =
                                             el
                                                 (Theme.labelStyles theme)
                                                 (ctorArgs
-                                                    |> List.map (Tuple.second >> XRayView.viewType)
+                                                    |> List.map (Tuple.second >> XRayView.viewType pathToUrl)
                                                     |> row [ spacing 5 ]
                                                 )
                                 in
@@ -1471,133 +1642,11 @@ viewType theme typeName typeDef docs =
                 viewConstructors
 
 
-viewTypeLabel : Theme -> ModuleName -> Name -> Type.Definition () -> String -> Element Msg
-viewTypeLabel theme moduleName typeName typeDef docs =
-    case typeDef of
-        Type.TypeAliasDefinition params (Type.Record _ fields) ->
-            let
-                fieldNames =
-                    \field ->
-                        el
-                            (Theme.boldLabelStyles theme)
-                            (text (nameToText field.name))
-
-                fieldTypes =
-                    \field ->
-                        el
-                            (Theme.labelStyles theme)
-                            (XRayView.viewType field.tpe)
-
-                viewFields =
-                    Theme.twoColumnTableView
-                        fields
-                        fieldNames
-                        fieldTypes
-            in
-            viewAsLabel (SelectDefinition (Type ( moduleName, typeName )))
-                theme
-                (typeName |> nameToTitleText |> text)
-                "record"
-                Theme.defaultColors.backgroundColor
-                docs
-                viewFields
-
-        Type.TypeAliasDefinition params body ->
-            viewAsLabel (SelectDefinition (Type ( moduleName, typeName )))
-                theme
-                (typeName |> nameToTitleText |> text)
-                "alias"
-                Theme.defaultColors.backgroundColor
-                docs
-                (el
-                    [ paddingXY 10 5
-                    ]
-                    (XRayView.viewType body)
-                )
-
-        Type.CustomTypeDefinition params accessControlledConstructors ->
-            let
-                isNewType : Maybe (Type ())
-                isNewType =
-                    case accessControlledConstructors.value |> Dict.toList of
-                        [ ( ctorName, [ ( _, baseType ) ] ) ] ->
-                            if ctorName == typeName then
-                                Just baseType
-
-                            else
-                                Nothing
-
-                        _ ->
-                            Nothing
-
-                isEnum =
-                    accessControlledConstructors.value
-                        |> Dict.values
-                        |> List.all List.isEmpty
-
-                viewConstructors =
-                    if isEnum then
-                        accessControlledConstructors.value
-                            |> Dict.toList
-                            |> List.map
-                                (\( ctorName, _ ) ->
-                                    el
-                                        (Theme.boldLabelStyles theme)
-                                        (text (nameToTitleText ctorName))
-                                )
-                            |> column [ width fill ]
-
-                    else
-                        case isNewType of
-                            Just baseType ->
-                                el [ padding (theme |> Theme.scaled -2) ] (XRayView.viewType baseType)
-
-                            Nothing ->
-                                let
-                                    constructorNames =
-                                        \( ctorName, _ ) ->
-                                            el
-                                                (Theme.boldLabelStyles theme)
-                                                (text (nameToTitleText ctorName))
-
-                                    constructorArgs =
-                                        \( _, ctorArgs ) ->
-                                            el
-                                                (Theme.labelStyles theme)
-                                                (ctorArgs
-                                                    |> List.map (Tuple.second >> XRayView.viewType)
-                                                    |> row [ spacing 5 ]
-                                                )
-                                in
-                                Theme.twoColumnTableView
-                                    (Dict.toList accessControlledConstructors.value)
-                                    constructorNames
-                                    constructorArgs
-            in
-            viewAsLabel (SelectDefinition (Type ( moduleName, typeName )))
-                theme
-                (typeName |> nameToTitleText |> text)
-                (case isNewType of
-                    Just _ ->
-                        "wrapper"
-
-                    Nothing ->
-                        if isEnum then
-                            "enum"
-
-                        else
-                            "one of"
-                )
-                Theme.defaultColors.backgroundColor
-                docs
-                viewConstructors
-
-
-viewValue : Theme -> ModuleName -> Name -> Value.Definition () (Type ()) -> Element msg
-viewValue theme moduleName valueName valueDef =
+viewValue : Theme -> ModuleName -> Name -> Value.Definition () (Type ()) -> String -> Element msg
+viewValue theme moduleName valueName valueDef docs =
     let
         cardTitle =
-            link []
+            link [ pointer ]
                 { url =
                     "/module/" ++ (moduleName |> List.map Name.toTitleCase |> String.join ".") ++ "?filter=" ++ nameToText valueName
                 , label =
@@ -1623,37 +1672,7 @@ viewValue theme moduleName valueName valueDef =
             "calculation"
         )
         backgroundColor
-        ""
-        none
-
-
-viewValueLabel : Theme -> Definition -> Name -> Value.Definition () (Type ()) -> Element Msg
-viewValueLabel theme definiton valueName valueDef =
-    let
-        cardTitle =
-            text (nameToText valueName)
-
-        isData =
-            List.isEmpty valueDef.inputTypes
-
-        backgroundColor =
-            if isData then
-                rgb 0.8 0.9 0.9
-
-            else
-                rgb 0.8 0.8 0.9
-    in
-    viewAsLabel (SelectDefinition definiton)
-        theme
-        cardTitle
-        (if isData then
-            "data"
-
-         else
-            "logic"
-        )
-        backgroundColor
-        ""
+        (ifThenElse (docs == "") "Placeholder Documentation. Docs would go here, if whe had them. This would be the place for documentation. This documentation might be long. It might also include **markdown**. `monospaced code`" docs)
         none
 
 
@@ -1682,7 +1701,7 @@ viewAsCard theme header class backgroundColor docs content =
             , Font.size (theme |> Theme.scaled 3)
             ]
             [ el [ Font.bold ] header
-            , el [ alignRight ] (text class)
+            , el [ alignLeft, Font.color theme.colors.secondaryInformation ] (text class)
             ]
         , el
             [ Background.color white
@@ -1726,25 +1745,31 @@ viewAsCard theme header class backgroundColor docs content =
         ]
 
 
-viewAsLabel : msg -> Theme -> Element msg -> String -> Element.Color -> String -> Element msg -> Element msg
-viewAsLabel clickMessage theme header class backgroundColor docs content =
-    row
-        [ width fill
-        , Font.size (theme |> Theme.scaled 2)
-        , onClick clickMessage
-        , pointer
-        ]
-        [ el
-            [ Font.bold
-            , paddingXY (theme |> Theme.scaled -10) (theme |> Theme.scaled -3)
-            ]
-            header
-        , el
-            [ alignRight
-            , paddingXY (theme |> Theme.scaled -10) (theme |> Theme.scaled -3)
-            ]
-            (el [] (text class))
-        ]
+viewAsLabel : msg -> Theme -> Element msg -> Element msg -> String -> String -> Element msg
+viewAsLabel clickMessage theme icon header class url =
+    let
+        elem =
+            row
+                [ width fill
+                , Font.size (theme |> Theme.scaled 2)
+                , onClick clickMessage
+                , pointer
+                ]
+                [ icon
+                , el
+                    [ Font.bold
+                    , paddingXY (theme |> Theme.scaled -10) (theme |> Theme.scaled -3)
+                    ]
+                    header
+                , el
+                    [ alignRight
+                    , Font.color theme.colors.secondaryInformation
+                    , paddingXY (theme |> Theme.scaled -10) (theme |> Theme.scaled -3)
+                    ]
+                    (el [] (text class))
+                ]
+    in
+    link [ width fill, pointer ] { label = elem, url = url }
 
 
 
@@ -1795,7 +1820,7 @@ httpSaveTestSuite ir testSuite =
                 Ok encodedValue ->
                     jsonBody encodedValue
 
-                Err error ->
+                Err _ ->
                     emptyBody
     in
     Http.post
@@ -1815,20 +1840,22 @@ httpSaveTestSuite ir testSuite =
         }
 
 
-viewModuleNames : PackageName -> ModuleName -> List ModuleName -> TreeLayout.Node Msg
-viewModuleNames packageName currentModule moduleNames =
+viewModuleNames : PackageName -> ModuleName -> List ModuleName -> TreeLayout.Node ModuleName Msg
+viewModuleNames packageName parentModule allModuleNames =
     let
+        currentModuleName : Maybe Name
         currentModuleName =
-            currentModule
+            parentModule
                 |> List.reverse
                 |> List.head
 
+        childModuleNames : List Name
         childModuleNames =
-            moduleNames
+            allModuleNames
                 |> List.filterMap
                     (\moduleName ->
-                        if currentModule |> Path.isPrefixOf moduleName then
-                            moduleName |> List.drop (List.length currentModule) |> List.head
+                        if parentModule |> Path.isPrefixOf moduleName then
+                            moduleName |> List.drop (List.length parentModule) |> List.head
 
                         else
                             Nothing
@@ -1837,28 +1864,25 @@ viewModuleNames packageName currentModule moduleNames =
                 |> Set.toList
     in
     TreeLayout.Node
-        (\nodePath ->
+        (\_ ->
             case currentModuleName of
                 Just name ->
-                    el
-                        [ onClick (SelectModule nodePath currentModule)
-                        , pointer
-                        ]
-                        (text (name |> nameToTitleText))
+                    link [ pointer ] { label = text (name |> nameToTitleText), url = "/home" ++ pathToUrl packageName ++ pathToUrl parentModule }
 
                 Nothing ->
-                    el
-                        [ onClick (SelectModule nodePath currentModule)
-                        , pointer
-                        ]
-                        (text (packageName |> List.map nameToTitleText |> String.join " - "))
+                    link [ pointer ] { label = text (pathToUrl packageName), url = "/home" ++ pathToUrl packageName }
         )
         Array.empty
         (childModuleNames
             |> List.map
                 (\name ->
-                    viewModuleNames packageName (currentModule ++ [ name ]) moduleNames
+                    let
+                        moduleName =
+                            parentModule ++ [ name ]
+                    in
+                    ( moduleName, viewModuleNames packageName moduleName allModuleNames )
                 )
+            |> Dict.fromList
         )
 
 
@@ -1870,3 +1894,42 @@ definitionName definition =
 
         Type ( _, typeName ) ->
             typeName
+
+
+viewDefinitionDetails : Theme -> IRState -> ModulePage.Model -> Maybe Definition -> Element Msg
+viewDefinitionDetails theme irState moduleModel maybeSelectedDefinition =
+    let
+        updatedModel : Path -> Name -> ModulePage.Model
+        updatedModel moduleName filterValue =
+            { moduleModel
+                | filter = Just (nameToText filterValue)
+                , moduleName = Path.toList moduleName |> List.map nameToText
+            }
+    in
+    case irState of
+        IRLoading ->
+            none
+
+        IRLoaded ((Library _ _ packageDef) as distribution) ->
+            case maybeSelectedDefinition of
+                Just selectedDefinition ->
+                    case selectedDefinition of
+                        Value ( moduleName, valueName ) ->
+                            packageDef.modules
+                                |> Dict.get moduleName
+                                |> Maybe.andThen
+                                    (\accessControlledModuleDef ->
+                                        accessControlledModuleDef.value.values
+                                            |> Dict.get valueName
+                                            |> Maybe.map
+                                                (\_ ->
+                                                    viewModuleModel theme (updatedModel moduleName valueName) distribution
+                                                )
+                                    )
+                                |> Maybe.withDefault none
+
+                        Type _ ->
+                            none
+
+                Nothing ->
+                    none

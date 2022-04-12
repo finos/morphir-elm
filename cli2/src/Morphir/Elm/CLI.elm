@@ -18,49 +18,69 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Morphir.Elm.Frontend as Frontend exposing (PackageInfo, SourceFile, SourceLocation)
 import Morphir.Elm.Frontend.Codec as FrontendCodec
-import Morphir.Elm.IncrementalFrontend as IncrementalFrontend
-import Morphir.File.FileChanges exposing (FileChanges)
+import Morphir.Elm.IncrementalFrontend as IncrementalFrontend exposing (Errors, OrderedFileChanges)
+import Morphir.Elm.IncrementalFrontend.Codec as IncrementalFrontendCodec
+import Morphir.File.FileChanges as FileChanges exposing (FileChanges)
 import Morphir.File.FileChanges.Codec as FileChangesCodec
+import Morphir.File.FileSnapshot as FileSnapshot exposing (FileSnapshot)
+import Morphir.File.FileSnapshot.Codec as FileSnapshotCodec
 import Morphir.IR.Distribution exposing (Distribution(..))
 import Morphir.IR.Distribution.Codec as DistroCodec
+import Morphir.IR.Name as Name
+import Morphir.IR.Package exposing (PackageName)
+import Morphir.IR.Path as Path
 import Morphir.IR.Repo as Repo exposing (Error(..), Repo)
-import Morphir.IR.Repo.Codec as RepoCodec
+import Morphir.IR.SDK as SDK
+import Process
+import Task
 
 
-port jsonDecodeError : String -> Cmd msg
+port decodeFailed : String -> Cmd msg
 
 
-port packageDefinitionFromSource : (( Decode.Value, Decode.Value, List SourceFile ) -> msg) -> Sub msg
+port buildFromScratch : (Encode.Value -> msg) -> Sub msg
 
 
-port packageDefinitionFromSourceResult : Encode.Value -> Cmd msg
+port buildIncrementally : (Encode.Value -> msg) -> Sub msg
 
 
-port incrementalBuild :
-    ({ optionsJson : Decode.Value
-     , packageInfoJson : Decode.Value
-     , fileChangesJson : Decode.Value
-     , distribution : Distribution
-     }
-     -> msg
-    )
-    -> Sub msg
+port buildCompleted : Encode.Value -> Cmd msg
 
 
-port incrementalBuildResult : Encode.Value -> Cmd msg
+port buildFailed : Encode.Value -> Cmd msg
 
 
-type alias PassedValues =
-    { optionsJson : Decode.Value
-    , packageInfoJson : Decode.Value
-    , fileChangesJson : Decode.Value
+port reportProgress : String -> Cmd msg
+
+
+subscriptions : () -> Sub Msg
+subscriptions _ =
+    Sub.batch
+        [ buildFromScratch BuildFromScratch
+        , buildIncrementally BuildIncrementally
+        ]
+
+
+type alias BuildFromScratchInput =
+    { options : Frontend.Options
+    , packageInfo : PackageInfo
+    , fileSnapshot : FileSnapshot
+    }
+
+
+type alias BuildIncrementallyInput =
+    { options : Frontend.Options
+    , packageInfo : PackageInfo
+    , fileChanges : FileChanges
     , distribution : Distribution
     }
 
 
 type Msg
-    = PackageDefinitionFromSource ( Decode.Value, Decode.Value, List SourceFile )
-    | IncrementalBuild PassedValues
+    = BuildFromScratch Decode.Value
+    | BuildIncrementally Decode.Value
+    | OrderFileChanges PackageName FileChanges Repo
+    | ApplyFileChanges OrderedFileChanges Repo
 
 
 main : Platform.Program () () Msg
@@ -74,74 +94,123 @@ main =
 
 update : Msg -> () -> ( (), Cmd Msg )
 update msg model =
+    ( model, Cmd.batch [ process msg, report msg ] )
+
+
+process : Msg -> Cmd Msg
+process msg =
     case msg of
-        PackageDefinitionFromSource ( optionsJson, packageInfoJson, sourceFiles ) ->
+        BuildFromScratch jsonInput ->
             let
-                inputResult : Result Decode.Error ( Frontend.Options, PackageInfo )
-                inputResult =
-                    Result.map2 Tuple.pair
-                        (Decode.decodeValue FrontendCodec.decodeOptions optionsJson)
-                        (Decode.decodeValue FrontendCodec.decodePackageInfo packageInfoJson)
+                decodeInput : Decode.Decoder BuildFromScratchInput
+                decodeInput =
+                    Decode.map3 BuildFromScratchInput
+                        (Decode.field "options" FrontendCodec.decodeOptions)
+                        (Decode.field "packageInfo" FrontendCodec.decodePackageInfo)
+                        (Decode.field "fileSnapshot" FileSnapshotCodec.decodeFileSnapshot)
             in
-            case inputResult of
-                Ok ( _, packageInfo ) ->
-                    let
-                        emptyRepo : Repo
-                        emptyRepo =
-                            Repo.empty packageInfo.name
-                    in
-                    -- add source file processing
-                    ( model
-                    , emptyRepo
-                        |> Repo.toDistribution
-                        |> DistroCodec.encodeDistribution
-                        |> packageDefinitionFromSourceResult
-                    )
+            case jsonInput |> Decode.decodeValue decodeInput of
+                Ok input ->
+                    Repo.empty input.packageInfo.name
+                        |> Repo.insertDependencySpecification SDK.packageName SDK.packageSpec
+                        |> Result.mapError (IncrementalFrontend.RepoError "Error while building repo." >> List.singleton)
+                        |> Result.map
+                            (OrderFileChanges input.packageInfo.name
+                                (input.fileSnapshot |> FileSnapshot.toInserts |> keepElmFilesOnly)
+                            )
+                        |> failOrProceed
 
                 Err errorMessage ->
-                    ( model
-                    , errorMessage
+                    errorMessage
                         |> Decode.errorToString
-                        |> jsonDecodeError
-                    )
+                        |> decodeFailed
 
-        IncrementalBuild { optionsJson, packageInfoJson, fileChangesJson, distribution } ->
+        BuildIncrementally jsonInput ->
             let
-                decodeInputs : Result Decode.Error ( Frontend.Options, PackageInfo, FileChanges )
-                decodeInputs =
-                    Result.map3
-                        (\options packageInfo fileChanges -> ( options, packageInfo, fileChanges ))
-                        (Decode.decodeValue FrontendCodec.decodeOptions optionsJson)
-                        (Decode.decodeValue FrontendCodec.decodePackageInfo packageInfoJson)
-                        (Decode.decodeValue FileChangesCodec.decodeFileChanges fileChangesJson)
-
-                repoFromDistribution : Result Repo.Errors Repo
-                repoFromDistribution =
-                    Repo.fromDistribution distribution
+                decodeInput : Decode.Decoder BuildIncrementallyInput
+                decodeInput =
+                    Decode.map4 BuildIncrementallyInput
+                        (Decode.field "options" FrontendCodec.decodeOptions)
+                        (Decode.field "packageInfo" FrontendCodec.decodePackageInfo)
+                        (Decode.field "fileChanges" FileChangesCodec.decodeFileChanges)
+                        (Decode.field "distribution" DistroCodec.decodeVersionedDistribution)
             in
-            case decodeInputs of
-                Ok ( _, _, fileChanges ) ->
-                    repoFromDistribution
-                        |> Result.mapError (IncrementalFrontend.RepoError >> List.singleton)
-                        |> Result.andThen (IncrementalFrontend.applyFileChanges fileChanges)
-                        |> Result.map Repo.toDistribution
-                        |> encodeResult (Encode.list RepoCodec.encodeError) DistroCodec.encodeVersionedDistribution
-                        |> (\value -> ( model, incrementalBuildResult value ))
+            case jsonInput |> Decode.decodeValue decodeInput of
+                Ok input ->
+                    input.distribution
+                        |> Repo.fromDistribution
+                        |> Result.andThen (Repo.insertDependencySpecification SDK.packageName SDK.packageSpec)
+                        |> Result.mapError (IncrementalFrontend.RepoError "Error while building repo." >> List.singleton)
+                        |> Result.map
+                            (OrderFileChanges input.packageInfo.name
+                                (input.fileChanges |> keepElmFilesOnly)
+                            )
+                        |> failOrProceed
 
                 Err errorMessage ->
-                    ( model
-                    , errorMessage
+                    errorMessage
                         |> Decode.errorToString
-                        |> jsonDecodeError
-                    )
+                        |> decodeFailed
+
+        OrderFileChanges packageName fileChanges repo ->
+            IncrementalFrontend.orderFileChanges packageName fileChanges
+                |> Result.map (\orderedFileChanges -> ApplyFileChanges orderedFileChanges repo)
+                |> failOrProceed
+
+        ApplyFileChanges orderedFileChanges repo ->
+            IncrementalFrontend.applyFileChanges orderedFileChanges repo
+                |> returnDistribution
 
 
-subscriptions : () -> Sub Msg
-subscriptions _ =
-    Sub.batch
-        [ packageDefinitionFromSource PackageDefinitionFromSource
-        , incrementalBuild IncrementalBuild
-        ]
+report : Msg -> Cmd Msg
+report msg =
+    case msg of
+        BuildFromScratch value ->
+            reportProgress "Building from scratch"
+
+        BuildIncrementally value ->
+            reportProgress "Building incrementally"
+
+        OrderFileChanges packageName fileChanges repo ->
+            reportProgress "Parsing files and ordering file changes"
+
+        ApplyFileChanges orderedFileChanges repo ->
+            reportProgress
+                (String.concat
+                    [ "Applying file changes in the following order:\n"
+                    , "  Additions:\n  - "
+                    , orderedFileChanges.insertsAndUpdates
+                        |> List.map (\( moduleName, _ ) -> moduleName |> Path.toString Name.toTitleCase ".")
+                        |> String.join "\n  - "
+                    ]
+                )
+
+
+keepElmFilesOnly : FileChanges -> FileChanges
+keepElmFilesOnly fileChanges =
+    fileChanges
+        |> FileChanges.filter
+            (\path _ ->
+                path |> String.endsWith ".elm"
+            )
+
+
+returnDistribution : Result IncrementalFrontend.Errors Repo -> Cmd Msg
+returnDistribution repoResult =
+    repoResult
+        |> Result.map Repo.toDistribution
+        |> encodeResult (Encode.list IncrementalFrontendCodec.encodeError) DistroCodec.encodeVersionedDistribution
+        |> buildCompleted
+
+
+failOrProceed : Result IncrementalFrontend.Errors Msg -> Cmd Msg
+failOrProceed msgResult =
+    case msgResult of
+        Ok msg ->
+            Process.sleep 0 |> Task.perform (always msg)
+
+        Err error ->
+            Encode.list IncrementalFrontendCodec.encodeError error |> buildFailed
 
 
 encodeResult : (e -> Encode.Value) -> (a -> Encode.Value) -> Result e a -> Encode.Value

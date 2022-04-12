@@ -17,10 +17,22 @@ toIRModuleName packageName elmModuleName =
             elmModuleName
                 |> List.map Name.fromString
     in
-    if Path.isPrefixOf packageName moduleName then
+    if packageName |> Path.isPrefixOf moduleName then
         moduleName
             |> List.drop (packageName |> List.length)
             |> Just
 
     else
         Nothing
+
+
+fromIRModuleName : Module.ModuleName -> ModuleName
+fromIRModuleName irModuleName =
+    irModuleName
+        |> List.map Name.toTitleCase
+
+
+toString : ModuleName -> String
+toString moduleName =
+    moduleName
+        |> String.join "."
