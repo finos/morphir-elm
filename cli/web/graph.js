@@ -39,7 +39,6 @@ class VisGraph extends HTMLElement {
             edges: {
                 smooth: true,
                 arrows: "to",
-                title: "Display FQName here"
             },
             autoResize: false,
             height: "1000px",

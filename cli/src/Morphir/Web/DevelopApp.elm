@@ -201,7 +201,7 @@ type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | HttpError Http.Error
-    | ServerGetIRResponse ( Distribution, Repo )
+    | ServerGetIRResponse Distribution
     | ServerGetTestsResponse TestSuite
     | InvalidArgValue FQName Name String
     | ExpandModule (TreeLayout.NodePath ModuleName)
@@ -250,10 +250,21 @@ update msg model =
                     , Cmd.none
                     )
 
-        ServerGetIRResponse ( distribution, repo ) ->
-            ( { model | irState = IRLoaded distribution, repo = repo }
-            , httpTestModel (IR.fromDistribution distribution)
-            )
+        ServerGetIRResponse distribution ->
+            case Repo.fromDistribution distribution of
+                Ok r ->
+                    ( { model | irState = IRLoaded distribution, repo = r }
+                    , httpTestModel (IR.fromDistribution distribution)
+                    )
+
+                Err _ ->
+                    ( { model
+                        | irState = IRLoaded distribution
+                        , serverState =
+                            ServerHttpError (Http.BadBody "Could not transform Distribution to Repo")
+                      }
+                    , httpTestModel (IR.fromDistribution distribution)
+                    )
 
         ExpandModule nodePath ->
             ( { model | collapsedModules = model.collapsedModules |> Set.remove nodePath }, Cmd.none )
@@ -1185,16 +1196,7 @@ httpMakeModel =
                             HttpError httpError
 
                         Ok result ->
-                            case Repo.fromDistribution result of
-                                Ok repo ->
-                                    ServerGetIRResponse ( result, repo )
-
-                                Err error ->
-                                    let
-                                        _ =
-                                            Debug.log "e" error
-                                    in
-                                    HttpError (Http.BadBody "Could not transform Distribution to Repo")
+                            ServerGetIRResponse result
                 )
                 DistributionCodec.decodeVersionedDistribution
         }
