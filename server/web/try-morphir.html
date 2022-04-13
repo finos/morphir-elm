@@ -3342,8 +3342,8 @@ function _VirtualDom_diffKeyedKids(xParent, yParent, patches, rootIndex)
 	var localPatches = [];
 
 	var changes = {}; // Dict String Entry
-	var inserts = []; // Array { index.md : Int, entry : Entry }
-	// type Entry = { tag : String, vnode : VNode, index.md : Int, data : _ }
+	var inserts = []; // Array { index: Int, entry : Entry }
+	// type Entry = { tag : String, vnode : VNode, index : Int, data : _ }
 
 	var xKids = xParent.e;
 	var yKids = yParent.e;
@@ -3588,7 +3588,7 @@ function _VirtualDom_removeNode(changes, localPatches, key, vnode, index)
 
 // ADD DOM NODES
 //
-// Each DOM node has an "index.md" assigned in order of traversal. It is important
+// Each DOM node has an "index" assigned in order of traversal. It is important
 // to minimize our crawl over the actual DOM, so these indexes (along with the
 // descendantsCount of virtual nodes) let us skip touching entire subtrees of
 // the DOM if we know there are no patches there.

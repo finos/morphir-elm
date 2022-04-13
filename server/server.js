@@ -37,7 +37,7 @@ app.post('/insight', function (request, response) {
             console.log('Wrote:', irFile);
     });
 
-    var fileName = 'web/index.md.html';
+    var fileName = 'web/index.html';
     response.sendFile(fileName, options, function (err) {
         if (err) {
             next(err);
@@ -53,7 +53,7 @@ app.get('/insight', (req, res) => {
     var options = {
         root: path.join(__dirname)
     };
-    var fileName = 'web/index.md.html';
+    var fileName = 'web/index.html';
     res.sendFile(fileName, options, function (err) {
         if (err) {
             next(err);

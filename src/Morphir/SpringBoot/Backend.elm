@@ -536,7 +536,7 @@ mapStatefulAppImplementation opt distribution currentPackagePath currentModulePa
                                         , body =
                                             Just
                                                 (Scala.Variable
-                                                    "new org.springframework.web.servlet.ModelAndView(\"redirect:/swagger-ui/index.md.html\")"
+                                                    "new org.springframework.web.servlet.ModelAndView(\"redirect:/swagger-ui/index.html\")"
                                                 )
                                         }
                                     )

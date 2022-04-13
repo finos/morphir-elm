@@ -83,6 +83,8 @@ async function gen(input, outputPath, options) {
     const opts = options
     opts.limitToModules = options.modulesToInclude ? options.modulesToInclude.split(',') : null
     const fileMap = await generate(opts, JSON.parse(morphirIrJson.toString()))
+
+
     const writePromises =
         fileMap.map(async ([
             [dirPath, fileName], content

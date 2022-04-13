@@ -915,7 +915,7 @@ collectPatternReferences pattern =
             Set.empty
 
 
-{-| Map attributes of a value while supplying an index.md to the map function. The index.md is incremented depth first.
+{-| Map attributes of a value while supplying an index to the map function. The index is incremented depth first.
 -}
 indexedMapValue : (Int -> a -> b) -> Int -> Value ta a -> ( Value ta b, Int )
 indexedMapValue f baseIndex value =
@@ -1132,7 +1132,7 @@ indexedMapValue f baseIndex value =
             ( Unit (f baseIndex a), baseIndex )
 
 
-{-| Map attributes of a pattern while supplying an index.md to the map function. The index.md is incremented depth first.
+{-| Map attributes of a pattern while supplying an index to the map function. The index is incremented depth first.
 -}
 indexedMapPattern : (Int -> a -> b) -> Int -> Pattern a -> ( Pattern b, Int )
 indexedMapPattern f baseIndex pattern =

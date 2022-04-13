@@ -26,7 +26,7 @@ const port = program.opts().port
 const wrap = fn => (...args) => fn(...args).catch(args[2])
 
 const webDir = path.join(__dirname, 'web')
-const indexHtml = path.join(webDir, 'index.md.html')
+const indexHtml = path.join(webDir, 'index.html')
 
 app.get('/', (req, res) => {
   res.sendFile(indexHtml)

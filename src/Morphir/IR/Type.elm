@@ -166,7 +166,7 @@ us to assign some additional attributes to each node in the tree. Here are some 
       - [Wikipedia: Tuple](https://en.wikipedia.org/wiki/Tuple)
       - [creation](#tuple), [matching](#matchTuple)
   - **Record**
-      - A record is a composition of other types like tuples but types are identified by a field name instead of an index.md.
+      - A record is a composition of other types like tuples but types are identified by a field name instead of an index.
       - The best way to think of a record is as a dictionary of types.
       - Our representation captures the order of fields for convenience but the order should not be considered for type
         equivalence.
