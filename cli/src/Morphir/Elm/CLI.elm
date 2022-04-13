@@ -14,7 +14,8 @@
    limitations under the License.
 -}
 
-
+{-| This module contains definitions for ports interfacing with the CLI specified in the cli.js file
+-}
 port module Morphir.Elm.CLI exposing (..)
 
 import Dict exposing (Dict)

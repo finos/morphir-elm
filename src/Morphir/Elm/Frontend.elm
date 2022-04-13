@@ -16,7 +16,8 @@
 
 
 module Morphir.Elm.Frontend exposing
-    ( packageDefinitionFromSource, mapDeclarationsToType
+    ( packageDefinitionFromSource
+    , mapDeclarationsToType
     , defaultDependencies
     , Options, ContentLocation, ContentRange, Error(..), Errors, PackageInfo, SourceFile, SourceLocation, mapSource
     , mapValueToFile
