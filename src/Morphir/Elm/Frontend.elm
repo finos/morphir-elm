@@ -1496,7 +1496,7 @@ mapLetExpression sourceFile sourceLocation letBlock =
         letBlockToValue : List (Node Expression.LetDeclaration) -> Node Expression -> Result Errors (Value.Value SourceLocation SourceLocation)
         letBlockToValue declarationNodes inNode =
             let
-                -- build a dictionary from variable name to declaration inde
+                -- build a dictionary from variable name to declaration index
                 declarationIndexForName : Dict String Int
                 declarationIndexForName =
                     declarationNodes

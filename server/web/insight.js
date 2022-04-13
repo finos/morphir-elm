@@ -1443,7 +1443,7 @@ function _Json_runHelp(decoder, value)
 			}
 			if (index >= value.length)
 			{
-				return _Json_expecting('a LONGER array. Need index.md ' + index + ' but only see ' + value.length + ' entries', value);
+				return _Json_expecting('a LONGER array. Need index ' + index + ' but only see ' + value.length + ' entries', value);
 			}
 			var result = _Json_runHelp(decoder.b, value[index]);
 			return ($elm$core$Result$isOk(result)) ? result : $elm$core$Result$Err(A2($elm$json$Json$Decode$Index, index, result.a));
@@ -3328,8 +3328,8 @@ function _VirtualDom_diffKeyedKids(xParent, yParent, patches, rootIndex)
 	var localPatches = [];
 
 	var changes = {}; // Dict String Entry
-	var inserts = []; // Array { index.md : Int, entry : Entry }
-	// type Entry = { tag : String, vnode : VNode, index.md : Int, data : _ }
+	var inserts = []; // Array { index : Int, entry : Entry }
+	// type Entry = { tag : String, vnode : VNode, index : Int, data : _ }
 
 	var xKids = xParent.e;
 	var yKids = yParent.e;
@@ -3574,7 +3574,7 @@ function _VirtualDom_removeNode(changes, localPatches, key, vnode, index)
 
 // ADD DOM NODES
 //
-// Each DOM node has an "index.md" assigned in order of traversal. It is important
+// Each DOM node has an "index" assigned in order of traversal. It is important
 // to minimize our crawl over the actual DOM, so these indexes (along with the
 // descendantsCount of virtual nodes) let us skip touching entire subtrees of
 // the DOM if we know there are no patches there.
@@ -8845,13 +8845,13 @@ var $mdgriffith$elm_ui$Internal$Style$elDescription = _List_fromArray(
 		$mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.hasBehind),
 		_List_fromArray(
 			[
-				A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '0'),
+				A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '0'),
 				A2(
 				$mdgriffith$elm_ui$Internal$Style$Child,
 				$mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.behind),
 				_List_fromArray(
 					[
-						A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '-1')
+						A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '-1')
 					]))
 			])),
 		A2(
@@ -9103,7 +9103,7 @@ var $mdgriffith$elm_ui$Internal$Style$baseSheet = _List_fromArray(
 				A2($mdgriffith$elm_ui$Internal$Style$Prop, 'width', '100%'),
 				A2($mdgriffith$elm_ui$Internal$Style$Prop, 'height', 'auto'),
 				A2($mdgriffith$elm_ui$Internal$Style$Prop, 'min-height', '100%'),
-				A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '0'),
+				A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '0'),
 				A2(
 				$mdgriffith$elm_ui$Internal$Style$Descriptor,
 				_Utils_ap(
@@ -9131,7 +9131,7 @@ var $mdgriffith$elm_ui$Internal$Style$baseSheet = _List_fromArray(
 						_List_fromArray(
 							[
 								A2($mdgriffith$elm_ui$Internal$Style$Prop, 'position', 'fixed'),
-								A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '20')
+								A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '20')
 							]))
 					]))
 			])),
@@ -9165,7 +9165,7 @@ var $mdgriffith$elm_ui$Internal$Style$baseSheet = _List_fromArray(
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'bottom', '100%'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'left', '0'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'width', '100%'),
-											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '20'),
+											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '20'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'margin', '0 !important'),
 											A2(
 											$mdgriffith$elm_ui$Internal$Style$Child,
@@ -9201,7 +9201,7 @@ var $mdgriffith$elm_ui$Internal$Style$baseSheet = _List_fromArray(
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'left', '0'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'height', '0'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'width', '100%'),
-											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '20'),
+											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '20'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'margin', '0 !important'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'pointer-events', 'none'),
 											A2(
@@ -9230,7 +9230,7 @@ var $mdgriffith$elm_ui$Internal$Style$baseSheet = _List_fromArray(
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'top', '0'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'height', '100%'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'margin', '0 !important'),
-											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '20'),
+											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '20'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'pointer-events', 'none'),
 											A2(
 											$mdgriffith$elm_ui$Internal$Style$Child,
@@ -9251,7 +9251,7 @@ var $mdgriffith$elm_ui$Internal$Style$baseSheet = _List_fromArray(
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'top', '0'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'height', '100%'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'margin', '0 !important'),
-											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '20'),
+											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '20'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'pointer-events', 'none'),
 											A2(
 											$mdgriffith$elm_ui$Internal$Style$Child,
@@ -9294,7 +9294,7 @@ var $mdgriffith$elm_ui$Internal$Style$baseSheet = _List_fromArray(
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'left', '0'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'top', '0'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'margin', '0 !important'),
-											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '0'),
+											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '0'),
 											A2($mdgriffith$elm_ui$Internal$Style$Prop, 'pointer-events', 'none'),
 											A2(
 											$mdgriffith$elm_ui$Internal$Style$Child,
@@ -10158,13 +10158,13 @@ var $mdgriffith$elm_ui$Internal$Style$baseSheet = _List_fromArray(
 						$mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.hasBehind),
 						_List_fromArray(
 							[
-								A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '0'),
+								A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '0'),
 								A2(
 								$mdgriffith$elm_ui$Internal$Style$Child,
 								$mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.behind),
 								_List_fromArray(
 									[
-										A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index.md', '-1')
+										A2($mdgriffith$elm_ui$Internal$Style$Prop, 'z-index', '-1')
 									]))
 							])),
 						A2(
@@ -10565,7 +10565,7 @@ var $mdgriffith$elm_ui$Internal$Style$commonValues = $elm$core$List$concat(
 		]));
 var $mdgriffith$elm_ui$Internal$Style$explainer = '\n.explain {\n    border: 6px solid rgb(174, 121, 15) !important;\n}\n.explain > .' + ($mdgriffith$elm_ui$Internal$Style$classes.any + (' {\n    border: 4px dashed rgb(0, 151, 167) !important;\n}\n\n.ctr {\n    border: none !important;\n}\n.explain > .ctr > .' + ($mdgriffith$elm_ui$Internal$Style$classes.any + ' {\n    border: 4px dashed rgb(0, 151, 167) !important;\n}\n\n')));
 var $mdgriffith$elm_ui$Internal$Style$inputTextReset = '\ninput[type="search"],\ninput[type="search"]::-webkit-search-decoration,\ninput[type="search"]::-webkit-search-cancel-button,\ninput[type="search"]::-webkit-search-results-button,\ninput[type="search"]::-webkit-search-results-decoration {\n  -webkit-appearance:none;\n}\n';
-var $mdgriffith$elm_ui$Internal$Style$sliderReset = '\ninput[type=range] {\n  -webkit-appearance: none; \n  background: transparent;\n  position:absolute;\n  left:0;\n  top:0;\n  z-index.md:10;\n  width: 100%;\n  outline: dashed 1px;\n  height: 100%;\n  opacity: 0;\n}\n';
+var $mdgriffith$elm_ui$Internal$Style$sliderReset = '\ninput[type=range] {\n  -webkit-appearance: none; \n  background: transparent;\n  position:absolute;\n  left:0;\n  top:0;\n  z-index:10;\n  width: 100%;\n  outline: dashed 1px;\n  height: 100%;\n  opacity: 0;\n}\n';
 var $mdgriffith$elm_ui$Internal$Style$thumbReset = '\ninput[type=range]::-webkit-slider-thumb {\n    -webkit-appearance: none;\n    opacity: 0.5;\n    width: 80px;\n    height: 80px;\n    background-color: black;\n    border:none;\n    border-radius: 5px;\n}\ninput[type=range]::-moz-range-thumb {\n    opacity: 0.5;\n    width: 80px;\n    height: 80px;\n    background-color: black;\n    border:none;\n    border-radius: 5px;\n}\ninput[type=range]::-ms-thumb {\n    opacity: 0.5;\n    width: 80px;\n    height: 80px;\n    background-color: black;\n    border:none;\n    border-radius: 5px;\n}\ninput[type=range][orient=vertical]{\n    writing-mode: bt-lr; /* IE */\n    -webkit-appearance: slider-vertical;  /* WebKit */\n}\n';
 var $mdgriffith$elm_ui$Internal$Style$trackReset = '\ninput[type=range]::-moz-range-track {\n    background: transparent;\n    cursor: pointer;\n}\ninput[type=range]::-ms-track {\n    background: transparent;\n    cursor: pointer;\n}\ninput[type=range]::-webkit-slider-runnable-track {\n    background: transparent;\n    cursor: pointer;\n}\n';
 var $mdgriffith$elm_ui$Internal$Style$overrides = '@media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {' + ($mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.any) + ($mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.row) + (' > ' + ($mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.any) + (' { flex-basis: auto !important; } ' + ($mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.any) + ($mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.row) + (' > ' + ($mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.any) + ($mdgriffith$elm_ui$Internal$Style$dot($mdgriffith$elm_ui$Internal$Style$classes.container) + (' { flex-basis: auto !important; }}' + ($mdgriffith$elm_ui$Internal$Style$inputTextReset + ($mdgriffith$elm_ui$Internal$Style$sliderReset + ($mdgriffith$elm_ui$Internal$Style$trackReset + ($mdgriffith$elm_ui$Internal$Style$thumbReset + $mdgriffith$elm_ui$Internal$Style$explainer)))))))))))))));
