@@ -272,44 +272,20 @@ processModule moduleName parsedModule repo =
 
 processType : ModuleName -> Name -> Type.Definition () -> Repo -> Result (List Error) Repo
 processType moduleName typeName typeDef repo =
-    case repo |> Repo.modules |> Dict.get moduleName of
-        Just existingModDef ->
-            case Dict.member typeName existingModDef.value.types of
-                True ->
-                    repo
-                        |> Repo.updateType moduleName typeName typeDef
-                        |> Result.mapError (RepoError "Cannot process type" >> List.singleton)
-
-                False ->
-                    repo
-                        |> Repo.insertType moduleName typeName typeDef
-                        |> Result.mapError (RepoError "Cannot process type" >> List.singleton)
-
-        Nothing ->
-            -- module does not exist, do nothing
-            -- TODO : module should already exist, but error out if it doesn't
-            Ok repo
+    repo
+        |> Repo.insertType moduleName typeName typeDef
+        |> Result.mapError (RepoError "Cannot process type" >> List.singleton)
 
 
-processValue : Access -> ModuleName -> Name -> Value.Definition () (Type ()) -> Repo -> Result (List Error) Repo
-processValue access moduleName valueName valueDefinition repo =
-    case repo |> Repo.modules |> Dict.get moduleName of
-        Just existingModDef ->
-            case Dict.member valueName existingModDef.value.types of
-                True ->
-                    repo
-                        |> Repo.updateValue moduleName valueName valueDefinition
-                        |> Result.mapError (RepoError "Cannot process type" >> List.singleton)
-
-                False ->
-                    repo
-                        |> Repo.insertTypedValue moduleName valueName valueDefinition
-                        |> Result.mapError (RepoError "Cannot process value" >> List.singleton)
-
-        Nothing ->
-            -- module does not exist, do nothing
-            -- TODO : module should already exist, but error out if it doesn't
-            Ok repo
+processValue : Access -> ModuleName -> Name -> SignatureAndValue -> Repo -> Result (List Error) Repo
+processValue access moduleName valueName ( maybeValueType, body ) repo =
+    let
+        _ =
+            Debug.log "processing value" (String.concat [ Path.toString Name.toTitleCase "." moduleName, ".", Name.toCamelCase valueName ])
+    in
+    repo
+        |> Repo.insertValue access moduleName valueName maybeValueType body
+        |> Result.mapError (RepoError "Cannot process value" >> List.singleton)
 
 
 {-| convert New or Updated Elm modules into ParsedModules for further processing
