@@ -537,8 +537,8 @@ insertValue access moduleName valueName maybeValueType value repo =
 {-| Update an exisiting value in the repo without type information. The repo will infer the types of each node
 and store it. This function might fail if the inferred type is not compatible with the declared type that's passed in.
 -}
-updateValue : Access -> ModuleName -> Name -> Value.Definition () () -> Repo -> Result Errors Repo
-updateValue access moduleName valueName valueDef repo =
+updateValue : Access -> ModuleName -> Name -> Maybe (Type ()) -> Value () () -> Repo -> Result Errors Repo
+updateValue access moduleName valueName maybeValueType value repo =
     let
         ir : IR
         ir =
@@ -559,14 +559,37 @@ updateValue access moduleName valueName valueDef repo =
                 |> Maybe.map (\accessModDef -> Repo { r | modules = Dict.insert moduleName accessModDef r.modules })
                 |> Result.fromMaybe [ ModuleNotFound moduleName ]
     in
-    Infer.inferValueDefinition ir valueDef
-        |> Result.map (Value.mapDefinitionAttributes identity Tuple.second)
-        |> Result.mapError (TypeCheckError moduleName valueName >> List.singleton)
-        |> Result.andThen
-            (\typedValueDef ->
-                removeValue repo
-                    |> Result.andThen (insertTypedValue moduleName valueName typedValueDef)
-            )
+    case maybeValueType of
+        -- If the modeler defined a value type
+        Just valueType ->
+            let
+                valueDef : Value.Definition () ()
+                valueDef =
+                    Value.typeAndValueToDefinition valueType value
+            in
+            Infer.inferValueDefinition ir valueDef
+                |> Result.map (Value.mapDefinitionAttributes identity Tuple.second)
+                |> Result.mapError (TypeCheckError moduleName valueName >> List.singleton)
+                |> Result.andThen
+                    (\typedValueDef ->
+                        removeValue repo
+                            |> Result.andThen (insertTypedValue moduleName valueName typedValueDef)
+                    )
+
+        Nothing ->
+            Infer.inferValue ir value
+                |> Result.map (Value.mapValueAttributes identity Tuple.second)
+                |> Result.mapError (TypeCheckError moduleName valueName >> List.singleton)
+                |> Result.andThen
+                    (\typedValue ->
+                        let
+                            typedValueDef : Value.Definition () (Type ())
+                            typedValueDef =
+                                Value.typeAndValueToDefinition (typedValue |> Value.valueAttribute) typedValue
+                        in
+                        removeValue repo
+                            |> Result.andThen (insertTypedValue moduleName valueName typedValueDef)
+                    )
 
 
 {-| Insert values into repo modules and update the value dependency graph of the repo
