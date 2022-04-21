@@ -20,7 +20,7 @@ import Morphir.File.Path as FilePath
 import Morphir.IR.AccessControlled as AccessControlled exposing (Access(..))
 import Morphir.IR.FQName exposing (FQName, fQName)
 import Morphir.IR.KindOfName exposing (KindOfName(..))
-import Morphir.IR.Module exposing (ModuleName)
+import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package exposing (PackageName)
 import Morphir.IR.Path as Path
@@ -210,6 +210,13 @@ processModule moduleName parsedModule repo =
                     else
                         Private
 
+        -- if a moduleName is not in repo insert it because it's probably a module insert
+        repoWithModuleInserted : Repo
+        repoWithModuleInserted =
+            repo
+                |> Repo.insertModule moduleName Module.emptyDefinition
+                |> Result.withDefault repo
+
         typeNames : List Name
         typeNames =
             extractTypeNames parsedModule
@@ -233,11 +240,11 @@ processModule moduleName parsedModule repo =
         resolveName modName localName kindOfName =
             parsedModule
                 |> ParsedModule.imports
-                |> IncrementalResolve.resolveImports repo
+                |> IncrementalResolve.resolveImports repoWithModuleInserted
                 |> Result.andThen
                     (\resolvedImports ->
                         IncrementalResolve.resolveLocalName
-                            repo
+                            repoWithModuleInserted
                             moduleName
                             localNames
                             resolvedImports
@@ -247,14 +254,14 @@ processModule moduleName parsedModule repo =
                     )
     in
     extractTypes resolveName parsedModule
-        |> Result.andThen (orderTypesByDependency (Repo.getPackageName repo) moduleName)
+        |> Result.andThen (orderTypesByDependency (Repo.getPackageName repoWithModuleInserted) moduleName)
         |> Result.andThen
             (List.foldl
                 (\( typeName, typeDef ) repoResultForType ->
                     repoResultForType
                         |> Result.andThen (processType moduleName typeName typeDef)
                 )
-                (Ok repo)
+                (Ok repoWithModuleInserted)
             )
         |> Result.andThen
             (\repoWithTypesInserted ->
@@ -272,9 +279,23 @@ processModule moduleName parsedModule repo =
 
 processType : ModuleName -> Name -> Type.Definition () -> Repo -> Result (List Error) Repo
 processType moduleName typeName typeDef repo =
-    repo
-        |> Repo.insertType moduleName typeName typeDef
-        |> Result.mapError (RepoError "Cannot process type" >> List.singleton)
+    case repo |> Repo.modules |> Dict.get moduleName of
+        Just existingModDef ->
+            case Dict.member typeName existingModDef.value.types of
+                True ->
+                    repo
+                        |> Repo.updateType moduleName typeName typeDef
+                        |> Result.mapError (RepoError "Cannot process type" >> List.singleton)
+
+                False ->
+                    repo
+                        |> Repo.insertType moduleName typeName typeDef
+                        |> Result.mapError (RepoError "Cannot process type" >> List.singleton)
+
+        Nothing ->
+            -- module does not exist, do nothing
+            -- TODO : module should already exist, but error out if it doesn't
+            Ok repo
 
 
 processValue : Access -> ModuleName -> Name -> SignatureAndValue -> Repo -> Result (List Error) Repo
@@ -283,9 +304,23 @@ processValue access moduleName valueName ( maybeValueType, body ) repo =
         _ =
             Debug.log "processing value" (String.concat [ Path.toString Name.toTitleCase "." moduleName, ".", Name.toCamelCase valueName ])
     in
-    repo
-        |> Repo.insertValue access moduleName valueName maybeValueType body
-        |> Result.mapError (RepoError "Cannot process value" >> List.singleton)
+    case repo |> Repo.modules |> Dict.get moduleName of
+        Just existingModDef ->
+            case Dict.member valueName existingModDef.value.values of
+                True ->
+                    repo
+                        |> Repo.updateValue access moduleName valueName maybeValueType body
+                        |> Result.mapError (RepoError "Cannot process value" >> List.singleton)
+
+                False ->
+                    repo
+                        |> Repo.insertValue access moduleName valueName maybeValueType body
+                        |> Result.mapError (RepoError "Cannot process value" >> List.singleton)
+
+        Nothing ->
+            -- module does not exist, do nothing
+            -- TODO : module should already exist, but error out if it doesn't
+            Ok repo
 
 
 {-| convert New or Updated Elm modules into ParsedModules for further processing
