@@ -471,7 +471,7 @@ updateType moduleName typeName typeDef (Repo repo) =
             accessControlledModDef
                 |> AccessControlled.map
                     (\modDef ->
-                        -- add proper documentation for types
+                        -- TODO add proper documentation for types
                         Dict.insert typeName (public (typeDef |> Documented.Documented "")) modDef.types
                             |> (\updatedTypes -> { modDef | types = updatedTypes })
                     )
@@ -546,10 +546,14 @@ updateValue access moduleName valueName maybeValueType value repo =
                 |> toDistribution
                 |> IR.fromDistribution
 
-        -- remove the existing value from the repo
-        -- TODO handle syncing value deps while removing value
+        -- remove the existing value from the repo and
+        -- cleanup existing dependency edges for the value as it will be recalculated
         removeValue : Repo -> Result Errors Repo
         removeValue (Repo r) =
+            let
+                valueFQN =
+                    ( getPackageName repo, moduleName, valueName )
+            in
             modules repo
                 |> Dict.get moduleName
                 |> Maybe.map
@@ -558,6 +562,17 @@ updateValue access moduleName valueName maybeValueType value repo =
                     )
                 |> Maybe.map (\accessModDef -> Repo { r | modules = Dict.insert moduleName accessModDef r.modules })
                 |> Result.fromMaybe [ ModuleNotFound moduleName ]
+                |> Result.map
+                    (\updatedRepo ->
+                        valueDependencies updatedRepo
+                            |> DAG.outgoingEdges valueFQN
+                            |> Set.foldl (DAG.removeEdge valueFQN) (valueDependencies updatedRepo)
+                            |> Tuple.pair updatedRepo
+                    )
+                |> Result.map
+                    (\( Repo updatedRepoValue, updatedValueDependencies ) ->
+                        Repo { updatedRepoValue | valueDependencies = updatedValueDependencies }
+                    )
     in
     case maybeValueType of
         -- If the modeler defined a value type
