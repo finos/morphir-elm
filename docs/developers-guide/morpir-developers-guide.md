@@ -8,7 +8,7 @@ Finally, it provides a step by step walk-throughs on how various Morphir compone
 2. Existing team members intending to improve their abilities on Language Design concepts
 
 ##Content
-1. [Getting Started with Morphir](#) <br>
+1. [Getting Started with Morphir](https://github.com/finos/morphir-elm/blob/main/README.md) <br>
 2. [Overview of Morphir](#)
 3. [The Morphir Architecture](#) <br>
 4. [The Morphir SDK](#) <br>
@@ -46,3 +46,7 @@ Finally, it provides a step by step walk-throughs on how various Morphir compone
     4. [Regular Expressions Parser](#) <br>
     5. [JSON Parser](#) <br>
     6. [Low-Level Pull Parser API](#) <br>
+    
+    
+    
+## Getting Started With Morphir
