@@ -8,6 +8,7 @@ morphir-ir.json
 generated/
 out/
 redistributable/Scala
+redistributable/SpringBoot/generated.iml
 cli/web/insightapp.js
 cli/treeStuff.js
 cli/index.html
