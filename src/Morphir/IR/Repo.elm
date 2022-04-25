@@ -5,7 +5,7 @@ module Morphir.IR.Repo exposing
     , insertType, insertValue, insertTypedValue
     , getPackageName, modules, dependsOnPackages, lookupModuleSpecification, typeDependencies, valueDependencies, lookupValue, moduleDependencies
     , toDistribution
-    , Errors, SourceCode, updateType, updateValue
+    , Errors, SourceCode, deleteType, deleteValue, updateType, updateValue
     )
 
 {-| This module contains a data structure that represents a Repo with useful API that allows querying and modification.
@@ -494,6 +494,30 @@ updateType moduleName typeName typeDef (Repo repo) =
                 |> Result.andThen (updateModuleDependencies moduleName moduleDepsFromType)
 
 
+deleteType : ModuleName -> Name -> Repo -> Result Errors Repo
+deleteType moduleName typeName (Repo repo) =
+    case Dict.get moduleName repo.modules of
+        Just accessControlModDef ->
+            accessControlModDef
+                |> AccessControlled.map
+                    (\modDef ->
+                        modDef.types
+                            |> Dict.remove typeName
+                            |> (\updatedTypes -> { modDef | types = updatedTypes })
+                    )
+                |> (\updatedModDef ->
+                        Repo { repo | modules = Dict.insert moduleName updatedModDef repo.modules }
+                   )
+                |> (\(Repo updatedRepo) ->
+                        DAG.removeNode ( repo.packageName, moduleName, typeName ) updatedRepo.typeDependencies
+                            |> (\updatedTypeDeps -> Repo { updatedRepo | typeDependencies = updatedTypeDeps })
+                   )
+                |> Ok
+
+        Nothing ->
+            Err [ ModuleNotFound moduleName ]
+
+
 {-| Insert a new value into the repo without type information on each node. The repo will infer the types of each node
 and store it. This function might fail if the inferred type is not compatible with the declared type that's passed in.
 -}
@@ -605,6 +629,30 @@ updateValue access moduleName valueName maybeValueType value repo =
                         removeValue repo
                             |> Result.andThen (insertTypedValue moduleName valueName typedValueDef)
                     )
+
+
+deleteValue : ModuleName -> Name -> Repo -> Result Errors Repo
+deleteValue moduleName valueName (Repo repo) =
+    case Dict.get moduleName repo.modules of
+        Just accessControlModDef ->
+            accessControlModDef
+                |> AccessControlled.map
+                    (\modDef ->
+                        modDef.values
+                            |> Dict.remove valueName
+                            |> (\updatedValues -> { modDef | values = updatedValues })
+                    )
+                |> (\updatedModDef ->
+                        Repo { repo | modules = Dict.insert moduleName updatedModDef repo.modules }
+                   )
+                |> (\(Repo updatedRepo) ->
+                        DAG.removeNode ( repo.packageName, moduleName, valueName ) updatedRepo.valueDependencies
+                            |> (\updatedValueDeps -> Repo { updatedRepo | valueDependencies = updatedValueDeps })
+                   )
+                |> Ok
+
+        Nothing ->
+            Err [ ModuleNotFound moduleName ]
 
 
 {-| Insert values into repo modules and update the value dependency graph of the repo
