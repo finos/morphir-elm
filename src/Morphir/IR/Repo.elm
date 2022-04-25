@@ -2,8 +2,8 @@ module Morphir.IR.Repo exposing
     ( Repo, Error(..)
     , empty, fromDistribution, insertDependencySpecification
     , mergeNativeFunctions, insertModule, deleteModule
-    , insertType, insertValue
-    , getPackageName, modules, dependsOnPackages, lookupModuleSpecification, typeDependencies, valueDependencies
+    , insertType, insertValue, insertTypedValue
+    , getPackageName, modules, dependsOnPackages, lookupModuleSpecification, typeDependencies, valueDependencies, lookupValue
     , toDistribution
     , Errors, SourceCode
     )
@@ -19,12 +19,12 @@ query a Repo without breaking the validity of the Repo.
 
 @docs empty, fromDistribution, insertDependencySpecification
 @docs mergeNativeFunctions, insertModule, deleteModule
-@docs insertType, insertValue
+@docs insertType, insertValue, insertTypedValue
 
 
 # Query
 
-@docs getPackageName, modules, dependsOnPackages, lookupModuleSpecification, typeDependencies, valueDependencies
+@docs getPackageName, modules, dependsOnPackages, lookupModuleSpecification, typeDependencies, valueDependencies, lookupValue, moduleDependencies
 
 
 # Transform
@@ -35,15 +35,17 @@ query a Repo without breaking the validity of the Repo.
 
 import Dict exposing (Dict)
 import Morphir.Dependency.DAG as DAG exposing (CycleDetected, DAG)
-import Morphir.IR.AccessControlled as AccessControlled exposing (AccessControlled, public)
+import Morphir.IR as IR exposing (IR)
+import Morphir.IR.AccessControlled as AccessControlled exposing (Access, AccessControlled, public, withAccess)
 import Morphir.IR.Distribution exposing (Distribution(..))
-import Morphir.IR.Documented as Documented
+import Morphir.IR.Documented as Documented exposing (Documented)
 import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Module as Module exposing (ModuleName)
-import Morphir.IR.Name as Name exposing (Name)
+import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Package as Package exposing (PackageName)
 import Morphir.IR.Type as Type exposing (Type)
-import Morphir.IR.Value as Value
+import Morphir.IR.Value as Value exposing (Value)
+import Morphir.Type.Infer as Infer
 import Morphir.Value.Native as Native
 import Set exposing (Set)
 
@@ -120,9 +122,11 @@ type Error
     | TypeAlreadyExist FQName
     | DependencyAlreadyExists PackageName
     | ValueAlreadyExist Name
-    | TypeCycleDetected Name
-    | ValueCycleDetected Name
+    | TypeCycleDetected (DAG.CycleDetected FQName)
+    | ValueCycleDetected (DAG.CycleDetected FQName)
     | ModuleCycleDetected (DAG.CycleDetected ModuleName)
+    | TypeCheckError ModuleName Name Infer.TypeError
+    | CannotInsertType ModuleName Name Error
 
 
 {-| Creates a repo from scratch when there is no existing IR.
@@ -145,7 +149,20 @@ empty packageName =
 fromDistribution : Distribution -> Result Errors Repo
 fromDistribution distro =
     case distro of
-        Library packageName _ packageDef ->
+        Library packageName dependencies packageDef ->
+            let
+                repoWithDependencies : Result Errors Repo
+                repoWithDependencies =
+                    -- TODO: sort dependencies topologically
+                    dependencies
+                        |> Dict.toList
+                        |> List.foldl
+                            (\( dependencyPackageName, dependencyPackageSpec ) repoResultSoFar ->
+                                repoResultSoFar
+                                    |> Result.andThen (insertDependencySpecification dependencyPackageName dependencyPackageSpec)
+                            )
+                            (Ok (empty packageName))
+            in
             packageDef
                 |> Package.modulesOrderedByDependency packageName
                 |> Result.mapError (ModuleCycleDetected >> List.singleton)
@@ -162,8 +179,7 @@ fromDistribution distro =
 
                                         Type.CustomTypeDefinition _ accessControlledType ->
                                             accessControlledType.value
-                                                |> Dict.toList
-                                                |> List.map Tuple.second
+                                                |> Dict.values
                                                 |> List.concat
                                                 |> List.map Tuple.second
 
@@ -192,7 +208,7 @@ fromDistribution distro =
                                                 dagResultSoFar
                                                     |> Result.andThen
                                                         (DAG.insertNode typeFQName (collectRefsForTypes typeList)
-                                                            >> Result.mapError (\(DAG.CycleDetected ( _, _, n ) _) -> [ TypeCycleDetected n ])
+                                                            >> Result.mapError (TypeCycleDetected >> List.singleton)
                                                         )
                                             )
                                             (Ok repo.typeDependencies)
@@ -218,7 +234,7 @@ fromDistribution distro =
                                                 dagResultSoFar
                                                     |> Result.andThen
                                                         (DAG.insertNode valueFQN valueDeps
-                                                            >> Result.mapError (\(DAG.CycleDetected ( _, _, n ) _) -> [ ValueCycleDetected n ])
+                                                            >> Result.mapError (ValueCycleDetected >> List.singleton)
                                                         )
                                             )
                                             (Ok repo.valueDependencies)
@@ -234,7 +250,7 @@ fromDistribution distro =
                                             |> Result.andThen updateRepoValueDependencies
                                     )
                         )
-                        (Ok (empty packageName))
+                        repoWithDependencies
                     )
 
 
@@ -352,90 +368,169 @@ deleteModule moduleName (Repo repo) =
 insertType : ModuleName -> Name -> Type.Definition () -> Repo -> Result Errors Repo
 insertType moduleName typeName typeDef (Repo repo) =
     let
-        accessControlledModuleDef : AccessControlled (Module.Definition () (Type ()))
-        accessControlledModuleDef =
-            case repo.modules |> Dict.get moduleName of
-                Just modDefinition ->
-                    modDefinition
+        validateTypeExistsResult : AccessControlled (Module.Definition () (Type ())) -> Result Errors (AccessControlled (Module.Definition () (Type ())))
+        validateTypeExistsResult accessControlledModuleDef =
+            case accessControlledModuleDef.value.types |> Dict.get typeName of
+                Just _ ->
+                    Err [ TypeAlreadyExist ( repo.packageName, moduleName, typeName ) ]
 
                 Nothing ->
-                    public Module.emptyDefinition
+                    Ok accessControlledModuleDef
+
+        -- extract new moduleDependencies from type and updateModuleDependency
+        moduleDepsFromType : Set ModuleName
+        moduleDepsFromType =
+            Type.collectReferencesFromDefintion typeDef
+                |> Set.toList
+                |> List.filterMap
+                    (\( _, modName, _ ) ->
+                        if modName == moduleName then
+                            Nothing
+
+                        else
+                            Just modName
+                    )
+                |> Set.fromList
+
+        updateTypeDependency : Repo -> Result Errors Repo
+        updateTypeDependency (Repo r) =
+            r.typeDependencies
+                |> DAG.insertNode
+                    (FQName.fQName repo.packageName moduleName typeName)
+                    (Type.collectReferencesFromDefintion typeDef)
+                |> Result.mapError (TypeCycleDetected >> List.singleton)
+                |> Result.map (\updatedTypeDep -> Repo { r | typeDependencies = updatedTypeDep })
+
+        updateModuleDefWithType : Repo -> AccessControlled (Module.Definition () (Type ())) -> Repo
+        updateModuleDefWithType (Repo r) accessControlledModDef =
+            accessControlledModDef
+                |> AccessControlled.map
+                    (\modDef ->
+                        Dict.insert typeName (public (typeDef |> Documented.Documented "")) modDef.types
+                            |> (\updatedTypes -> { modDef | types = updatedTypes })
+                    )
+                |> (\updatedAccessControlledModDef ->
+                        modules (Repo r)
+                            |> Dict.insert moduleName updatedAccessControlledModDef
+                   )
+                |> (\updatedModules -> Repo { r | modules = updatedModules })
     in
-    case accessControlledModuleDef.value.types |> Dict.get typeName of
-        Just _ ->
-            Err [ TypeAlreadyExist ( repo.packageName, moduleName, typeName ) ]
+    case repo.modules |> Dict.get moduleName of
+        Just accessControlledModuleDef ->
+            validateTypeExistsResult accessControlledModuleDef
+                |> Result.map (updateModuleDefWithType (Repo repo))
+                |> Result.andThen updateTypeDependency
+                |> Result.andThen (updateModuleDependencies moduleName moduleDepsFromType)
 
         Nothing ->
-            repo.typeDependencies
-                -- TODO extract references for type and use as toNodes
-                |> DAG.insertNode (FQName.fQName repo.packageName moduleName typeName) Set.empty
-                |> Result.mapError (always [ TypeCycleDetected typeName ])
-                |> Result.map
-                    (\updatedTypeDependency ->
-                        Repo
-                            { repo
-                                | modules =
-                                    repo.modules
-                                        |> Dict.insert moduleName
-                                            (accessControlledModuleDef
-                                                |> AccessControlled.map
-                                                    (\moduleDef ->
-                                                        { moduleDef
-                                                            | types =
-                                                                moduleDef.types
-                                                                    |> Dict.insert typeName (public (typeDef |> Documented.Documented ""))
-                                                        }
-                                                    )
-                                            )
-                                , typeDependencies =
-                                    updatedTypeDependency
-                            }
+            updateModuleDefWithType (Repo repo) (public Module.emptyDefinition)
+                |> updateTypeDependency
+                |> Result.andThen (updateModuleDependencies moduleName moduleDepsFromType)
+
+
+{-| Insert a new value into the repo without type information on each node. The repo will infer the types of each node
+and store it. This function might fail if the inferred type is not compatible with the declared type that's passed in.
+-}
+insertValue : Access -> ModuleName -> Name -> Maybe (Type ()) -> Value () () -> Repo -> Result Errors Repo
+insertValue access moduleName valueName maybeValueType value repo =
+    let
+        ir : IR
+        ir =
+            repo
+                |> toDistribution
+                |> IR.fromDistribution
+    in
+    case maybeValueType of
+        -- If the modeler defined a value type
+        Just valueType ->
+            let
+                valueDef : Value.Definition () ()
+                valueDef =
+                    Value.typeAndValueToDefinition valueType value
+            in
+            Infer.inferValueDefinition ir valueDef
+                |> Result.map (Value.mapDefinitionAttributes identity Tuple.second)
+                |> Result.mapError (TypeCheckError moduleName valueName >> List.singleton)
+                |> Result.andThen (\typedValueDef -> insertTypedValue moduleName valueName typedValueDef repo)
+
+        Nothing ->
+            Infer.inferValue ir value
+                |> Result.map (Value.mapValueAttributes identity Tuple.second)
+                |> Result.mapError (TypeCheckError moduleName valueName >> List.singleton)
+                |> Result.andThen
+                    (\typedValue ->
+                        let
+                            typedValueDef : Value.Definition () (Type ())
+                            typedValueDef =
+                                Value.typeAndValueToDefinition (typedValue |> Value.valueAttribute) typedValue
+                        in
+                        insertTypedValue moduleName valueName typedValueDef repo
                     )
 
 
 {-| Insert values into repo modules and update the value dependency graph of the repo
 -}
-insertValue : ModuleName -> Name -> Value.Definition () (Type ()) -> Repo -> Result Errors Repo
-insertValue moduleName valueName valueDef (Repo repo) =
+insertTypedValue : ModuleName -> Name -> Value.Definition () (Type ()) -> Repo -> Result Errors Repo
+insertTypedValue moduleName valueName valueDef repo =
     let
-        accessControlledModuleDef : AccessControlled (Module.Definition () (Type ()))
-        accessControlledModuleDef =
-            case repo.modules |> Dict.get moduleName of
-                Just modDefinition ->
-                    modDefinition
+        validateValueExistsResult : AccessControlled (Module.Definition () (Type ())) -> Result Errors (AccessControlled (Module.Definition () (Type ())))
+        validateValueExistsResult accessControlledModuleDef =
+            case accessControlledModuleDef.value.values |> Dict.get valueName of
+                Just _ ->
+                    Err [ ValueAlreadyExist valueName ]
 
                 Nothing ->
-                    public Module.emptyDefinition
+                    Ok accessControlledModuleDef
+
+        -- extract new moduleDependencies from value definition and updateModuleDependency
+        moduleDepsFromValueDef : Set ModuleName
+        moduleDepsFromValueDef =
+            Value.collectReferences valueDef.body
+                |> Set.toList
+                |> List.filterMap
+                    (\( _, modName, _ ) ->
+                        if modName == moduleName then
+                            Nothing
+
+                        else
+                            Just modName
+                    )
+                |> Set.fromList
+
+        updateValueDependency : Repo -> Result Errors Repo
+        updateValueDependency (Repo r) =
+            r.valueDependencies
+                |> DAG.insertNode
+                    (FQName.fQName r.packageName moduleName valueName)
+                    (Value.collectReferences valueDef.body)
+                |> Result.mapError (ValueCycleDetected >> List.singleton)
+                |> Result.map (\updatedValueDep -> Repo { r | valueDependencies = updatedValueDep })
+
+        updateModuleDefWithValue : Repo -> AccessControlled (Module.Definition () (Type ())) -> Repo
+        updateModuleDefWithValue (Repo r) accessControlledModDef =
+            accessControlledModDef
+                |> AccessControlled.map
+                    (\modDef ->
+                        Dict.insert valueName (public (valueDef |> Documented.Documented "")) modDef.values
+                            |> (\updatedValues -> { modDef | values = updatedValues })
+                    )
+                |> (\updatedAccessControlledModDef ->
+                        modules (Repo r)
+                            |> Dict.insert moduleName updatedAccessControlledModDef
+                   )
+                |> (\updatedModules -> Repo { r | modules = updatedModules })
     in
-    case accessControlledModuleDef.value.values |> Dict.get valueName of
-        Just _ ->
-            Err [ ValueAlreadyExist valueName ]
+    case repo |> modules |> Dict.get moduleName of
+        Just accessControlledModuleDef ->
+            validateValueExistsResult accessControlledModuleDef
+                |> Result.map (updateModuleDefWithValue repo)
+                |> Result.andThen updateValueDependency
+                |> Result.andThen (updateModuleDependencies moduleName moduleDepsFromValueDef)
 
         Nothing ->
-            repo.valueDependencies
-                |> DAG.insertNode (FQName.fQName repo.packageName moduleName valueName) Set.empty
-                |> Result.mapError (always [ ValueCycleDetected valueName ])
-                |> Result.map
-                    (\updatedValueDependency ->
-                        Repo
-                            { repo
-                                | modules =
-                                    repo.modules
-                                        |> Dict.insert moduleName
-                                            (accessControlledModuleDef
-                                                |> AccessControlled.map
-                                                    (\moduleDef ->
-                                                        { moduleDef
-                                                            | values =
-                                                                accessControlledModuleDef.value.values
-                                                                    |> Dict.insert valueName (public (valueDef |> Documented.Documented ""))
-                                                        }
-                                                    )
-                                            )
-                                , valueDependencies =
-                                    updatedValueDependency
-                            }
-                    )
+            updateModuleDefWithValue repo (public Module.emptyDefinition)
+                |> updateValueDependency
+                |> Result.andThen (updateModuleDependencies moduleName moduleDepsFromValueDef)
 
 
 {-| get the packageName for a Repo
@@ -490,3 +585,44 @@ typeDependencies (Repo repo) =
 valueDependencies : Repo -> DAG FQName
 valueDependencies (Repo repo) =
     repo.valueDependencies
+
+
+{-| get a dependency graph of the modules contained in a Repo
+-}
+moduleDependencies : Repo -> DAG ModuleName
+moduleDependencies (Repo repo) =
+    repo.moduleDependencies
+
+
+updateModuleDependencies : ModuleName -> Set ModuleName -> Repo -> Result Errors Repo
+updateModuleDependencies moduleName dependencies (Repo repo) =
+    DAG.insertNode moduleName dependencies repo.moduleDependencies
+        |> Result.mapError (ModuleCycleDetected >> List.singleton)
+        |> Result.map
+            (\updatedModDependencies ->
+                Repo
+                    { repo
+                        | moduleDependencies = updatedModDependencies
+                    }
+            )
+
+
+{-| Look up a value from the repo using the access level passed in.
+-}
+lookupValue : Access -> FQName -> Repo -> Maybe (Value.Definition () (Type ()))
+lookupValue access ( packageName, moduleName, localName ) (Repo repo) =
+    if packageName == repo.packageName then
+        repo.modules
+            |> Dict.get moduleName
+            |> Maybe.andThen
+                (\accessControlledModuleDef ->
+                    accessControlledModuleDef
+                        |> withAccess access
+                        |> Maybe.andThen (.values >> Dict.get localName)
+                        |> Maybe.andThen (withAccess access)
+                        |> Maybe.map .value
+                )
+
+    else
+        -- TODO: lookup in dependencies
+        Nothing

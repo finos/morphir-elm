@@ -68,6 +68,11 @@ pathToUrl path =
     "/" ++ Path.toString Name.toTitleCase "." path
 
 
+pathToFullUrl : List Path -> String
+pathToFullUrl path =
+    "/home" ++ String.concat (List.map pathToUrl path)
+
+
 pathToDisplayString : Path -> String
 pathToDisplayString =
     Path.toString (Name.toHumanWords >> String.join " ") " > "
@@ -86,3 +91,4 @@ urlFragmentToNodePath f =
                     makeNodePath (s |> String.split "." |> List.reverse |> List.drop 1 |> List.reverse |> String.join ".") (l ++ [ Path.fromString s ])
     in
     makeNodePath f []
+

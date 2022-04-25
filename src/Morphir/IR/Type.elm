@@ -22,8 +22,8 @@ module Morphir.IR.Type exposing
     , Specification(..), typeAliasSpecification, opaqueTypeSpecification, customTypeSpecification
     , Definition(..), typeAliasDefinition, customTypeDefinition, definitionToSpecification
     , Constructors
-    , mapTypeAttributes, mapSpecificationAttributes, mapDefinitionAttributes, mapDefinition
-    , eraseAttributes, collectVariables, collectReferences, substituteTypeVariables, toString
+    , mapTypeAttributes, mapSpecificationAttributes, mapDefinitionAttributes, mapDefinition, typeAttributes
+    , eraseAttributes, collectVariables, collectReferences, collectReferencesFromDefintion, substituteTypeVariables, toString
     )
 
 {-| Like any other programming languages Morphir has a type system as well. This module defines the building blocks of
@@ -122,13 +122,11 @@ Here is the full definition for reference:
 @docs Constructors
 
 
-# Mapping
+# Utilities
 
-@docs mapTypeAttributes, mapSpecificationAttributes, mapDefinitionAttributes, mapDefinition
+@docs mapTypeAttributes, mapSpecificationAttributes, mapDefinitionAttributes, mapDefinition, typeAttributes
 
-#Utilities
-
-@docs eraseAttributes, collectVariables, collectReferences, substituteTypeVariables, toString
+@docs eraseAttributes, collectVariables, collectReferences, collectReferencesFromDefintion, substituteTypeVariables, toString
 
 -}
 
@@ -633,6 +631,22 @@ collectReferences tpe =
 
         Unit _ ->
             Set.empty
+
+
+{-| Collect references from a Type Definition
+-}
+collectReferencesFromDefintion : Definition ta -> Set FQName
+collectReferencesFromDefintion typeDef =
+    case typeDef of
+        TypeAliasDefinition _ tpe ->
+            collectReferences tpe
+
+        CustomTypeDefinition _ accessControlledType ->
+            accessControlledType.value
+                |> Dict.values
+                |> List.concat
+                |> List.map (Tuple.second >> collectReferences)
+                |> List.foldl Set.union Set.empty
 
 
 {-| Substitute type variables recursively.

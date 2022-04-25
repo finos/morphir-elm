@@ -9,7 +9,7 @@ import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Repo as Repo exposing (Error(..), Errors, Repo)
-import Morphir.IR.Type as Type exposing (Definition(..), Type(..))
+import Morphir.IR.Type exposing (Definition(..), Type(..))
 import Morphir.IR.Value as Value
 import Test exposing (Test, describe, test)
 
@@ -81,31 +81,33 @@ insertTypeTest : Test
 insertTypeTest =
     let
         moduleName =
-            toModuleName "Morphir.IR.Distribution"
+            toModuleName "Morphir.IR.IncrementalFrontend"
 
-        testFile =
-            String.join ""
-                [ "module Morphir.IR.Distribution exposing (..)"
-                , ""
-                , "a = 1"
-                ]
+        moduleName2 =
+            toModuleName "Morphir.IR.DAG"
 
         repo : Repo
         repo =
             Repo.empty packageName
+                |> Repo.insertModule moduleName Module.emptyDefinition
+                |> Result.withDefault (Repo.empty packageName)
 
-        --|> (\r ->
-        --        { r
-        --            | modules =
-        --                Dict.fromList
-        --                    [ ( moduleName, public Module.emptyDefinition )
-        --                    ]
-        --        }
-        --   )
         typeList : List ( Name, Definition () )
         typeList =
             [ ( [ "my", "pi" ], TypeAliasDefinition [ [ "my", "pi" ] ] (Variable () [ "3.142" ]) )
             , ( [ "my", "errors" ], TypeAliasDefinition [ [ "my", "errors" ] ] (Variable () [ "TypeCycleDetected", "ValueCycleDetected" ]) )
+            ]
+
+        cyclicTypeList : List ( Name, Definition () )
+        cyclicTypeList =
+            [ ( [ "my", "pi" ], TypeAliasDefinition [] (Reference () ( packageName, moduleName, [ "my", "error" ] ) []) )
+            , ( [ "my", "error" ], TypeAliasDefinition [] (Reference () ( packageName, moduleName, [ "my", "pi" ] ) []) )
+            ]
+
+        cyclicModuleTypeList : List ( Name, Definition (), ModuleName )
+        cyclicModuleTypeList =
+            [ ( [ "my", "pi" ], TypeAliasDefinition [] (Reference () ( packageName, moduleName2, [ "a", "variable" ] ) []), moduleName )
+            , ( [ "my", "error" ], TypeAliasDefinition [] (Reference () ( packageName, moduleName, [ "another", "variable" ] ) []), moduleName2 )
             ]
 
         duplicateTypeList : List ( Name, Definition () )
@@ -149,7 +151,7 @@ insertTypeTest =
                     Ok _ ->
                         Expect.fail "Duplicate Type Should Have Failed"
 
-                    Err err ->
+                    Err _ ->
                         Expect.pass
             )
         , test "Checking For Valid Type Dependency DAG"
@@ -166,6 +168,41 @@ insertTypeTest =
                                     Expect.fail "Type Dependency DAG Empty"
                        )
             )
+        , test "Should fail to insert Cyclic Type"
+            (\_ ->
+                cyclicTypeList
+                    |> repoInsertTypeMethod
+                    |> (\invalidRepo ->
+                            case invalidRepo of
+                                Ok _ ->
+                                    Expect.fail "should fail with a CycleDetected Error"
+
+                                Err _ ->
+                                    Expect.pass
+                       )
+            )
+        , test "should fail to insert type if type causes Cyclic module dependency"
+            (\_ ->
+                let
+                    updatedRepo =
+                        Repo.insertModule (toModuleName "Morphir.IR.DAG") Module.emptyDefinition repo
+
+                    insertTypes =
+                        cyclicModuleTypeList
+                            |> List.foldl
+                                (\( name, def, modname ) repoSoFar ->
+                                    repoSoFar
+                                        |> Result.andThen (Repo.insertType modname name def)
+                                )
+                                updatedRepo
+                in
+                case insertTypes of
+                    Ok _ ->
+                        Expect.fail "should fail with Cyclic Module Dependency"
+
+                    Err _ ->
+                        Expect.pass
+            )
         ]
 
 
@@ -181,14 +218,6 @@ insertValueTest =
                 |> Repo.insertModule moduleName Module.emptyDefinition
                 |> Result.withDefault (Repo.empty packageName)
 
-        --|> (\r ->
-        --        { r
-        --            | modules =
-        --                Dict.fromList
-        --                    [ ( moduleName, public Module.emptyDefinition )
-        --                    ]
-        --        }
-        --   )
         uniqueValueList : List ( Name, Value.Definition () (Type ()) )
         uniqueValueList =
             [ ( [ "empty", "function" ]
@@ -221,13 +250,46 @@ insertValueTest =
               )
             ]
 
+        valueListWithCyclicModuleDeps : List ( Name, Value.Definition () (Type ()), ModuleName )
+        valueListWithCyclicModuleDeps =
+            [ ( [ "foo" ]
+              , { inputTypes = []
+                , outputType = Unit ()
+                , body = Value.Reference (Unit ()) ( packageName, toModuleName "Morphir.IR.DAG", [ "bar" ] )
+                }
+              , moduleName
+              )
+            , ( [ "bar" ]
+              , { inputTypes = []
+                , outputType = Unit ()
+                , body = Value.Reference (Unit ()) ( packageName, moduleName, [ "foo" ] )
+                }
+              , toModuleName "Morphir.IR.DAG"
+              )
+            ]
+
+        cyclicValueList =
+            [ ( [ "foo" ]
+              , { inputTypes = []
+                , outputType = Unit ()
+                , body = Value.Reference (Unit ()) ( packageName, moduleName, [ "bar" ] )
+                }
+              )
+            , ( [ "bar" ]
+              , { inputTypes = []
+                , outputType = Unit ()
+                , body = Value.Reference (Unit ()) ( packageName, moduleName, [ "foo" ] )
+                }
+              )
+            ]
+
         repoInsertValueMethod : List ( Name, Value.Definition () (Type ()) ) -> Repo -> Result Errors Repo
         repoInsertValueMethod valueList currentRepo =
             valueList
                 |> List.foldl
                     (\( valueName, valueDef ) repoResultSoFar ->
                         repoResultSoFar
-                            |> Result.andThen (Repo.insertValue moduleName valueName valueDef)
+                            |> Result.andThen (Repo.insertTypedValue moduleName valueName valueDef)
                     )
                     (Ok currentRepo)
     in
@@ -268,11 +330,47 @@ insertValueTest =
                             case validRepo of
                                 Ok r ->
                                     Repo.valueDependencies r
-                                        |> Expect.notEqual DAG.empty
+                                        |> DAG.toList
+                                        |> Expect.notEqual []
 
                                 Err _ ->
                                     Expect.fail "Type Dependency DAG Empty"
                        )
+            )
+        , test "Should fail to insert Cyclic Value Reference"
+            (\_ ->
+                repo
+                    |> repoInsertValueMethod cyclicValueList
+                    |> (\invalidRepo ->
+                            case invalidRepo of
+                                Ok _ ->
+                                    Expect.fail "should fail with a CycleDetected Error"
+
+                                Err _ ->
+                                    Expect.pass
+                       )
+            )
+        , test "should fail to insert type if type causes Cyclic module dependency"
+            (\_ ->
+                let
+                    updatedRepo =
+                        Repo.insertModule (toModuleName "Morphir.IR.DAG") Module.emptyDefinition repo
+
+                    insertValues =
+                        valueListWithCyclicModuleDeps
+                            |> List.foldl
+                                (\( name, def, modname ) repoSoFar ->
+                                    repoSoFar
+                                        |> Result.andThen (Repo.insertTypedValue modname name def)
+                                )
+                                updatedRepo
+                in
+                case insertValues of
+                    Ok _ ->
+                        Expect.fail "should fail with Cyclic Module Dependency"
+
+                    Err _ ->
+                        Expect.pass
             )
         ]
 
@@ -304,7 +402,7 @@ toDistributionTest =
         |> Result.andThen
             (Repo.insertType moduleName typeName typeDef)
         |> Result.andThen
-            (Repo.insertValue moduleName valueName valueDef)
+            (Repo.insertTypedValue moduleName valueName valueDef)
         |> (\validRepo ->
                 case validRepo of
                     Ok r ->
