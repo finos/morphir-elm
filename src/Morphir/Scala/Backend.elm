@@ -17,15 +17,16 @@
 
 module Morphir.Scala.Backend exposing
     ( mapDistribution, mapFunctionBody, mapType, mapTypeMember, mapValue
-    , Options
+    , Options, mapValueName, mapFQNameToPathAndName, mapFQNameToTypeRef
     )
 
 {-| This module encapsulates the Scala backend. It takes the Morphir IR as the input and returns an in-memory
 representation of files generated. The consumer is responsible for getting the input IR and saving the output
 to the file-system.
 
-@docs mapDistribution, mapFunctionBody, mapType, mapTypeMember, mapValue
-
+# Definition
+@docs mapDistribution, mapFunctionBody, mapType, mapTypeMember, mapValue,
+ mapValueName, mapFQNameToPathAndName, mapFQNameToTypeRef
 
 # Options
 
@@ -95,7 +96,8 @@ mapPackageDefinition opt distribution packagePath packageDef =
             )
         |> Dict.fromList
 
-
+{-| Map an IR Fully Qualified Name to Scala Path and Name
+-}
 mapFQNameToPathAndName : FQName -> ( Scala.Path, Name )
 mapFQNameToPathAndName ( packagePath, modulePath, localName ) =
     let
@@ -121,6 +123,8 @@ mapFQNameToPathAndName ( packagePath, modulePath, localName ) =
     )
 
 
+{-| Map an IR Fully Qualified Name to Scala Type
+-}
 mapFQNameToTypeRef : FQName -> Scala.Type
 mapFQNameToTypeRef fQName =
     let
@@ -837,7 +841,8 @@ mapPattern pattern =
         UnitPattern a ->
             Scala.WildcardMatch
 
-
+{-| Maps an IR Value name to Scala Valaue name
+-}
 mapValueName : Name -> String
 mapValueName name =
     let
