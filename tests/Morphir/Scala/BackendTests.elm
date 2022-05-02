@@ -51,7 +51,7 @@ mapFQNameToTypeRefTests : Test
 mapFQNameToTypeRefTests =
     let
         assert inFQName outTypeRef =
-            test ("Generated Type Ref") <|
+            test ("Generated Type Reference") <|
                 \_ ->
                     inFQName
                         |> Backend.mapFQNameToTypeRef
