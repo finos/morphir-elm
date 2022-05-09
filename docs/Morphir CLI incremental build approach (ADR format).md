@@ -1,17 +1,14 @@
-# New incremental approach
-
-* Status: {proposed | rejected | accepted | deprecated | … | superseded by [ADR-0005](0005-example.md)} <!-- optional -->
-* Deciders: {list everyone involved in the decision} <!-- optional -->
-* Date: {YYYY-MM-DD when the decision was last updated} <!-- optional -->
-
-Technical Story: {description | ticket/issue URL} <!-- optional -->
-
+# ADR for Morphir CLI incremental build approach
 ## Context and Problem Statement
 
-The current approach to building incrementally captures and processes changes on a modular level. Different types of changes require different ordering of modules to complete without failure.
+#### **Context**
+Morphir CLI tool offers a way to convert business models into the **Morphir IR** by parsing source files when a `make` command is run. The tooling performs poorly on very large models with especially syntactically complex logics. The initial approach to building the **Morphir IR** was to read all the source files and process them to produce the **IR**. This approach is obviously inefficient because we do not need read and parse all source files every other time the `make` command is run. We decided to **Build Incrementally**.
 
-**Trivial Usecase**
-Assuming module `Foo` has function called `foo` that depends on a function called `bar` in module `Bar`, and `bar` has no dependencies.
+#### **Problem**
+Our approach to building incrementally captures and processes changes on a modular level. However, different types of changes within a module would require the modules to be processed in different orders to complete successfully.
+
+**Example**
+Assuming module `Foo` has a function called `foo` that depends on a function called `bar` in module `Bar`, and `bar` has no dependencies.
 
 ``` mermaid
         flowchart LR
@@ -41,19 +38,19 @@ What is the best way to process changes?
 * Meaningful error reporting
 
 ## Considered Options
-* Process changes in any order and validate the the final result (Repo)
+* Process changes in any order and validate the final result (Repo)
 * Capture, order, and apply changes on a granular level
+* Order modules dependency and then proceed with option 2
 
 ## Decision Outcome
 
-Chosen option: "Option 2", Only option one.
+Chosen option: "Option 3", Only option three takes all decision drivers into account by design.
 
 ### Positive Consequences <!-- optional -->
-
-* {e.g., improvement of quality attribute satisfaction, follow-up decisions required, …}
-* …
+* Allows for name resolution and also allows type inferencing to be done at an early stage.
 
 ### Negative Consequences <!-- optional -->
+???
 
 * {e.g., compromising quality attribute, follow-up decisions required, …}
 * …
@@ -62,12 +59,13 @@ Chosen option: "Option 2", Only option one.
 
 ### Process changes in any order and validate the the final result (Repo)
 
-Process all the changed modules in any order and validate the result (Repo) <!-- optional -->
+Processing in this manner simply means that after changed modules (inserted, deleted or updated modules) have been collected, we proceed to process the changes that occurred without re-ordering modules, or types or values.
+After all processing has been done, then we attempt to validate the Repo (the output of the process) and error out if the repo is invalid.
 
-* Good, because d
-* Good, because {argument b}
-* Bad, because {argument c}
-* … <!-- numbers of pros and cons can vary -->
+* Good, It's fast.
+* Good, because this approach isn't complex.
+* Bad, because it doesn't take name resolution into account.
+* Bad, as it would be difficult to collect meaningful errors after validating the repo
 
 ### Capture, order, and apply changes on a granular level
 
