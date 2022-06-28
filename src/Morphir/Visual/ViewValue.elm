@@ -7,7 +7,7 @@ import Element.Border as Border
 import Element.Events exposing (onClick, onMouseEnter, onMouseLeave)
 import Element.Font as Font exposing (..)
 import Html.Attributes exposing (style)
-import Morphir.IR.FQName exposing (FQName)
+import Morphir.IR.FQName exposing (FQName, getLocalName)
 import Morphir.IR.Name exposing (Name, toCamelCase)
 import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.SDK.Basics as Basics
@@ -23,6 +23,7 @@ import Morphir.Visual.Theme exposing (mediumPadding, mediumSpacing, smallPadding
 import Morphir.Visual.ViewApply as ViewApply
 import Morphir.Visual.ViewArithmetic as ViewArithmetic
 import Morphir.Visual.ViewBoolOperatorTree as ViewBoolOperatorTree
+import Morphir.Visual.ViewDestructure as ViewDestructure
 import Morphir.Visual.ViewIfThenElse as ViewIfThenElse
 import Morphir.Visual.ViewLambda as ViewLambda
 import Morphir.Visual.ViewList as ViewList
@@ -118,7 +119,7 @@ viewValueByLanguageFeature config value =
                             Element.none
 
                         ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "nothing" ] ) ->
-                            el [ Font.bold ] (text " - ")
+                            el [Element.centerY ] (text " - ")
 
                         _ ->
                             Element.row
@@ -306,25 +307,43 @@ viewValueByLanguageFeature config value =
                         , ViewRecord.view config (viewValue config) newFields
                         ]
 
-                other ->
-                    Element.column
-                        [ Background.color (rgb 1 0.6 0.6)
-                        , smallPadding config.state.theme |> padding
-                        , Border.rounded 6
-                        ]
-                        [ Element.el
-                            [ smallPadding config.state.theme |> padding
-                            , Font.bold
-                            ]
-                            (Element.text "No visual mapping found for:")
-                        , Element.el
-                            [ Background.color (rgb 1 1 1)
-                            , smallPadding config.state.theme |> padding
-                            , Border.rounded 6
-                            , width fill
-                            ]
-                            (XRayView.viewValue (XRayView.viewType moduleNameToPathString) ((other |> Debug.log "?") |> Value.mapValueAttributes identity (\( _, tpe ) -> tpe)))
-                        ]
+                Value.Destructure _ pattern val1 val2 ->
+                    ViewDestructure.view config viewValue pattern val1 val2
+
+                Value.LetRecursion tpe definitionDict val ->
+                    Element.column [] (Dict.map (\k v -> Value.LetDefinition tpe k v val) definitionDict |> Dict.values |> List.map (viewValue config))
+
+                other   ->
+                    let
+                        unableToVisualize = 
+                            Element.column
+                                [ Background.color (rgb 1 0.6 0.6)
+                                , smallPadding config.state.theme |> padding
+                                , Border.rounded 6
+                                ]
+                                [ Element.el
+                                    [ smallPadding config.state.theme |> padding
+                                    , Font.bold
+                                    ]
+                                    (Element.text "No visual mapping found for:")
+                                , Element.el
+                                    [ Background.color (rgb 1 1 1)
+                                    , smallPadding config.state.theme |> padding
+                                    , Border.rounded 6
+                                    , width fill
+                                    ]
+                                    (XRayView.viewValue (XRayView.viewType moduleNameToPathString) ((other |> Debug.log "unable to visualize: ") |> Value.mapValueAttributes identity (\( _, tpe ) -> tpe)))
+                                ]
+                        in
+                    case Config.evaluate (other |> Value.toRawValue) config of
+                        Ok valueType ->
+                                case fromRawValue config.ir valueType of
+                                    Ok enrichedValue ->
+                                        viewValue config enrichedValue
+                                    Err _ ->
+                                        unableToVisualize
+                        Err _ ->
+                            unableToVisualize
     in
     valueElem
 
