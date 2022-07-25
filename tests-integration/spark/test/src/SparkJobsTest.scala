@@ -106,6 +106,14 @@ class test1 extends FunSuite {
     assert(res.collect()(0)(0) == 20)
   }
 
+  test("testnameMaximum") {
+    val dfFromRDD = rdd.toDF("name", "report", "ageOfItem", "product")
+    val res = SparkJobs.testnameMaximum(dfFromRDD)
+    assert(res.count() == 1)
+    assert(res.columns(0) == "max")
+    assert(res.collect()(0)(0) == "wooden chair")
+  }
+
   test("testSelect1") {
       val dfFromRDD = rdd.toDF("name", "report", "ageOfItem", "product")
       val res = SparkJobs.testSelect1(dfFromRDD)

@@ -183,6 +183,18 @@ testListMaximum source =
            )
 
 
+testnameMaximum : List Antique -> List { max : Maybe String }
+testnameMaximum source =
+    source
+        |> List.map .name
+        |> (\names ->
+                [ { max =
+                        List.maximum names
+                  }
+                ]
+           )
+
+
 testMapAndFilter : List Antique -> List Antique
 testMapAndFilter source =
     source
