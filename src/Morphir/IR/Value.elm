@@ -124,8 +124,9 @@ import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path as Path
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.ListOfResults as ListOfResults
-import Set exposing (Set)
 import Morphir.SDK.Decimal as Decimal
+import Morphir.SDK.LocalDate as LocalDate
+import Set exposing (Set)
 
 
 {-| Type that represents a value expression. This is a recursive data structure with various node types representing
@@ -1866,6 +1867,9 @@ toString value =
 
                 DecimalLiteral decimal ->
                     Decimal.toString decimal
+
+                LocalDateLiteral localDate ->
+                    LocalDate.toIsoString localDate
 
         patternToString : Pattern va -> String
         patternToString pattern =

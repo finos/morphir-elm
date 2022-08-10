@@ -28,8 +28,9 @@ module Morphir.IR.Literal exposing (Literal(..), boolLiteral, charLiteral, strin
 @docs Literal, boolLiteral, charLiteral, stringLiteral, intLiteral, floatLiteral
 
 -}
-import Morphir.SDK.Decimal exposing (Decimal)
 
+import Morphir.SDK.Decimal exposing (Decimal)
+import Morphir.SDK.LocalDate exposing (LocalDate)
 
 
 {-| Type that represents a literal value.
@@ -41,6 +42,7 @@ type Literal
     | WholeNumberLiteral Int
     | FloatLiteral Float
     | DecimalLiteral Decimal
+    | LocalDateLiteral LocalDate
 
 
 {-| Represents a boolean value. Only possible values are: `True`, `False`

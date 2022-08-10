@@ -21,6 +21,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.SDK.Decimal as Decimal
+import Morphir.SDK.LocalDate as LocalDate
 
 
 encodeLiteral : Literal -> Encode.Value
@@ -60,6 +61,12 @@ encodeLiteral l =
             Encode.list identity
                 [ Encode.string "decimal_literal"
                 , Encode.string (Decimal.toString v)
+                ]
+
+        LocalDateLiteral localDate ->
+            Encode.list identity
+                [ Encode.string "LocalDateLiteral"
+                , Encode.string (LocalDate.toIsoString localDate)
                 ]
 
 
@@ -108,6 +115,21 @@ decodeLiteral =
                             (Decode.index 1 Decode.string
                                 |> Decode.andThen
                                     (\str -> Decode.succeed <| dec str)
+                            )
+
+                    "LocalDateLiteral" ->
+                        let
+                            decodeLocalDate str =
+                                case LocalDate.fromISO str of
+                                    Just localDate ->
+                                        Decode.succeed localDate
+
+                                    Nothing ->
+                                        Decode.fail "Invalid date string"
+                        in
+                        Decode.map LocalDateLiteral
+                            (Decode.index 1 Decode.string
+                                |> Decode.andThen decodeLocalDate
                             )
 
                     other ->
