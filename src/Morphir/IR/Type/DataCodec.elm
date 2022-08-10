@@ -12,12 +12,13 @@ import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (RawValue, Value)
 import Morphir.ListOfResults as ListOfResults
 import Morphir.SDK.Decimal as Decimal
+import Morphir.SDK.LocalDate as LocalDate
 
 
 encodeData : IR -> Type () -> Result String (RawValue -> Result String Encode.Value)
 encodeData ir tpe =
     case tpe of
-        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], moduleName, localName ) args ->
+        Type.Reference _ (( [ [ "morphir" ], [ "s", "d", "k" ] ], moduleName, localName ) as fqn) args ->
             case ( moduleName, localName, args ) of
                 ( [ [ "basics" ] ], [ "bool" ], [] ) ->
                     Ok
@@ -115,6 +116,17 @@ encodeData ir tpe =
                                         Err (String.concat [ "Expected Just or Nothing but found: ", Debug.toString value ])
                             )
 
+                ( [ [ "local", "date" ] ], [ "local", "date" ], [] ) ->
+                    Ok
+                        (\value ->
+                            case value of
+                                Value.Literal _ (LocalDateLiteral localDate) ->
+                                    Ok (Encode.string (LocalDate.toIsoString localDate))
+
+                                _ ->
+                                    Err (String.concat [ "Expected LocalDate literal but found: ", Debug.toString value ])
+                        )
+
                 --( [ [ "result" ] ], [ "result" ], [ itemType ] ) ->
                 --    encodeData ir itemType
                 --        |> Result.map
@@ -130,7 +142,7 @@ encodeData ir tpe =
                 --                        Err (String.concat [ "Expected Ok or Error but found: ", Debug.toString value ])
                 --            )
                 _ ->
-                    Debug.todo "implement"
+                    Err ("Type Not Supported " ++ FQName.toString fqn)
 
         Type.Reference _ (( typePackageName, typeModuleName, _ ) as fQName) typeArgs ->
             -- Handle references that are not part of the SDK
