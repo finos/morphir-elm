@@ -40,6 +40,11 @@ app.use(express.json());
 app.use(cookieParser())
 app.use(csrfProtection)
 
+app.get('/csrf', csrfProtection, function(req, res) {
+  // Generate a tocken and send it to the view
+  res.send({ csrfToken: req.csrfToken() })
+  })
+
 app.get('/server/morphir.json', wrap(async (req, res, next) => {
   const morphirJsonPath = path.join(program.opts().projectDir, 'morphir.json')
   const morphirJsonContent = await readFile(morphirJsonPath)
