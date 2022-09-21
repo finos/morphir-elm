@@ -23,15 +23,15 @@ to the file-system.
 
 import Dict exposing (Dict)
 import Morphir.File.FileMap exposing (FileMap)
-import Morphir.IR.AccessControlled exposing (AccessControlled)
+import Morphir.IR.AccessControlled exposing (AccessControlled, withPublicAccess)
 import Morphir.IR.Distribution as Distribution exposing (Distribution)
 import Morphir.IR.FQName as FQName
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package exposing (PackageName)
 import Morphir.IR.Path as Path exposing (Path)
-import Morphir.IR.Type as Type exposing (Type)
-import Morphir.JsonSchema.AST exposing (Schema, SchemaType(..), TypeName)
+import Morphir.IR.Type as Type exposing (Type(..))
+import Morphir.JsonSchema.AST as Type exposing (Schema, SchemaType(..), TypeName)
 import Morphir.JsonSchema.PrettyPrinter exposing (encodeSchema)
 
 
@@ -78,9 +78,9 @@ generateSchema packageName packageDefinition =
                 |> Dict.foldl
                     (\modName modDef listSoFar ->
                         extractTypes modName modDef.value
-                            |> List.filterMap
+                            |> List.concatMap
                                 (\( qualifiedName, typeDef ) ->
-                                    mapTypeDefinition (mapQualifiedName qualifiedName) typeDef
+                                    mapTypeDefinition qualifiedName typeDef
                                 )
                             |> (\lst -> listSoFar ++ lst)
                     )
@@ -105,55 +105,78 @@ extractTypes modName definition =
             )
 
 
-mapTypeDefinition : TypeName -> Type.Definition ta -> Maybe ( TypeName, SchemaType )
-mapTypeDefinition typeName definition =
+mapTypeDefinition : ( Path, Name ) -> Type.Definition ta -> List ( TypeName, SchemaType )
+mapTypeDefinition qualifiedName definition =
     case definition of
         Type.TypeAliasDefinition typeArgs typ ->
-            mapType typ
-                |> Maybe.map (Tuple.pair typeName)
+            [ ( mapQualifiedName qualifiedName, mapType typ ) ]
 
-        Type.CustomTypeDefinition typeArgs accessControlledConstructors ->
-            Nothing
+        Type.CustomTypeDefinition typeArgs accessControlledCtors ->
+            case accessControlledCtors.value |> Dict.toList of
+                -- Just one Constructor
+                [ ( ctorName, ctorArgs ) ] ->
+                    -- Constructor name is same as type name
+                    if ctorName == Tuple.second qualifiedName then
+                        -- Just one argument
+                        if List.length ctorArgs == 1 then
+                            let
+                                schemaType =
+                                    case ctorArgs |> List.head of
+                                        Just item ->
+                                            mapType (Tuple.second item)
+
+                                        Nothing ->
+                                            Null
+                            in
+                            [ ( Tuple.second qualifiedName |> Name.toTitleCase, schemaType ) ]
+
+                        else
+                            []
+
+                    else
+                        []
+
+                _ ->
+                    []
 
 
-mapType : Type ta -> Maybe SchemaType
+mapType : Type ta -> SchemaType
 mapType typ =
     case typ of
         Type.Reference a fQName types ->
             case FQName.toString fQName of
                 "Morphir.SDK:Basics:int" ->
-                    Just Integer
+                    Integer
 
                 "Morphir.SDK:String:string" ->
-                    Just String
+                    String
 
                 "Morphir.SDK:Basics:float" ->
-                    Just Number
+                    Number
 
                 "Morphir.SDK:Basics:bool" ->
-                    Just Boolean
+                    Boolean
 
                 "Morphir.SDK:List:list" ->
-                    List.head types
-                        |> Maybe.andThen mapType
-                        |> Maybe.map Array
+                    case List.head types of
+                        Just tpe ->
+                            mapType tpe
+
+                        Nothing ->
+                            Null
 
                 _ ->
-                    Nothing
+                    Null
 
         Type.Record a fields ->
             fields
                 |> List.foldl
-                    (\field maybeDictSoFar ->
-                        maybeDictSoFar
-                            |> Maybe.map2
-                                (\schemaType dictSofar ->
-                                    Dict.insert (Name.toTitleCase field.name) schemaType dictSofar
-                                )
-                                (mapType field.tpe)
+                    (\field ->
+                        \dictSofar ->
+                            Dict.insert (Name.toTitleCase field.name) (mapType field.tpe) dictSofar
                     )
-                    (Just Dict.empty)
-                |> Maybe.map Object
+                    Dict.empty
+                |> Object
 
         _ ->
-            Nothing
+            Null

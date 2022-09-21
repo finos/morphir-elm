@@ -30,4 +30,4 @@ type SchemaType
     | Number
     | Boolean
     | Object (Dict String SchemaType)
-    | Other
+    | Null
