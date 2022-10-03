@@ -16,13 +16,6 @@ type alias Schema =
     }
 
 
-type alias CustomNode =
-    { typeName : String
-    , constructor : String
-    , args : List SchemaType
-    }
-
-
 type SchemaType
     = Integer
     | Array SchemaType
