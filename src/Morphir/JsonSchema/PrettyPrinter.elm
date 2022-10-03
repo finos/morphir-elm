@@ -50,3 +50,6 @@ encodeSchemaType schemaType =
                 [ ( "type", Encode.string "object" )
                 , ( "properties", Encode.dict identity encodeSchemaType st )
                 ]
+
+        Null ->
+            Encode.null
