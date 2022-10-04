@@ -52,3 +52,4 @@ However, the items field MUST be present if the type of the schema is array.
 
 
 ### Working With Custom Types
+JSON does not directly support this data type.
