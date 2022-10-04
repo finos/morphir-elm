@@ -12,7 +12,7 @@ Finally, it provides a step by step walk-throughs on how various Morphir compone
 2. [Overview of Morphir](#)
 3. [The Morphir Architecture](#) <br>
 4. [The Morphir SDK](#) <br>
-5. [Morphir Commands Processing](Morphir-elm Commands Processing) <br>
+5. [Morphir Commands Processing](files/morphir-commands-processing.md) <br>
     1. [morphir-elm make](#) <br>
     2. [morphir-elm gen](#) <br>
     3. [morphir-elm test](#) <br>
@@ -36,6 +36,8 @@ Finally, it provides a step by step walk-throughs on how various Morphir compone
     2. [Spark Backend](files/spark-backend.md)
     3. [Relational IR Backends](files/relational-backend.md)
     4. [Scala Json Codecs Backend](files/scala-backend.md)
+    5. [Json Schema Backend](files/json-mapping.md)
+    6. [OpenAPI Backend](files/openapi-backend.md)
 11. [Working with CODECS](#) <br>
     1. [Introduction to Encoding/Decoding](#) <br>
     2. [JSON Decoder Building Blocks](#) <br>
