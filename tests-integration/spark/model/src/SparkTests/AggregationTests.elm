@@ -1,7 +1,9 @@
 module SparkTests.AggregationTests exposing (..)
 
 import Morphir.SDK.Aggregate exposing (aggregate, averageOf, count, groupBy, maximumOf, minimumOf, sumOf, withFilter)
+import Morphir.SDK.Key exposing (key2)
 import SparkTests.DataDefinition.Persistence.Income.AntiqueShop exposing (Antique, Product)
+import SparkTests.DataDefinition.Field.Category exposing (Category)
 
 
 testAggregateSum : List Antique -> List { product : Product, sum : Float }
@@ -112,6 +114,18 @@ testAggregateRenameKey antiques =
         |> aggregate
             (\key inputs ->
                 { itemType = key
+                , count = inputs count
+                }
+            )
+
+testAggregateMultiGroup : List Antique -> List { category : Maybe Category, product : Product, count : Float }
+testAggregateMultiGroup antiques =
+    antiques
+        |> groupBy (key2 .category .product)
+        |> aggregate
+            (\(categoryKey, productKey) inputs ->
+                { category = categoryKey
+                , product = productKey
                 , count = inputs count
                 }
             )
