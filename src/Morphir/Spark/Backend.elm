@@ -31,6 +31,7 @@ This uses a two-step process
 -}
 
 import Dict exposing (Dict)
+import Json.Encode as Encode
 import Morphir.File.FileMap exposing (FileMap)
 import Morphir.IR as IR exposing (IR)
 import Morphir.IR.AccessControlled as AccessControlled exposing (Access(..), AccessControlled)
@@ -41,6 +42,7 @@ import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Type as Type exposing (Type)
+import Morphir.IR.Type.Codec as TypeCodec
 import Morphir.IR.Value as Value exposing (TypedValue, Value)
 import Morphir.SDK.ResultList as ResultList
 import Morphir.Scala.AST as Scala
@@ -48,6 +50,7 @@ import Morphir.Scala.Feature.Core as ScalaBackend
 import Morphir.Scala.PrettyPrinter as PrettyPrinter
 import Morphir.Spark.API as Spark
 import Morphir.Spark.AST as SparkAST exposing (..)
+import Morphir.Spark.AST.Codec as ASTCodec
 
 
 type alias Options =
@@ -105,7 +108,9 @@ mapDistribution _ distro =
                                                         Err err ->
                                                             let
                                                                 _ =
-                                                                    Debug.log "mapFunctionDefinition error" err
+                                                                    encodeError err
+                                                                        |> Encode.encode 2
+                                                                        |> Debug.log "mapFunctionDefinition error"
                                                             in
                                                             Nothing
                                                 )
@@ -421,3 +426,29 @@ mapFQName fQName =
             ScalaBackend.mapFQNameToPathAndName fQName
     in
     Scala.Ref path (ScalaBackend.mapValueName name)
+
+
+
+--Error Encoders
+
+
+encodeError : Error -> Encode.Value
+encodeError err =
+    case err of
+        FunctionNotFound fQName ->
+            Encode.list Encode.string
+                [ "FunctionNotFound"
+                , FQName.toString fQName
+                ]
+
+        UnknownArgumentType tpe ->
+            Encode.list identity
+                [ Encode.string "UnknownArgumentType"
+                , TypeCodec.encodeType (always Encode.null) tpe
+                ]
+
+        MappingError error ->
+            Encode.list identity
+                [ Encode.string "MappingError"
+                , ASTCodec.encodeError error
+                ]
