@@ -100,8 +100,8 @@ mapDistribution _ distro =
                                         accessControlledModuleDef.value.values
                                             |> Dict.toList
                                             |> List.filterMap
-                                                (\( valueName, _ ) ->
-                                                    case mapFunctionDefinition ir ( packageName, moduleName, valueName ) of
+                                                (\( valueName, accCntrldDcmntedValueDef ) ->
+                                                    case mapFunctionDefinition ir ( packageName, moduleName, valueName ) accCntrldDcmntedValueDef.value.value of
                                                         Ok memberDecl ->
                                                             Just (Scala.withoutAnnotation memberDecl)
 
@@ -109,7 +109,7 @@ mapDistribution _ distro =
                                                             let
                                                                 _ =
                                                                     encodeError err
-                                                                        |> Encode.encode 2
+                                                                        |> Encode.encode 0
                                                                         |> Debug.log "mapFunctionDefinition error"
                                                             in
                                                             Nothing
@@ -212,8 +212,8 @@ mapEnumToLiteral value =
 
 {-| Maps function definitions defined within the current package to scala
 -}
-mapFunctionDefinition : IR -> FQName -> Result Error Scala.MemberDecl
-mapFunctionDefinition ir (( _, _, localFunctionName ) as fullyQualifiedFunctionName) =
+mapFunctionDefinition : IR -> FQName -> Value.Definition () (Type ()) -> Result Error Scala.MemberDecl
+mapFunctionDefinition ir (( _, _, localFunctionName ) as fullyQualifiedFunctionName) valueDefinition =
     let
         mapFunctionInputs : List ( Name, va, Type () ) -> Result Error (List Scala.ArgDecl)
         mapFunctionInputs inputTypes =
@@ -234,25 +234,19 @@ mapFunctionDefinition ir (( _, _, localFunctionName ) as fullyQualifiedFunctionN
                     )
                 |> ResultList.keepFirstError
     in
-    ir
-        |> IR.lookupValueDefinition fullyQualifiedFunctionName
-        |> Result.fromMaybe (FunctionNotFound fullyQualifiedFunctionName)
-        |> Result.andThen
-            (\functionDef ->
-                Result.map2
-                    (\scalaArgs scalaFunctionBody ->
-                        Scala.FunctionDecl
-                            { modifiers = []
-                            , name = localFunctionName |> Name.toCamelCase
-                            , typeArgs = []
-                            , args = [ scalaArgs ]
-                            , returnType = Just Spark.dataFrame
-                            , body = Just scalaFunctionBody
-                            }
-                    )
-                    (mapFunctionInputs functionDef.inputTypes)
-                    (mapValue ir functionDef.body)
-            )
+    Result.map2
+        (\scalaArgs scalaFunctionBody ->
+            Scala.FunctionDecl
+                { modifiers = []
+                , name = localFunctionName |> Name.toCamelCase
+                , typeArgs = []
+                , args = [ scalaArgs ]
+                , returnType = Just Spark.dataFrame
+                , body = Just scalaFunctionBody
+                }
+        )
+        (mapFunctionInputs valueDefinition.inputTypes)
+        (mapValue ir valueDefinition.body)
 
 
 {-| Maps morphir values to scala values
