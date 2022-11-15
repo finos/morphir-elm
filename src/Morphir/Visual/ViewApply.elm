@@ -1,7 +1,7 @@
 module Morphir.Visual.ViewApply exposing (view)
 
 import Dict exposing (Dict)
-import Element exposing (Element, above, centerX, centerY, el, fill, moveUp, padding, paddingEach, rgb, row, spacing, text, width)
+import Element exposing (Element, above, alignRight, centerX, centerY, column, el, fill, moveUp, padding, paddingEach, rgb, row, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -179,9 +179,70 @@ view config viewDefinitionBody viewValue functionValue argValues =
                             ]
 
                     Nothing ->
-                        row
-                            ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding ] ++ styles)
-                            [ viewFunctionValue fqName, viewValue argValues1, viewValue argValues2 ]
+                        let
+                            argList : Element msg
+                            argList =
+                                row [ width fill, centerX, smallSpacing config.state.theme |> spacing ]
+                                    (argValues
+                                        |> List.map viewValue
+                                    )
+
+                            drillDown : DrillDownFunctions -> List Int -> Maybe (Value.Definition () (Type ()))
+                            drillDown dict nodePath =
+                                if drillDownContains dict (getId functionValue) nodePath then
+                                    Dict.get fqName config.ir.valueDefinitions
+
+                                else
+                                    Nothing
+
+                            closedElement =
+                                 el [ centerX ] (functionOutput fqName)                                   
+
+                            openElement =
+                                case fqName of
+                                    ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
+                                         row ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding, config.state.theme |> borderRounded ] ++ styles)
+                                        [ viewFunctionValue fqName
+                                        , argList
+                                        ]
+                                    _->
+                                        case drillDown config.state.drillDownFunctions config.nodePath of
+                                            Just valueDef ->
+                                                let
+                                                    variables =
+                                                        Dict.fromList (List.map2 (\( name, _, _ ) argValue -> ( name, argValue |> evalIfPathTaken config |> Maybe.withDefault (Value.Unit ()) )) valueDef.inputTypes argValues)
+
+                                                    visualState : Morphir.Visual.Config.VisualState
+                                                    visualState =
+                                                        config.state
+                                                in
+                                                    viewDefinitionBody { config | state = { visualState | variables = variables }, nodePath = config.nodePath ++ [ getId functionValue ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
+
+                                            Nothing ->
+                                                Element.none
+
+                            openHeader =
+                                let
+                                    ( _, _, valueName ) =
+                                        fqName
+                                in
+                                case fqName of
+                                    ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
+                                        closedElement
+                                    _->
+                                        row []
+                                            [ el [ Background.color <| config.state.theme.colors.selectionColor, smallPadding config.state.theme |> padding ] (text (nameToText valueName))
+                                            , argList
+                                            , text " = "
+                                            ]
+                        in
+                        column []
+                            [ row
+                                ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding ] ++ styles)
+                                [drillDownPanel fqName (List.length config.nodePath) closedElement openHeader openElement (drillDownContains config.state.drillDownFunctions (getId functionValue) config.nodePath)
+
+                                ]
+                            ]
 
         ( Value.Reference _ fqName, _ ) ->
             let
@@ -202,36 +263,46 @@ view config viewDefinitionBody viewValue functionValue argValues =
 
                 closedElement =
                     row ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding, config.state.theme |> borderRounded ] ++ styles)
-                        [ viewFunctionValue fqName
-                        , argList
-                        ]
+                            [ el [ centerX ] (functionOutput fqName)
+                            ]
 
                 openElement =
-                    case drillDown config.state.drillDownFunctions config.nodePath of
-                        Just valueDef ->
-                            let
-                                variables =
-                                    Dict.fromList (List.map2 (\( name, _, _ ) argValue -> ( name, argValue |> evalIfPathTaken config |> Maybe.withDefault (Value.Unit ()) )) valueDef.inputTypes argValues)
+                    case fqName of
+                        ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
+                             row ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding, config.state.theme |> borderRounded ] ++ styles)
+                            [ viewFunctionValue fqName
+                            , argList
+                            ]
+                        _->
+                            case drillDown config.state.drillDownFunctions config.nodePath of
+                                Just valueDef ->
+                                    let
+                                        variables =
+                                            Dict.fromList (List.map2 (\( name, _, _ ) argValue -> ( name, argValue |> evalIfPathTaken config |> Maybe.withDefault (Value.Unit ()) )) valueDef.inputTypes argValues)
 
-                                visualState : Morphir.Visual.Config.VisualState
-                                visualState =
-                                    config.state
-                            in
-                            viewDefinitionBody { config | state = { visualState | variables = variables }, nodePath = config.nodePath ++ [ getId functionValue ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
+                                        visualState : Morphir.Visual.Config.VisualState
+                                        visualState =
+                                            config.state
+                                    in
+                                        viewDefinitionBody { config | state = { visualState | variables = variables }, nodePath = config.nodePath ++ [ getId functionValue ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
 
-                        Nothing ->
-                            Element.none
+                                Nothing ->
+                                    Element.none
 
                 openHeader =
                     let
                         ( _, _, valueName ) =
                             fqName
                     in
-                    row []
-                        [ el [ Background.color <| config.state.theme.colors.selectionColor, smallPadding config.state.theme |> padding ] (text (nameToText valueName))
-                        , argList
-                        , text " = "
-                        ]
+                    case fqName of
+                        ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
+                            closedElement
+                        _->
+                            row []
+                                [ el [ Background.color <| config.state.theme.colors.selectionColor, smallPadding config.state.theme |> padding ] (text (nameToText valueName))
+                                , argList
+                                , text " = "
+                                ]
             in
             drillDownPanel fqName (List.length config.nodePath) closedElement openHeader openElement (drillDownContains config.state.drillDownFunctions (getId functionValue) config.nodePath)
 

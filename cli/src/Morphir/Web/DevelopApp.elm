@@ -398,9 +398,6 @@ update msg model =
             case insightMsg of
                 ExpandReference fQName id nodePath ->
                     case fQName of
-                        ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
-                            ( model, Cmd.none )
-
                         _ ->
                             ( { model
                                 | insightViewState =
@@ -413,9 +410,6 @@ update msg model =
 
                 ShrinkReference fQName id nodePath ->
                     case fQName of
-                        ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
-                            ( model, Cmd.none )
-
                         _ ->
                             ( { model
                                 | insightViewState =
