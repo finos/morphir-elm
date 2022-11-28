@@ -54,20 +54,20 @@ import Morphir.Spark.AST.Codec as ASTCodec
 
 
 type alias Options =
-    {}
+    { modulesToProcess : Maybe (List ModuleName) }
 
 
 type Error
     = FunctionNotFound FQName
     | UnknownArgumentType (Type ())
-    | MappingError SparkAST.Error
+    | MappingError FQName SparkAST.Error
 
 
 {-| Entry point for the Spark backend. It takes the Morphir IR as the input and returns an in-memory
 representation of files generated.
 -}
-mapDistribution : Options -> Distribution -> FileMap
-mapDistribution _ distro =
+mapDistribution : Options -> Distribution -> Result Error FileMap
+mapDistribution opts distro =
     let
         fixedDistro =
             fixDistribution distro
@@ -78,8 +78,21 @@ mapDistribution _ distro =
                 ir : IR
                 ir =
                     IR.fromDistribution fixedDistro
+
+                modulesToProcess : Dict ModuleName (AccessControlled (Module.Definition () (Type ())))
+                modulesToProcess =
+                    case opts.modulesToProcess of
+                        Just modNames ->
+                            packageDef.modules
+                                |> Dict.filter (\k _ -> List.member k modNames)
+
+                        Nothing ->
+                            packageDef.modules
+
+                _ =
+                    Debug.log "INFO:" ("Processing " ++ (Dict.size modulesToProcess |> String.fromInt) ++ " modules")
             in
-            packageDef.modules
+            modulesToProcess
                 |> Dict.toList
                 |> List.map
                     (\( moduleName, accessControlledModuleDef ) ->
@@ -90,47 +103,50 @@ mapDistribution _ distro =
                                     ++ moduleName
                                     |> List.map (Name.toCamelCase >> String.toLower)
 
-                            object : Scala.TypeDecl
-                            object =
-                                Scala.Object
-                                    { modifiers = []
-                                    , name = "SparkJobs"
-                                    , extends = []
-                                    , members =
-                                        accessControlledModuleDef.value.values
-                                            |> Dict.toList
-                                            |> List.filterMap
-                                                (\( valueName, accCntrldDcmntedValueDef ) ->
-                                                    case mapFunctionDefinition ir ( packageName, moduleName, valueName ) accCntrldDcmntedValueDef.value.value of
-                                                        Ok memberDecl ->
-                                                            Just (Scala.withoutAnnotation memberDecl)
+                            objectResult : Result Error Scala.TypeDecl
+                            objectResult =
+                                accessControlledModuleDef.value.values
+                                    |> Dict.toList
+                                    |> List.map
+                                        (\( valueName, accCntrldDcmntedValueDef ) ->
+                                            mapFunctionDefinition ir ( packageName, moduleName, valueName ) accCntrldDcmntedValueDef.value.value
+                                                |> Result.map Scala.withoutAnnotation
+                                        )
+                                    |> ResultList.keepFirstError
+                                    |> Result.map
+                                        (\s ->
+                                            Scala.Object
+                                                { modifiers = []
+                                                , name = "SparkJobs"
+                                                , extends = []
+                                                , members = s
+                                                , body = Nothing
+                                                }
+                                        )
 
-                                                        Err err ->
-                                                            let
-                                                                _ =
-                                                                    encodeError err
-                                                                        |> Encode.encode 0
-                                                                        |> Debug.log "mapFunctionDefinition error"
-                                                            in
-                                                            Nothing
-                                                )
-                                    , body = Nothing
-                                    }
-
-                            compilationUnit : Scala.CompilationUnit
-                            compilationUnit =
-                                { dirPath = packagePath
-                                , fileName = "SparkJobs.scala"
-                                , packageDecl = packagePath
-                                , imports = []
-                                , typeDecls = [ Scala.Documented Nothing (Scala.withoutAnnotation object) ]
-                                }
+                            compilationUnitResult : Result Error Scala.CompilationUnit
+                            compilationUnitResult =
+                                objectResult
+                                    |> Result.map
+                                        (\object ->
+                                            { dirPath = packagePath
+                                            , fileName = "SparkJobs.scala"
+                                            , packageDecl = packagePath
+                                            , imports = []
+                                            , typeDecls = [ Scala.Documented Nothing (Scala.withoutAnnotation object) ]
+                                            }
+                                        )
                         in
-                        ( ( packagePath, "SparkJobs.scala" )
-                        , PrettyPrinter.mapCompilationUnit (PrettyPrinter.Options 2 80) compilationUnit
-                        )
+                        compilationUnitResult
+                            |> Result.map
+                                (\compilationUnit ->
+                                    ( ( packagePath, "SparkJobs.scala" )
+                                    , PrettyPrinter.mapCompilationUnit (PrettyPrinter.Options 2 80) compilationUnit
+                                    )
+                                )
                     )
-                |> Dict.fromList
+                |> ResultList.keepFirstError
+                |> Result.map Dict.fromList
 
 
 {-| Fix up the modules in the Distribution prior to generating Spark code
@@ -213,7 +229,7 @@ mapEnumToLiteral value =
 {-| Maps function definitions defined within the current package to scala
 -}
 mapFunctionDefinition : IR -> FQName -> Value.Definition () (Type ()) -> Result Error Scala.MemberDecl
-mapFunctionDefinition ir (( _, _, localFunctionName ) as fullyQualifiedFunctionName) valueDefinition =
+mapFunctionDefinition ir (( _, _, localFunctionName ) as fqName) valueDefinition =
     let
         mapFunctionInputs : List ( Name, va, Type () ) -> Result Error (List Scala.ArgDecl)
         mapFunctionInputs inputTypes =
@@ -246,16 +262,16 @@ mapFunctionDefinition ir (( _, _, localFunctionName ) as fullyQualifiedFunctionN
                 }
         )
         (mapFunctionInputs valueDefinition.inputTypes)
-        (mapValue ir valueDefinition.body)
+        (mapValue ir fqName valueDefinition.body)
 
 
 {-| Maps morphir values to scala values
 -}
-mapValue : IR -> TypedValue -> Result Error Scala.Value
-mapValue ir body =
+mapValue : IR -> FQName -> TypedValue -> Result Error Scala.Value
+mapValue ir fqn body =
     body
         |> SparkAST.objectExpressionFromValue ir
-        |> Result.mapError MappingError
+        |> Result.mapError (MappingError fqn)
         |> Result.andThen mapObjectExpressionToScala
 
 
@@ -335,6 +351,11 @@ mapExpression expression =
 
         Variable name ->
             Scala.Variable name
+
+        Not expr ->
+            Scala.Apply
+                (Scala.Ref [ "org", "apache", "spark", "sql", "functions" ] "not")
+                (mapExpression expr |> Scala.ArgValue Nothing |> List.singleton)
 
         WhenOtherwise condition thenBranch elseBranch ->
             let
@@ -441,8 +462,9 @@ encodeError err =
                 , TypeCodec.encodeType (always Encode.null) tpe
                 ]
 
-        MappingError error ->
+        MappingError fqn error ->
             Encode.list identity
                 [ Encode.string "MappingError"
+                , Encode.string (FQName.toString fqn)
                 , ASTCodec.encodeError error
                 ]

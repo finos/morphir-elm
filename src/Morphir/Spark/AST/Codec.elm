@@ -118,6 +118,12 @@ encodeExpression expression =
                 , id
                 ]
 
+        Not expr ->
+            Encode.list identity
+                [ Encode.string "Not"
+                , encodeExpression expr
+                ]
+
         BinaryOperation op leftExp rightExp ->
             Encode.list identity
                 [ Encode.string "BinaryOperation"

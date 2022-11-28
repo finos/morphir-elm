@@ -25,7 +25,7 @@ import Morphir.Compiler.Codec as CompilerCodec
 import Morphir.Correctness.Codec exposing (decodeTestSuite)
 import Morphir.Elm.Frontend as Frontend exposing (PackageInfo, SourceFile, SourceLocation)
 import Morphir.Elm.Frontend.Codec as FrontendCodec
-import Morphir.Elm.Target exposing (decodeOptions, mapDistribution)
+import Morphir.Elm.Target as Target exposing (decodeOptions, mapDistribution)
 import Morphir.File.FileMap.Codec exposing (encodeFileMap)
 import Morphir.IR as IR exposing (IR)
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
@@ -36,6 +36,7 @@ import Morphir.IR.SDK as SDK
 import Morphir.IR.Type exposing (Type)
 import Morphir.IR.Value as Value
 import Morphir.ListOfResults as List
+import Morphir.Spark.Backend as SparkBE
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
 
@@ -168,7 +169,7 @@ update msg model =
                         fileMap =
                             mapDistribution options enrichedDistro
                     in
-                    ( model, fileMap |> Ok |> encodeResult Encode.string encodeFileMap |> generateResult )
+                    ( model, fileMap |> encodeResult Encode.string encodeFileMap |> generateResult )
 
                 Err errorMessage ->
                     ( model, errorMessage |> Decode.errorToString |> jsonDecodeError )

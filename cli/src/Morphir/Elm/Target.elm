@@ -1,17 +1,17 @@
 module Morphir.Elm.Target exposing (..)
 
 import Json.Decode as Decode exposing (Error, Value)
+import Json.Encode as Encode
 import Morphir.File.FileMap exposing (FileMap)
 import Morphir.Graph.Backend.Codec
 import Morphir.Graph.CypherBackend as Cypher
 import Morphir.Graph.SemanticBackend as SemanticBackend
 import Morphir.IR.Distribution exposing (Distribution)
-import Morphir.IR.Package as Package
 import Morphir.JsonSchema.Backend
 import Morphir.Scala.Backend
 import Morphir.Scala.Backend.Codec
-import Morphir.Scala.Spark.Backend
-import Morphir.Spark.Backend
+import Morphir.Spark.Backend as Spark
+import Morphir.Spark.Backend.Codec
 import Morphir.SpringBoot.Backend as SpringBoot
 import Morphir.SpringBoot.Backend.Codec
 import Morphir.TypeScript.Backend
@@ -27,11 +27,15 @@ type BackendOptions
     | SemanticOptions Cypher.Options
     | CypherOptions Cypher.Options
     | TypeScriptOptions Morphir.TypeScript.Backend.Options
-    | SparkOptions Morphir.Scala.Spark.Backend.Options
+    | SparkOptions Spark.Options
     | JsonSchemaOptions Morphir.JsonSchema.Backend.Options
 
 
-decodeOptions : Result Error String -> Decode.Decoder BackendOptions
+type alias Error =
+    String
+
+
+decodeOptions : Result Decode.Error String -> Decode.Decoder BackendOptions
 decodeOptions gen =
     case gen of
         Ok "SpringBoot" ->
@@ -47,7 +51,7 @@ decodeOptions gen =
             Decode.map (\options -> TypeScriptOptions options) Morphir.Graph.Backend.Codec.decodeOptions
 
         Ok "Spark" ->
-            Decode.map SparkOptions (Decode.succeed Morphir.Scala.Spark.Backend.Options)
+            Decode.map (\options -> SparkOptions options) Morphir.Spark.Backend.Codec.decodeOptions
 
         Ok "JsonSchema" ->
             Decode.map JsonSchemaOptions (Decode.succeed Morphir.JsonSchema.Backend.Options)
@@ -56,26 +60,26 @@ decodeOptions gen =
             Decode.map (\options -> ScalaOptions options) Morphir.Scala.Backend.Codec.decodeOptions
 
 
-mapDistribution : BackendOptions -> Distribution -> FileMap
+mapDistribution : BackendOptions -> Distribution -> Result Error FileMap
 mapDistribution back dist =
     case back of
         SpringBootOptions options ->
-            SpringBoot.mapDistribution options dist
+            Ok (SpringBoot.mapDistribution options dist)
 
         SemanticOptions options ->
-            SemanticBackend.mapDistribution options dist
+            Ok (SemanticBackend.mapDistribution options dist)
 
         CypherOptions options ->
-            Cypher.mapDistribution options dist
+            Ok (Cypher.mapDistribution options dist)
 
         ScalaOptions options ->
-            Morphir.Scala.Backend.mapDistribution options dist
+            Ok (Morphir.Scala.Backend.mapDistribution options dist)
 
         TypeScriptOptions options ->
-            Morphir.TypeScript.Backend.mapDistribution options dist
+            Ok (Morphir.TypeScript.Backend.mapDistribution options dist)
 
         SparkOptions options ->
-            Morphir.Spark.Backend.mapDistribution options dist
+            Spark.mapDistribution options dist |> Result.mapError (Spark.encodeError >> Encode.encode 0)
 
         JsonSchemaOptions options ->
-            Morphir.JsonSchema.Backend.mapDistribution options dist
+            Ok (Morphir.JsonSchema.Backend.mapDistribution options dist)
