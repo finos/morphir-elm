@@ -79,13 +79,20 @@ async function gen(input, outputPath, options) {
     await mkdir(outputPath, {
         recursive: true
     })
-    const morphirIrJson = await readFile(path.resolve(input))  
+    const morphirIrJson = await readFile(path.resolve(input))
     const opts = options
+    if (options.customConfig !== null) {
+        const file = await readFile(path.resolve(options.customConfig))
+        opts.config = JSON.parse(file.toString())
+    } else {
+        opts.config = null
+    }
+    
+
     opts.limitToModules = options.modulesToInclude ? options.modulesToInclude.split(',') : null
     opts.includeCodecs = options.includeCodecs ? true : false
     opts.filename = options.filename
     const fileMap = await generate(opts, JSON.parse(morphirIrJson.toString()))
-
 
     const writePromises =
         fileMap.map(async ([

@@ -15,6 +15,7 @@ program
     .name('morphir-elm gen')
     .description('Generate code from Morphir IR')
     .option('-i, --input <path>', 'Source location where the Morphir IR will be loaded from.', 'morphir-ir.json')
+    .option('-cc, --custom-config <filepath>', 'A filepath to load additional configuration for backend.', null)
     .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
     .option('-t, --target <type>', 'Language to Generate (Scala | SpringBoot | cypher | triples | TypeScript).', 'Scala')
     .option('-e, --target-version <version>', 'Language version to Generate.', '2.11')
