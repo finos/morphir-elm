@@ -8,6 +8,7 @@ import Morphir.Graph.CypherBackend as Cypher
 import Morphir.Graph.SemanticBackend as SemanticBackend
 import Morphir.IR.Distribution exposing (Distribution)
 import Morphir.JsonSchema.Backend
+import Morphir.JsonSchema.Backend.Codec
 import Morphir.Scala.Backend
 import Morphir.Scala.Backend.Codec
 import Morphir.Spark.Backend as Spark
@@ -54,32 +55,32 @@ decodeOptions gen =
             Decode.map (\options -> SparkOptions options) Morphir.Spark.Backend.Codec.decodeOptions
 
         Ok "JsonSchema" ->
-            Decode.map JsonSchemaOptions (Decode.succeed Morphir.JsonSchema.Backend.Options)
+            Decode.map JsonSchemaOptions Morphir.JsonSchema.Backend.Codec.decodeOptions
 
         _ ->
             Decode.map (\options -> ScalaOptions options) Morphir.Scala.Backend.Codec.decodeOptions
 
 
-mapDistribution : BackendOptions -> Distribution -> Result Error FileMap
+mapDistribution : BackendOptions -> Distribution -> Result String FileMap
 mapDistribution back dist =
     case back of
         SpringBootOptions options ->
-            Ok (SpringBoot.mapDistribution options dist)
+            Ok <| SpringBoot.mapDistribution options dist
 
         SemanticOptions options ->
-            Ok (SemanticBackend.mapDistribution options dist)
+            Ok <| SemanticBackend.mapDistribution options dist
 
         CypherOptions options ->
-            Ok (Cypher.mapDistribution options dist)
+            Ok <| Cypher.mapDistribution options dist
 
         ScalaOptions options ->
-            Ok (Morphir.Scala.Backend.mapDistribution options dist)
+            Ok <| Morphir.Scala.Backend.mapDistribution options dist
 
         TypeScriptOptions options ->
-            Ok (Morphir.TypeScript.Backend.mapDistribution options dist)
+            Ok <| Morphir.TypeScript.Backend.mapDistribution options dist
 
         SparkOptions options ->
-            Spark.mapDistribution options dist |> Result.mapError (Spark.encodeError >> Encode.encode 0)
+            Spark.mapDistribution options dist
 
         JsonSchemaOptions options ->
-            Ok (Morphir.JsonSchema.Backend.mapDistribution options dist)
+            Morphir.JsonSchema.Backend.mapDistribution options dist

@@ -66,7 +66,7 @@ type Error
 {-| Entry point for the Spark backend. It takes the Morphir IR as the input and returns an in-memory
 representation of files generated.
 -}
-mapDistribution : Options -> Distribution -> Result Error FileMap
+mapDistribution : Options -> Distribution -> Result String FileMap
 mapDistribution opts distro =
     let
         fixedDistro =
@@ -144,6 +144,7 @@ mapDistribution opts distro =
                                     , PrettyPrinter.mapCompilationUnit (PrettyPrinter.Options 2 80) compilationUnit
                                     )
                                 )
+                            |> Result.mapError (encodeError >> Encode.encode 0)
                     )
                 |> ResultList.keepFirstError
                 |> Result.map Dict.fromList
