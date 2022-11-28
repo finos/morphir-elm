@@ -204,6 +204,7 @@ type Expression
     = Column String
     | Literal Literal
     | Variable String
+    | Not Expression
     | BinaryOperation String Expression Expression
     | WhenOtherwise Expression Expression Expression
     | Method Expression String (List Expression)
@@ -575,6 +576,34 @@ constructWhenEqualsOtherwise ir thenValue remainingCases leftValue rightExpr =
 -}
 mapPatterns : IR -> TypedValue -> List ( Pattern (Type.Type ()), TypedValue ) -> Result Error Expression
 mapPatterns ir onValue cases =
+    let
+        maybePatternToExpression : Pattern a -> ( Pattern (Type.Type ()), TypedValue ) -> TypedValue -> TypedValue -> Result Error Expression
+        maybePatternToExpression varNamePattern justPatternAndValue justBranch nothingBranch =
+            let
+                isValidPattern : Bool
+                isValidPattern =
+                    case varNamePattern of
+                        AsPattern _ (WildcardPattern _) _ ->
+                            True
+
+                        WildcardPattern _ ->
+                            True
+
+                        _ ->
+                            False
+            in
+            if isValidPattern then
+                Result.map3
+                    (\var whenBranch otherwiseBranch ->
+                        WhenOtherwise (Function "not" [ Function "isnull" [ var ] ]) whenBranch otherwiseBranch
+                    )
+                    (expressionFromValue ir onValue)
+                    (expressionFromValue ir justBranch)
+                    (expressionFromValue ir nothingBranch)
+
+            else
+                Err <| UnhandledPatternMatch justPatternAndValue
+    in
     case cases of
         [] ->
             EmptyPatternMatch |> Err
@@ -582,6 +611,12 @@ mapPatterns ir onValue cases =
         ( LiteralPattern _ lit, thenValue ) :: remainingCases ->
             Literal lit
                 |> constructWhenEqualsOtherwise ir thenValue remainingCases onValue
+
+        (( ConstructorPattern _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "just" ] ) [ varNamePattern ], justBranch ) as justPattern) :: ( ConstructorPattern _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "nothing" ] ) [], nothingBranch ) :: [] ->
+            maybePatternToExpression varNamePattern justPattern justBranch nothingBranch
+
+        ( ConstructorPattern _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "nothing" ] ) [], nothingBranch ) :: (( ConstructorPattern _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "just" ] ) [ varNamePattern ], justBranch ) as justPattern) :: [] ->
+            maybePatternToExpression varNamePattern justPattern justBranch nothingBranch
 
         ( ConstructorPattern va fqn [], thenValue ) :: remainingCases ->
             -- e.g. 'Bar'. Note, 'Just Bar' would require the third arg to not be an empty list.
@@ -889,6 +924,10 @@ fQNameToPartialSparkFunction fQName =
 mapSDKFunctions : IR -> List TypedValue -> FQName -> Result Error Expression
 mapSDKFunctions ir args fQName =
     case ( FQName.toString fQName, args ) of
+        ( "Morphir.SDK:Basics:not", value :: [] ) ->
+            expressionFromValue ir value
+                |> Result.map Not
+
         ( "Morphir.SDK:String:replace", pattern :: replacement :: target :: [] ) ->
             Result.map2
                 (\partialFunc exprArgs -> partialFunc exprArgs)
