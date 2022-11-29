@@ -129,8 +129,12 @@ function morphirElmMake2(projectDir, outputPath, options = {}) {
     return execa('node', args, { stdio })
 }
 
-function morphirElmGen(inputPath, outputDir, target) {
+function morphirElmGen(inputPath, outputDir, target, customConfig) {
     args = ['./cli/morphir-elm.js', 'gen', '-i', inputPath, '-o', outputDir, '-t', target]
+
+    if(customConfig)
+        args = [ ...args, "--custom-config", customConfig]
+
     console.log("Running: " + args.join(' '));
     return execa('node', args, { stdio })
 }
@@ -218,7 +222,7 @@ async function testIntegrationBuildScala(cb) {
 }
 
 async function testIntegrationMakeSpark(cb) {
-    await morphirElmMake(
+    await morphirElmMakeRunOldCli(
         './tests-integration/spark/model',
         './tests-integration/generated/sparkModel/morphir-ir.json')
 }
@@ -227,7 +231,8 @@ async function testIntegrationGenSpark(cb) {
     await morphirElmGen(
         './tests-integration/generated/sparkModel/morphir-ir.json',
         './tests-integration/generated/sparkModel/src/spark/',
-        'Spark')
+        'Spark',
+        './tests-integration/spark/model/spark.config.json')
 }
 
 async function testIntegrationBuildSpark(cb) {

@@ -1,7 +1,8 @@
 module SparkTests.AntiqueRulesTests exposing (..)
 
 import SparkTests.DataDefinition.Persistence.Income.AntiqueShop exposing (Antique)
-import SparkTests.Rules.Income.Antique exposing (..)
+import SparkTests.Rules.Income.AntiqueRules exposing (..)
+
 
 antique_items : List Antique -> List Antique
 antique_items antiques =

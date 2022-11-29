@@ -33,6 +33,7 @@ testReturnRecord antiques =
     , sum = antiques |> List.map .ageOfItem |> List.sum
     }
 
+
 testReturnApplyRecord : List { ageOfItem : Float } -> { sum : Float, min : Maybe Float }
 testReturnApplyRecord antiques =
     antiques
@@ -42,6 +43,7 @@ testReturnApplyRecord antiques =
                 , sum = List.sum ages
                 }
            )
+
 
 testReturnInlineApplyRecord : List { ageOfItem : Float } -> { sum : Float, min : Maybe Float }
 testReturnInlineApplyRecord antiques =
@@ -61,4 +63,12 @@ testReturnInlineApplyRecord antiques =
                 { min = getLeast ages
                 , sum = getAll ages
                 }
-            )
+           )
+
+
+
+-- Lambdas not supported
+--testReturnSelectLambda : List { ageOfItem : Float } -> List Float
+--testReturnSelectLambda list =
+--    list
+--        |> List.map (\a -> a.ageOfItem)

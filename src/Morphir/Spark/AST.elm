@@ -671,6 +671,13 @@ expressionFromValue ir morphirValue =
                         )
                         (expressionFromValue ir elseValue)
 
+                Value.Apply (Type.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "maybe" ] ) (vType :: [])) (Value.Apply maybeType2 (Value.Reference maybemapType ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "map" ] )) mapFn) sourceValue ->
+                    -- `Maybe.map fn value` becomes `fn value` because spark has implicit handling for nulls.
+                    Value.Apply vType
+                        mapFn
+                        sourceValue
+                        |> expressionFromValue ir
+
                 Value.Apply _ (Value.Literal (Type.Function _ _ (Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "maybe" ] ) _)) (StringLiteral "Just")) arg ->
                     -- `Just arg` becomes `arg` if `Just` was a Maybe.
                     expressionFromValue ir arg

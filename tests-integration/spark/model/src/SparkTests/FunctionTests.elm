@@ -2,6 +2,7 @@ module SparkTests.FunctionTests exposing (..)
 
 import SparkTests.DataDefinition.Persistence.Income.AntiqueShop exposing (Product(..))
 import SparkTests.Types exposing (..)
+import SparkTests.Utils exposing (filterFn, filterFnWithVar, item_filter)
 
 
 testCaseBool : List { foo : Bool } -> List { foo : Bool }
@@ -179,18 +180,20 @@ testNameMaximum source =
            )
 
 
-testMapAndFilter : List AntiqueSubset -> List AntiqueSubset
-testMapAndFilter source =
-    source
-        |> List.map
-            (\a ->
-                { name = String.concat [ a.name, " very old" ]
-                , report = Maybe.map String.toUpper a.report
-                , ageOfItem = a.ageOfItem
-                , product = a.product
-                }
-            )
-        |> List.filter filterFn
+
+-- String.concat not supported
+--testMapAndFilter : List AntiqueSubset -> List AntiqueSubset
+--testMapAndFilter source =
+--    source
+--        |> List.map
+--            (\a ->
+--                { name = String.concat [ a.name, " very old" ]
+--                , report = Maybe.map String.toUpper a.report
+--                , ageOfItem = a.ageOfItem
+--                , product = a.product
+--                }
+--            )
+--        |> List.filter filterFn
 
 
 testMapAndFilter2 : List AntiqueSubset -> List AntiqueSubset
@@ -221,24 +224,14 @@ testMapAndFilter3 source =
         |> List.filter filterFn
 
 
-testBadAnnotation : List AntiqueSubset -> List Product
-testBadAnnotation source =
-    source
-        |> List.map
-            (\_ ->
-                Knife
-            )
 
-
-item_filter : AntiqueSubset -> Bool
-item_filter record =
-    let
-        qualifiedYearsToBeCalledAntiqueSubset =
-            20.0
-    in
-    record.ageOfItem
-        >= qualifiedYearsToBeCalledAntiqueSubset
-        && (record.name == "Bowie Knife")
+--testBadAnnotation : List AntiqueSubset -> List Product
+--testBadAnnotation source =
+--    source
+--        |> List.map
+--            (\_ ->
+--                Knife
+--            )
 
 
 testLetBinding : List AntiqueSubset -> List AntiqueSubset
@@ -250,31 +243,26 @@ testLetBinding source =
 testLetDef : List AntiqueSubset -> List AntiqueSubset
 testLetDef source =
     let
-        exact1 = 5.0
-        exact2 = 7.0
-        max = 20.0
-        min = 10.0
-        not = 15.0
+        exact1 =
+            5.0
+
+        exact2 =
+            7.0
+
+        max =
+            20.0
+
+        min =
+            10.0
+
+        not =
+            15.0
     in
     source
         |> List.filter
             (\antique ->
                 (antique.ageOfItem <= max) && (antique.ageOfItem >= min) && (antique.ageOfItem /= not) || (antique.ageOfItem == exact1) || (antique.ageOfItem == exact2)
             )
-
-
-filterFn : AntiqueSubset -> Bool
-filterFn record1 =
-    modBy (floor record1.ageOfItem) 2 <= 3
-
-
-filterFnWithVar : Float -> AntiqueSubset -> Bool
-filterFnWithVar max record =
-    max
-        |> (\ageOfItem maximumAllowedAge ->
-                ageOfItem <= (maximumAllowedAge + max)
-           )
-            record.ageOfItem
 
 
 testListSum : List AntiqueSubset -> List { foo : Float }
