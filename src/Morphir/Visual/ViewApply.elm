@@ -44,10 +44,10 @@ view config viewDefinitionBody viewValue functionValue argValues =
 
         viewFunctionValue : FQName -> Element msg
         viewFunctionValue fqName =
-            el [ config.state.theme |> borderRounded, Background.color <| config.state.theme.colors.selectionColor, padding 2, tooltip above (functionOutput fqName) ] <| viewValue functionValue
+            el [ config.state.theme |> borderRounded, Background.color <| config.state.theme.colors.selectionColor, padding 2, tooltip above (functionOutput fqName Element.none) ] <| viewValue functionValue
 
-        functionOutput : FQName -> Element msg
-        functionOutput fqName =
+        functionOutput : FQName -> Element msg -> Element msg
+        functionOutput fqName defaultValue =
             let
                 variables : List (Maybe RawValue)
                 variables =
@@ -89,10 +89,10 @@ view config viewDefinitionBody viewValue functionValue argValues =
                                     el popupstyles (viewRawValue value)
 
                                 Err err ->
-                                    el ((Font.color <| rgb 0.8 0 0) :: popupstyles) (text <| Error.toString err)
+                                    defaultValue
 
                         _ ->
-                            el popupstyles (text <| "Could not evaluate. (" ++ Error.toString firstError ++ ")")
+                            defaultValue
     in
     case ( functionValue, argValues ) of
         ( (Value.Constructor _ fQName) as constr, _ ) ->
@@ -196,16 +196,28 @@ view config viewDefinitionBody viewValue functionValue argValues =
                                     Nothing
 
                             closedElement =
-                                 el [ centerX ] (functionOutput fqName)                                   
+                                let
+                                    ( _, _, valueName ) =
+                                        fqName
+                                in
+                                el [ centerX ]
+                                    (functionOutput fqName
+                                        (row []
+                                            [ el [ Background.color <| config.state.theme.colors.selectionColor, smallPadding config.state.theme |> padding ] (text (nameToText valueName))
+                                            , argList
+                                            ]
+                                        )
+                                    )
 
                             openElement =
                                 case fqName of
                                     ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
-                                         row ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding, config.state.theme |> borderRounded ] ++ styles)
-                                        [ viewFunctionValue fqName
-                                        , argList
-                                        ]
-                                    _->
+                                        row ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding, config.state.theme |> borderRounded ] ++ styles)
+                                            [ viewFunctionValue fqName
+                                            , argList
+                                            ]
+
+                                    _ ->
                                         case drillDown config.state.drillDownFunctions config.nodePath of
                                             Just valueDef ->
                                                 let
@@ -216,7 +228,7 @@ view config viewDefinitionBody viewValue functionValue argValues =
                                                     visualState =
                                                         config.state
                                                 in
-                                                    viewDefinitionBody { config | state = { visualState | variables = variables }, nodePath = config.nodePath ++ [ getId functionValue ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
+                                                viewDefinitionBody { config | state = { visualState | variables = variables }, nodePath = config.nodePath ++ [ getId functionValue ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
 
                                             Nothing ->
                                                 Element.none
@@ -229,7 +241,8 @@ view config viewDefinitionBody viewValue functionValue argValues =
                                 case fqName of
                                     ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
                                         closedElement
-                                    _->
+
+                                    _ ->
                                         row []
                                             [ el [ Background.color <| config.state.theme.colors.selectionColor, smallPadding config.state.theme |> padding ] (text (nameToText valueName))
                                             , argList
@@ -239,8 +252,7 @@ view config viewDefinitionBody viewValue functionValue argValues =
                         column []
                             [ row
                                 ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding ] ++ styles)
-                                [drillDownPanel fqName (List.length config.nodePath) closedElement openHeader openElement (drillDownContains config.state.drillDownFunctions (getId functionValue) config.nodePath)
-
+                                [ drillDownPanel fqName (List.length config.nodePath) closedElement openHeader openElement (drillDownContains config.state.drillDownFunctions (getId functionValue) config.nodePath)
                                 ]
                             ]
 
@@ -262,18 +274,30 @@ view config viewDefinitionBody viewValue functionValue argValues =
                         Nothing
 
                 closedElement =
+                    let
+                        ( _, _, valueName ) =
+                            fqName
+                    in
                     row ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding, config.state.theme |> borderRounded ] ++ styles)
-                            [ el [ centerX ] (functionOutput fqName)
-                            ]
+                        [ el [ centerX ]
+                            (functionOutput fqName
+                                (row []
+                                    [ el [ Background.color <| config.state.theme.colors.selectionColor, smallPadding config.state.theme |> padding ] (text (nameToText valueName))
+                                    , argList
+                                    ]
+                                )
+                            )
+                        ]
 
                 openElement =
                     case fqName of
                         ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
-                             row ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding, config.state.theme |> borderRounded ] ++ styles)
-                            [ viewFunctionValue fqName
-                            , argList
-                            ]
-                        _->
+                            row ([ Border.color config.state.theme.colors.gray, Border.width 1, smallPadding config.state.theme |> padding, config.state.theme |> borderRounded ] ++ styles)
+                                [ viewFunctionValue fqName
+                                , argList
+                                ]
+
+                        _ ->
                             case drillDown config.state.drillDownFunctions config.nodePath of
                                 Just valueDef ->
                                     let
@@ -284,7 +308,7 @@ view config viewDefinitionBody viewValue functionValue argValues =
                                         visualState =
                                             config.state
                                     in
-                                        viewDefinitionBody { config | state = { visualState | variables = variables }, nodePath = config.nodePath ++ [ getId functionValue ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
+                                    viewDefinitionBody { config | state = { visualState | variables = variables }, nodePath = config.nodePath ++ [ getId functionValue ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
 
                                 Nothing ->
                                     Element.none
@@ -297,7 +321,8 @@ view config viewDefinitionBody viewValue functionValue argValues =
                     case fqName of
                         ( [ [ "morphir" ], [ "s", "d", "k" ] ], _, _ ) ->
                             closedElement
-                        _->
+
+                        _ ->
                             row []
                                 [ el [ Background.color <| config.state.theme.colors.selectionColor, smallPadding config.state.theme |> padding ] (text (nameToText valueName))
                                 , argList
