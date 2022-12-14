@@ -87,7 +87,7 @@ async function gen(input, outputPath, options) {
     } else {
         opts.config = null
     }
-    
+
 
     opts.limitToModules = options.modulesToInclude ? options.modulesToInclude.split(',') : null
     opts.includeCodecs = options.includeCodecs ? true : false

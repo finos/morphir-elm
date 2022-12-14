@@ -1,7 +1,7 @@
 module Morphir.Elm.Target exposing (..)
 
 import Json.Decode as Decode exposing (Error, Value)
-import Json.Encode as Encode
+import Morphir.Cadl.Backend
 import Morphir.File.FileMap exposing (FileMap)
 import Morphir.Graph.Backend.Codec
 import Morphir.Graph.CypherBackend as Cypher
@@ -30,10 +30,11 @@ type BackendOptions
     | TypeScriptOptions Morphir.TypeScript.Backend.Options
     | SparkOptions Spark.Options
     | JsonSchemaOptions Morphir.JsonSchema.Backend.Options
+    | CadlOptions Morphir.Cadl.Backend.Options
 
 
-type alias Error =
-    String
+type alias Errors =
+    List String
 
 
 decodeOptions : Result Decode.Error String -> Decode.Decoder BackendOptions
@@ -52,16 +53,19 @@ decodeOptions gen =
             Decode.map (\options -> TypeScriptOptions options) Morphir.Graph.Backend.Codec.decodeOptions
 
         Ok "Spark" ->
-            Decode.map (\options -> SparkOptions options) Morphir.Spark.Backend.Codec.decodeOptions
+            Decode.map SparkOptions Morphir.Spark.Backend.Codec.decodeOptions
 
         Ok "JsonSchema" ->
             Decode.map JsonSchemaOptions Morphir.JsonSchema.Backend.Codec.decodeOptions
+
+        Ok "Cadl" ->
+            Decode.map CadlOptions (Decode.succeed Morphir.Cadl.Backend.Options)
 
         _ ->
             Decode.map (\options -> ScalaOptions options) Morphir.Scala.Backend.Codec.decodeOptions
 
 
-mapDistribution : BackendOptions -> Distribution -> Result String FileMap
+mapDistribution : BackendOptions -> Distribution -> Result Errors FileMap
 mapDistribution back dist =
     case back of
         SpringBootOptions options ->
@@ -84,3 +88,6 @@ mapDistribution back dist =
 
         JsonSchemaOptions options ->
             Morphir.JsonSchema.Backend.mapDistribution options dist
+
+        CadlOptions options ->
+            Morphir.Cadl.Backend.mapDistribution options dist

@@ -66,7 +66,7 @@ type Error
 {-| Entry point for the Spark backend. It takes the Morphir IR as the input and returns an in-memory
 representation of files generated.
 -}
-mapDistribution : Options -> Distribution -> Result String FileMap
+mapDistribution : Options -> Distribution -> Result (List String) FileMap
 mapDistribution opts distro =
     let
         fixedDistro =
@@ -146,7 +146,7 @@ mapDistribution opts distro =
                                 )
                             |> Result.mapError (encodeError >> Encode.encode 0)
                     )
-                |> ResultList.keepFirstError
+                |> ResultList.keepAllErrors
                 |> Result.map Dict.fromList
 
 
