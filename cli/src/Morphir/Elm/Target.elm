@@ -84,7 +84,7 @@ mapDistribution back dist =
             Ok <| Morphir.TypeScript.Backend.mapDistribution options dist
 
         SparkOptions options ->
-            Spark.mapDistribution options dist
+            Spark.mapDistribution2 options dist
 
         JsonSchemaOptions options ->
             Morphir.JsonSchema.Backend.mapDistribution options dist

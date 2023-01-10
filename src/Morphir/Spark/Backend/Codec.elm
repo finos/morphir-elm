@@ -3,6 +3,8 @@ module Morphir.Spark.Backend.Codec exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Morphir.IR.FQName as FQName exposing (FQName)
+import Morphir.IR.FQName.Codec exposing (decodeFQName)
+import Morphir.IR.Module exposing (ModuleName)
 import Morphir.IR.Path as Path
 import Morphir.IR.Type.Codec as TypeCodec
 import Morphir.Spark.AST.Codec as ASTCodec
@@ -11,13 +13,35 @@ import Morphir.Spark.Backend exposing (Error(..), Options)
 
 decodeOptions : Decode.Decoder Options
 decodeOptions =
+    let
+        decodeModulesToInclude : Decode.Decoder (Maybe (List ModuleName))
+        decodeModulesToInclude =
+            Decode.field "modulesToProcess"
+                (Decode.maybe
+                    (Decode.list Decode.string
+                        |> Decode.map (List.map Path.fromString)
+                    )
+                )
+
+        decodeEntryPoints : Decode.Decoder (List FQName)
+        decodeEntryPoints =
+            Decode.field "entryPoints"
+                (Decode.list
+                    (Decode.map (\fqnString -> FQName.fromString fqnString ".")
+                        Decode.string
+                    )
+                )
+    in
     Decode.field "config"
-        (Decode.maybe
-            (Decode.list Decode.string
-                |> Decode.map (List.map Path.fromString)
+        (Decode.map2
+            (\modulesToProcess entryPoints ->
+                Options
+                    modulesToProcess
+                    entryPoints
             )
+            decodeModulesToInclude
+            decodeEntryPoints
         )
-        |> Decode.map Options
 
 
 encodeError : Error -> Encode.Value
@@ -38,6 +62,9 @@ encodeError err =
                 |> (\errString ->
                         Encode.string ("mapping error: " ++ errString)
                    )
+
+        EntryPointNotFound fQName ->
+            Encode.string ("function not found: " ++ fqn fQName)
 
 
 fqn : FQName -> String

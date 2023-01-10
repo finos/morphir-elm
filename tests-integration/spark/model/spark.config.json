@@ -1,9 +1,3 @@
-[
-  "TypeTests",
-  "FunctionTests",
-  "ReturnTypeTests",
-  "ListMemberTests",
-  "AntiqueRulesTests",
-  "AggregationTests",
-  "Rules.Income.Antique"
-]
+{
+  "entryPoints": ""
+}

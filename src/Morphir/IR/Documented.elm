@@ -15,7 +15,10 @@
 -}
 
 
-module Morphir.IR.Documented exposing (Documented, map)
+module Morphir.IR.Documented exposing
+    ( Documented, map
+    , empty
+    )
 
 {-|
 
@@ -30,6 +33,11 @@ type alias Documented a =
     { doc : String
     , value : a
     }
+
+
+empty : a -> Documented a
+empty a =
+    Documented "" a
 
 
 {-| -}
