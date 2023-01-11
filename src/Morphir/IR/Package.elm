@@ -53,10 +53,12 @@ including implementation and private types and values.
 
 import Dict exposing (Dict)
 import Morphir.Dependency.DAG as DAG exposing (DAG)
-import Morphir.IR.AccessControlled exposing (AccessControlled, withPrivateAccess, withPublicAccess)
+import Morphir.IR.AccessControlled as AccessControlled exposing (AccessControlled, withPrivateAccess, withPublicAccess)
+import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Path exposing (Path)
+import Morphir.IR.QName as QName exposing (QName)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value
 import Set exposing (Set)
@@ -229,6 +231,51 @@ eraseDefinitionAttributes : Definition ta va -> Definition () ()
 eraseDefinitionAttributes def =
     def
         |> mapDefinitionAttributes (\_ -> ()) (\_ -> ())
+
+
+{-| Filter package by List of List of QNames
+-}
+filterPackageByTypes : List QName -> Definition ta va -> Definition ta va
+filterPackageByTypes qNames pkgDef =
+    pkgDef.modules
+        |> Dict.toList
+        |> List.filterMap
+            (\( modName, modDef ) ->
+                let
+                    accControlledModDef =
+                        case modDef |> AccessControlled.withPublicAccess of
+                            Just mDef ->
+                                mDef
+
+                            Nothing ->
+                                Module.emptyDefinition
+
+                    moduleTypes : Dict Name (AccessControlled (Documented (Type.Definition ta)))
+                    moduleTypes =
+                        accControlledModDef.types
+                            |> Dict.toList
+                            |> List.filterMap
+                                (\( typName, typDef ) ->
+                                    if List.member (QName.fromTuple ( modName, typName )) qNames then
+                                        Just ( typName, typDef )
+
+                                    else
+                                        Nothing
+                                )
+                            |> Dict.fromList
+
+                    newModuleDefinitionTuple : ( Path, AccessControlled (Module.Definition ta va) )
+                    newModuleDefinitionTuple =
+                        ( modName, AccessControlled.public (Module.Definition moduleTypes Dict.empty) )
+                in
+                if Dict.isEmpty (Tuple.second newModuleDefinitionTuple).value.types then
+                    Nothing
+
+                else
+                    Just newModuleDefinitionTuple
+            )
+        |> Dict.fromList
+        >> Definition
 
 
 {-| Filter down the modules in this distribution to the specified modules and their transitive dependencies.
