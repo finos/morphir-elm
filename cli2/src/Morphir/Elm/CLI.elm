@@ -17,6 +17,7 @@ port module Morphir.Elm.CLI exposing (..)
 import Dict
 import Json.Decode as Decode exposing (field, string)
 import Json.Encode as Encode
+import Morphir.Correctness.Codec exposing (decodeTestSuite)
 import Morphir.Elm.Frontend as Frontend exposing (PackageInfo, SourceFile, SourceLocation)
 import Morphir.Elm.Frontend.Codec as FrontendCodec
 import Morphir.Elm.IncrementalFrontend as IncrementalFrontend exposing (Errors, ModuleChange(..), OrderedFileChanges)
@@ -28,15 +29,20 @@ import Morphir.File.FileMap exposing (FileMap)
 import Morphir.File.FileMap.Codec exposing (encodeFileMap)
 import Morphir.File.FileSnapshot as FileSnapshot exposing (FileSnapshot)
 import Morphir.File.FileSnapshot.Codec as FileSnapshotCodec
+import Morphir.IR as IR
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..), lookupPackageName, lookupPackageSpecification)
 import Morphir.IR.Distribution.Codec as DistroCodec
+import Morphir.IR.FQName as FQName
 import Morphir.IR.Name as Name
 import Morphir.IR.Package exposing (PackageName, Specification)
 import Morphir.IR.Path as Path
 import Morphir.IR.Repo as Repo exposing (Error(..), Repo)
 import Morphir.IR.SDK as SDK
+import Morphir.IR.Value as Value
 import Morphir.JsonSchema.Backend
+import Morphir.ListOfResults as List
 import Morphir.Stats.Backend as Stats
+import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
 import Process
 import Task
 
@@ -74,6 +80,15 @@ port stats : (Decode.Value -> msg) -> Sub msg
 port statsResult : Encode.Value -> Cmd msg
 
 
+port runTestCases : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
+
+
+port runTestCasesResult : Encode.Value -> Cmd msg
+
+
+port runTestCasesResultError : Encode.Value -> Cmd msg
+
+
 subscriptions : () -> Sub Msg
 subscriptions _ =
     Sub.batch
@@ -81,6 +96,7 @@ subscriptions _ =
         , buildIncrementally BuildIncrementally
         , generate Generate
         , stats Stats
+        , runTestCases RunTestCases
         ]
 
 
@@ -108,6 +124,7 @@ type Msg
     | ApplyFileChanges PackageInfo Frontend.Options (List ModuleChange) Repo
     | Generate ( Decode.Value, Decode.Value )
     | Stats Decode.Value
+    | RunTestCases ( Decode.Value, Decode.Value )
 
 
 main : Platform.Program () () Msg
@@ -298,6 +315,117 @@ process msg =
                 Err errorMessage ->
                     errorMessage |> Decode.errorToString |> jsonDecodeError
 
+        RunTestCases ( distributionJson, testSuiteJson ) ->
+            let
+                resultIR =
+                    distributionJson
+                        |> Decode.decodeValue DistroCodec.decodeVersionedDistribution
+                        |> Result.map IR.fromDistribution
+            in
+            case resultIR of
+                Ok ir ->
+                    case testSuiteJson |> Decode.decodeValue (decodeTestSuite ir) of
+                        Ok testSuite ->
+                            let
+                                finalResult =
+                                    testSuite
+                                        |> Dict.toList
+                                        |> List.map
+                                            (\( functionName, testCaseList ) ->
+                                                let
+                                                    totalTestCase =
+                                                        List.length testCaseList
+
+                                                    resultList : List ( String, Encode.Value )
+                                                    resultList =
+                                                        testCaseList
+                                                            |> List.map
+                                                                (\testCase ->
+                                                                    case evaluateFunctionValue SDK.nativeFunctions ir functionName testCase.inputs of
+                                                                        Ok rawValue ->
+                                                                            if rawValue == testCase.expectedOutput then
+                                                                                ( "PASS"
+                                                                                , Encode.object
+                                                                                    [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
+                                                                                    , ( "Actual Output", rawValue |> Value.toString |> Encode.string )
+                                                                                    ]
+                                                                                )
+
+                                                                            else
+                                                                                ( "FAIL"
+                                                                                , Encode.object
+                                                                                    [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
+                                                                                    , ( "Actual Output", rawValue |> Value.toString |> Encode.string )
+                                                                                    ]
+                                                                                )
+
+                                                                        Err error ->
+                                                                            ( "FAIL"
+                                                                            , Encode.object
+                                                                                [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
+                                                                                , ( "Actual Output", Debug.toString error |> Encode.string )
+                                                                                ]
+                                                                            )
+                                                                )
+
+                                                    ( passedList, failList ) =
+                                                        resultList
+                                                            |> List.partition
+                                                                (\( status, encodedJson ) ->
+                                                                    if status == "PASS" then
+                                                                        True
+
+                                                                    else
+                                                                        False
+                                                                )
+                                                in
+                                                if List.length failList == 0 then
+                                                    Ok
+                                                        (Encode.object
+                                                            [ ( "Function Name"
+                                                              , functionName |> FQName.toString |> Encode.string
+                                                              )
+                                                            , ( "Total TestCases"
+                                                              , totalTestCase |> Encode.int
+                                                              )
+                                                            , ( "Pass TestCases"
+                                                              , passedList |> List.length |> Encode.int
+                                                              )
+                                                            , ( "Fail TestCases List", failList |> List.map Tuple.second |> Encode.list identity )
+                                                            ]
+                                                        )
+
+                                                else
+                                                    Err
+                                                        (Encode.object
+                                                            [ ( "Function Name"
+                                                              , functionName |> FQName.toString |> Encode.string
+                                                              )
+                                                            , ( "Total TestCases"
+                                                              , totalTestCase |> Encode.int
+                                                              )
+                                                            , ( "Fail TestCases"
+                                                              , failList |> List.length |> Encode.int
+                                                              )
+                                                            , ( "Fail TestCases List", failList |> List.map Tuple.second |> Encode.list identity )
+                                                            ]
+                                                        )
+                                            )
+                                        |> List.liftAllErrors
+                            in
+                            case finalResult of
+                                Ok passList ->
+                                    passList |> Encode.list identity |> runTestCasesResult
+
+                                Err failList ->
+                                    failList |> Encode.list identity |> runTestCasesResultError
+
+                        Err errorMessage ->
+                            errorMessage |> Decode.errorToString |> jsonDecodeError
+
+                Err errorMessage ->
+                    errorMessage |> Decode.errorToString |> jsonDecodeError
+
 
 report : Msg -> Cmd Msg
 report msg =
@@ -338,6 +466,9 @@ report msg =
 
         Stats _ ->
             reportProgress "Generating stats from IR ..."
+
+        RunTestCases ( distributionJson, testSuiteJson ) ->
+            reportProgress "Generating TestCases from IR Test ..."
 
 
 keepElmFilesOnly : FileChanges -> FileChanges
