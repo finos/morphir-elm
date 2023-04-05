@@ -38,20 +38,12 @@ import Morphir.IR.Path.Codec exposing (decodePath, encodePath)
 import Morphir.IR.Type.Codec exposing (decodeType, encodeType)
 
 
-{-| This is a manually managed version number to be able to handle breaking changes in the IR format more explicitly.
--}
-currentFormatVersion : Int
-currentFormatVersion =
-    3
-
-
 {-| Encode distribution including a version number.
 -}
 encodeVersionedDistribution : Distribution -> Encode.Value
 encodeVersionedDistribution distro =
     Encode.object
-        [ ( "formatVersion", Encode.int currentFormatVersion )
-        , ( "distribution", encodeDistribution distro )
+        [ ( "distribution", encodeDistribution distro )
         ]
 
 
@@ -60,30 +52,7 @@ encodeVersionedDistribution distro =
 decodeVersionedDistribution : Decode.Decoder Distribution
 decodeVersionedDistribution =
     Decode.oneOf
-        [ Decode.field "formatVersion" Decode.int
-            |> Decode.andThen
-                (\formatVersion ->
-                    if formatVersion == currentFormatVersion then
-                        Decode.field "distribution" decodeDistribution
-
-                    else if formatVersion == 1 then
-                        Decode.field "distribution" CodecV1.decodeDistribution
-
-                    else if formatVersion == 2 then
-                        Decode.field "distribution" CodecV2.decodeDistribution
-
-                    else
-                        Decode.fail
-                            (String.concat
-                                [ "The IR is using format version "
-                                , String.fromInt formatVersion
-                                , " but the latest format version is "
-                                , String.fromInt currentFormatVersion
-                                , ". Please regenerate it!"
-                                ]
-                            )
-                )
-        , Decode.fail "The IR is in an old format that doesn't have a format version on it. Please regenerate it!"
+        [ Decode.field "distribution" decodeDistribution
         ]
 
 
