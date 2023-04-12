@@ -5,7 +5,6 @@ import * as util from "util";
 import * as path from "path";
 import * as FileChanges from "./FileChanges";
 import * as Dependencies from "./dependencies";
-
 const fsExists = util.promisify(fs.exists);
 const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
@@ -414,10 +413,66 @@ async function writeFile(filePath: string, content: string) {
   return await fsWriteFile(filePath, content);
 }
 
+interface AttributeDetails {
+  data: string,
+  displayName: string,
+  entryPoint: string,
+  iR: string
+}
+
+async function getAttributeConfigJson(projectDir: string) {
+  const configPath = path.join(
+    projectDir,
+    "attributes.conf.json"
+  );
+  try {
+    const fileContent = await fsReadFile(configPath);
+    return JSON.parse(fileContent.toString());
+  } catch (ex) {
+    console.error(ex);
+    return {};
+  }
+}
+
+async function getCustomAttributes(projectDir:string){
+    const configJsonContent = await getAttributeConfigJson(projectDir);
+
+    const attributeIds = Object.keys(configJsonContent);
+    console.log(attributeIds)
+    var responseJson: {[attributeId:string] : AttributeDetails} = {};
+
+    for (const attrId of attributeIds) {
+      const attrFilePath = path.join(
+        projectDir,
+        "attributes",
+        attrId + ".json"
+      );
+      const irFilePath = path.join(
+        projectDir,
+        configJsonContent[attrId].ir
+      );
+
+      if (!(await fsExists(attrFilePath))) {
+         console.log("Attribute File does not exist")
+         await writeFile(attrFilePath, "{}");
+      }
+      const attrFileContent = await fsReadFile(attrFilePath);
+      const irFileContent = await fsReadFile(irFilePath);
+      responseJson[attrId] = {
+         data: JSON.parse(attrFileContent.toString()),
+         displayName: configJsonContent[attrId].displayName,
+         entryPoint: configJsonContent[attrId].entryPoint,
+         iR: JSON.parse(irFileContent.toString()),
+      };
+    }
+    return responseJson;
+}
+
 
 const generate = async (
   options: any,
-  ir: string
+  ir: string,
+  decorators: any
 ): Promise<string[]> => {
   return new Promise((resolve, reject) => {
     worker.ports.jsonDecodeError.subscribe((err: any) => {
@@ -431,7 +486,7 @@ const generate = async (
       }
     });
 
-    worker.ports.generate.send([options, ir]);
+    worker.ports.generate.send([options, ir, decorators]);
   });
 };
 
@@ -444,10 +499,12 @@ const gen = async (
     recursive: true,
   });
   const morphirIrJson: Buffer = await fsReadFile(path.resolve(input));
-
+  const decorators = await getCustomAttributes(path.resolve("."));
+  console.log(decorators)
   const generatedFiles: string[] = await generate(
     options,
-    JSON.parse(morphirIrJson.toString())
+    JSON.parse(morphirIrJson.toString()),
+    decorators
   );
 
   const writePromises = generatedFiles.map(
