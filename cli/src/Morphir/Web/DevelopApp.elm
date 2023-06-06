@@ -72,7 +72,7 @@ import Morphir.SDK.Dict as SDKDict
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Error exposing (Error)
 import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
-import Morphir.Visual.Common exposing (nameToText, nameToTitleText, pathToDisplayString, pathToFullUrl, pathToUrl, tooltip)
+import Morphir.Visual.Common exposing (nameToText, nameToTitleText, pathToDisplayString, pathToFullUrl, pathToTitleText, pathToUrl, tooltip)
 import Morphir.Visual.Components.Card as Card
 import Morphir.Visual.Components.FieldList as FieldList
 import Morphir.Visual.Components.InputComponent as InputComponent
@@ -248,6 +248,7 @@ emptyVisualState =
         , nodePath = []
         }
     , drillDownFunctions = DrillDownFunctions Dict.empty
+    , zIndex = 9999
     }
 
 
@@ -1956,7 +1957,7 @@ viewModuleNames model packageName parentModule allModuleNames =
                         }
 
                 Nothing ->
-                    link [ pointer, onClick (handleModuleClick packageName) ] { label = text (pathToUrl packageName), url = pathToFullUrl [ packageName ] ++ filterStateToQueryParams model.homeState.filterState }
+                    link [ pointer, onClick (handleModuleClick packageName) ] { label = text (pathToTitleText packageName), url = pathToFullUrl [ packageName ] ++ filterStateToQueryParams model.homeState.filterState }
         )
         Array.empty
         (childModuleNames
@@ -2315,7 +2316,7 @@ viewDefinitionDetails model =
                                                                                 { title = "Insight view"
                                                                                 , onToggle = UI (ToggleSection 1)
                                                                                 , isOpen = Set.member 1 model.openSections
-                                                                                , content = el [ Theme.borderRounded model.theme, Border.width 1, Border.color model.theme.colors.gray ] <| ViewValue.viewDefinition (insightViewConfig ir) fullyQualifiedName valueDef
+                                                                                , content = el [ Theme.borderRounded model.theme, Border.width 1, Border.color model.theme.colors.gray] <| ViewValue.viewDefinition (insightViewConfig ir) fullyQualifiedName valueDef
                                                                                 }
                                                                             , SectionComponent.view model.theme
                                                                                 { title = "Inputs & Output"
