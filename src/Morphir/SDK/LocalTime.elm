@@ -16,7 +16,7 @@
 
 
 module Morphir.SDK.LocalTime exposing
-    ( fromMilliseconds
+    ( LocalTime
     , addHours
     , addMinutes
     , addSeconds
@@ -24,7 +24,8 @@ module Morphir.SDK.LocalTime exposing
     , diffInMinutes
     , diffInSeconds
     , fromISO
-    , LocalTime
+    , toISOString
+    , fromMilliseconds
     )
 
 {-| This module adds the definition of basic time without time zones.
@@ -45,14 +46,15 @@ module Morphir.SDK.LocalTime exposing
 @docs diffInSeconds
 
 
-
 # Constructors
 
 @docs fromISO
+@docs toISOString
 @docs fromMilliseconds
+
 -}
 
-import Iso8601 exposing (toTime)
+import Iso8601 exposing (fromTime, toTime)
 import Time exposing (Posix, millisToPosix, posixToMillis)
 
 
@@ -116,6 +118,13 @@ fromISO : String -> Maybe LocalTime
 fromISO iso =
     Result.toMaybe <|
         toTime iso
+
+
+{-| Construct an ISO formatted string.
+-}
+toISOString : LocalTime -> String
+toISOString localDate =
+    fromTime localDate
 
 
 {-| Construct a LocalTime based on number of milliseconds from epoch. Opportunity for error denoted by Maybe return type.

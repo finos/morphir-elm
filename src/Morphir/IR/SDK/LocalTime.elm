@@ -19,6 +19,7 @@ module Morphir.IR.SDK.LocalTime exposing (..)
 
 import Dict
 import Morphir.IR.Documented exposing (Documented)
+import Morphir.IR.Literal as Literal
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name as Name
 import Morphir.IR.Path as Path exposing (Path)
@@ -27,6 +28,8 @@ import Morphir.IR.SDK.Common exposing (toFQName, vSpec)
 import Morphir.IR.SDK.Maybe exposing (maybeType)
 import Morphir.IR.SDK.String exposing (stringType)
 import Morphir.IR.Type exposing (Specification(..), Type(..))
+import Morphir.SDK.LocalTime as LocalTime
+import Morphir.Value.Native as Native
 
 
 moduleName : ModuleName
@@ -61,3 +64,32 @@ moduleSpec =
 localTimeType : a -> Type a
 localTimeType attributes =
     Reference attributes (toFQName moduleName "LocalTime") []
+
+
+nativeFunctions : List ( String, Native.Function )
+nativeFunctions =
+    [ ( "fromISO"
+      , Native.eval1 LocalTime.fromISO (Native.decodeLiteral Native.stringLiteral) (Native.encodeMaybe Native.encodeLocalTime)
+      )
+    , ( "fromMilliseconds"
+      , Native.eval1 LocalTime.fromMilliseconds (Native.decodeLiteral Native.intLiteral) Native.encodeLocalTime
+      )
+    , ( "diffInSeconds"
+      , Native.eval2 LocalTime.diffInSeconds Native.decodeLocalTime Native.decodeLocalTime (Native.encodeLiteral Literal.intLiteral)
+      )
+    , ( "diffInMinutes"
+      , Native.eval2 LocalTime.diffInMinutes Native.decodeLocalTime Native.decodeLocalTime (Native.encodeLiteral Literal.intLiteral)
+      )
+    , ( "diffInHours"
+      , Native.eval2 LocalTime.diffInHours Native.decodeLocalTime Native.decodeLocalTime (Native.encodeLiteral Literal.intLiteral)
+      )
+    , ( "addSeconds"
+      , Native.eval2 LocalTime.addSeconds (Native.decodeLiteral Native.intLiteral) Native.decodeLocalTime Native.encodeLocalTime
+      )
+    , ( "addMinutes"
+      , Native.eval2 LocalTime.addMinutes (Native.decodeLiteral Native.intLiteral) Native.decodeLocalTime Native.encodeLocalTime
+      )
+    , ( "addHours"
+      , Native.eval2 LocalTime.addHours (Native.decodeLiteral Native.intLiteral) Native.decodeLocalTime Native.encodeLocalTime
+      )
+    ]

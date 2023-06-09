@@ -3,7 +3,7 @@ module Morphir.Value.Native exposing
     , Eval
     , unaryLazy, unaryStrict, binaryLazy, binaryStrict, boolLiteral, charLiteral, eval0, eval1, eval2, eval3
     , floatLiteral, intLiteral, oneOf, stringLiteral, decimalLiteral
-    , decodeFun1, decodeList, decodeLiteral, decodeMaybe, decodeLocalDate, decodeRaw, decodeTuple2, encodeList, encodeLiteral, encodeMaybe, encodeLocalDate, encodeMaybeResult, encodeRaw, encodeResultList, encodeTuple2
+    , decodeFun1, decodeList, decodeLiteral, decodeMaybe, decodeLocalDate, decodeRaw, decodeTuple2, encodeList, encodeLiteral, encodeMaybe, encodeLocalDate, encodeMaybeResult, encodeRaw, encodeResultList, encodeTuple2, encodeLocalTime, decodeLocalTime
     , trinaryLazy, trinaryStrict
     )
 
@@ -39,7 +39,7 @@ Various utilities to help with implementing native functions.
 
 @docs unaryLazy, unaryStrict, binaryLazy, binaryStrict, boolLiteral, charLiteral, eval0, eval1, eval2, eval3
 @docs floatLiteral, intLiteral, oneOf, stringLiteral, decimalLiteral
-@docs decodeFun1, decodeList, decodeLiteral, decodeMaybe, decodeLocalDate, decodeRaw, decodeTuple2, encodeList, encodeLiteral, encodeMaybe, encodeLocalDate, encodeMaybeResult, encodeRaw, encodeResultList, encodeTuple2
+@docs decodeFun1, decodeList, decodeLiteral, decodeMaybe, decodeLocalDate, decodeRaw, decodeTuple2, encodeList, encodeLiteral, encodeMaybe, encodeLocalDate, encodeMaybeResult, encodeRaw, encodeResultList, encodeTuple2, encodeLocalTime, decodeLocalTime
 @docs trinaryLazy, trinaryStrict
 
 -}
@@ -48,6 +48,7 @@ import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.IR.Value as Value exposing (RawValue, Value)
 import Morphir.SDK.Decimal exposing (Decimal)
 import Morphir.SDK.LocalDate as LocalDate exposing (LocalDate)
+import Morphir.SDK.LocalTime as LocalTime exposing (LocalTime)
 import Morphir.SDK.ResultList as ListOfResults
 import Morphir.Value.Error exposing (Error(..))
 
@@ -432,6 +433,32 @@ decodeLocalDate _ value =
 
         _ ->
             Err (ExpectedDerivedType ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "date" ] ], [ "local", "date" ] ) value)
+
+
+{-| -}
+encodeLocalTime : LocalTime -> Result Error RawValue
+encodeLocalTime localTime =
+    LocalTime.toISOString localTime
+        |> StringLiteral
+        |> Value.Literal ()
+        |> Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "from", "i", "s", "o" ] ))
+        |> Ok
+
+
+{-| -}
+decodeLocalTime : Decoder LocalTime
+decodeLocalTime _ value =
+    case value of
+        Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "from", "i", "s", "o" ] )) (Value.Literal () (StringLiteral str)) ->
+            case LocalTime.fromISO str of
+                Just localtime ->
+                    Ok localtime
+
+                Nothing ->
+                    Err <| ErrorWhileEvaluatingDerivedType ("Invalid ISO format: " ++ str)
+
+        _ ->
+            Err (ExpectedDerivedType ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "local", "time" ] ) value)
 
 
 {-| -}
