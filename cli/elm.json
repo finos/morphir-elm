@@ -19,6 +19,7 @@
             "elm/parser": "1.1.0",
             "elm/regex": "1.0.0",
             "elm/svg": "1.0.1",
+            "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "elm-community/array-extra": "2.6.0",
             "elm-community/graph": "6.0.0",
@@ -31,6 +32,7 @@
             "matthewsj/elm-ordering": "2.0.0",
             "mdgriffith/elm-ui": "1.1.8",
             "pzp1997/assoc-list": "1.0.0",
+            "rtfeldman/elm-iso8601-date-strings": "1.1.4",
             "rundis/elm-bootstrap": "5.2.0",
             "stil4m/elm-syntax": "7.2.9"
         },
@@ -39,7 +41,6 @@
             "avh4/elm-fifo": "1.0.4",
             "elm/bytes": "1.0.8",
             "elm/file": "1.0.5",
-            "elm/time": "1.0.0",
             "elm/virtual-dom": "1.0.3",
             "elm-community/intdict": "3.0.0",
             "miniBill/elm-unicode": "1.0.3",
