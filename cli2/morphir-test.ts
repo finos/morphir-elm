@@ -14,7 +14,7 @@ require('log-timestamp')
 const program = new Command()
 program
     .name('morphir test')
-    .description('Start Testing the Models')
+    .description('Start Testing all the test cases present in morphir-ir.json')
     .option('-p, --project-dir <path>', 'Root directory of the project where morphir.json is located.', '.')
     .parse(process.argv)
 

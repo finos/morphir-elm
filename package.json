@@ -47,6 +47,7 @@
     "redistributable/**",
     "cli2/lib/*",
     "cli2/Morphir.Elm.CLI.js",
+    "cli2/Morphir.Elm.Generator.js",
     "lib/**"
   ],
   "keywords": [

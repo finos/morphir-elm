@@ -535,18 +535,6 @@ async function testCoverage(
   });
 }
 
-export = {
-  gen,
-  make,
-  writeFile,
-  fileExist,
-  stats,
-  writeDockerfile,
-  findFilesToDelete,
-  copyRedistributables,
-  testCoverage,
-  worker,
-};
 async function test(projectDir: string) {
   const morphirIRJsonPath = path.join(projectDir, "morphir-ir.json");
   const morphirIRJson = JSON.parse(
@@ -583,4 +571,5 @@ export = {
   copyRedistributables,
   worker,
   test,
+  testCoverage
 };

@@ -14,7 +14,7 @@ const fsWriteFile = util.promisify(fs.writeFile);
 const program = new Command();
 program
     .name("morphir test-coverage")
-    .description("Generates report on number of branches in a Morphir value and TestCases covered")
+    .description("Generates report on number of branches in a Morphir IR value and TestCases covered")
     .option("-i, --ir <path>", "Source location where the Morphir IR will be loaded from.", "morphir-ir.json")
     .option("-t, --tests <path>", "Source location where the Morphir Test Json will be loaded from.", "morphir-tests.json")
     .option("-o, --output <path>", "Source location where the Morphir Test Coverage result will be ouput to.", ".")
