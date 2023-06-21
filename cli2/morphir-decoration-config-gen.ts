@@ -106,21 +106,22 @@ program
     .option('-p, --storageLocation <path>', 'Location to store the sidecar files', '/attributes')
     .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
     .option('-t, --target <type>', 'What to Generate.', 'DecorationConfig')
-     .parse(process.argv)
+    .option('-f, --force', 'Overwrite existing configuration.', false)
+    .parse(process.argv)
 
 gen(program.opts().irPath, path.resolve(program.opts().output), program.opts())
     .then(() =>{
        console.log("Done")
        const decorationPath = path.join(path.resolve(program.opts().output), "decorationConfigs.json");
        const morphirJsonPath = "morphir.json";
-       updateConfiguration(decorationPath, morphirJsonPath);
+       updateConfiguration(decorationPath, morphirJsonPath, program.opts().overwrite);
     })
     .catch((err) =>{
         console.log(err)
         process.exit(1)
     })
 
-async function updateConfiguration(configPath: string, morphirPath: string) {
+async function updateConfiguration(configPath: string, morphirPath: string, overwrite: boolean) {
     const configBuffer = await fsReadFile(configPath)
     const configJsonObject = JSON.parse(configBuffer.toString());
 
@@ -128,7 +129,7 @@ async function updateConfiguration(configPath: string, morphirPath: string) {
     const morphirJsonObject = JSON.parse(morphirBuffer.toString());
 
     //If there is no existing decorations, insert, else merge with existing decoration
-    if (morphirJsonObject.decorations) {
+    if ((morphirJsonObject.decorations) && !(overwrite)) {
         const mergedConfigObject = {
             ...morphirJsonObject.decorations,
             ...configJsonObject
