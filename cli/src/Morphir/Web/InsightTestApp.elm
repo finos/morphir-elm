@@ -266,6 +266,7 @@ viewInsight ir fqn valueDef argValues =
             , state =
                 { drillDownFunctions = DrillDownFunctions Dict.empty
                 , variables = variables
+                , nonEvaluatedVariables = Dict.empty
                 , popupVariables =
                     { variableIndex = -1
                     , variableValue = Nothing
@@ -273,6 +274,7 @@ viewInsight ir fqn valueDef argValues =
                     }
                 , theme = Theme.fromConfig Nothing
                 , highlightState = Nothing
+                , zIndex = 9999
                 }
             , handlers =
                 { onReferenceClicked = \_ _ _ -> DoNothing

@@ -426,7 +426,7 @@ const generate = async (options: any, ir: string): Promise<string[]> => {
       }
     });
 
-    worker.ports.generate.send([options, ir]);
+    worker.ports.generate.send([options, ir, []]);
   });
 };
 
@@ -503,6 +503,50 @@ async function writeDockerfile(
   }
 }
 
+async function testCoverage(
+  irPath: string,
+  testsPath: string,
+  outputPath: string,
+  options: CommandOptions
+) {
+  // Morphir IR
+  const morphirIR: Buffer = await fsReadFile(path.resolve(irPath))
+  const morphirIRJson: JSON = JSON.parse(morphirIR.toString())
+
+  // read Morphir Test
+  const morphirTest: Buffer = await fsReadFile(path.resolve(testsPath))
+  const morphirTestJson: JSON = JSON.parse(morphirTest.toString())
+
+  // output path
+  const output = path.join(path.resolve(outputPath), "morphir-test-coverage.json")
+
+  return  new Promise((resolve, reject) => {
+    worker.ports.testCoverageResult.subscribe(([err, data]: any) => {
+      if (err) {
+        reject(err)
+      }
+      else {
+        resolve(data)
+      }
+    })
+
+    // send files through port
+    worker.ports.testCoverage.send([morphirIRJson,morphirTestJson])
+  });
+}
+
+export = {
+  gen,
+  make,
+  writeFile,
+  fileExist,
+  stats,
+  writeDockerfile,
+  findFilesToDelete,
+  copyRedistributables,
+  testCoverage,
+  worker,
+};
 async function test(projectDir: string) {
   const morphirIRJsonPath = path.join(projectDir, "morphir-ir.json");
   const morphirIRJson = JSON.parse(

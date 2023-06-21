@@ -67,7 +67,7 @@ import Element.Events as Events
 import Element.Font as Font exposing (center)
 import Element.Input as Input exposing (placeholder)
 import Morphir.Elm.Frontend as Frontend
-import Morphir.IR as IR exposing (IR)
+import Morphir.IR.Distribution as Distribution exposing (Distribution)
 import Morphir.IR.FQName exposing (FQName)
 import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.IR.Name as Name exposing (Name)
@@ -76,13 +76,17 @@ import Morphir.IR.SDK.Basics as Basics
 import Morphir.IR.SDK.Char as Basics
 import Morphir.IR.SDK.Decimal as Decimal
 import Morphir.IR.SDK.Dict as SDKDict
+import Morphir.IR.SDK.LocalDate exposing (fromISO)
 import Morphir.IR.SDK.String as Basics
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (RawValue, Value(..))
-import Morphir.ListOfResults as ListOfResults
 import Morphir.SDK.Decimal as Decimal
+import Morphir.SDK.LocalDate as LocalDate exposing (toISOString)
+import Morphir.SDK.ResultList as ListOfResults
 import Morphir.Visual.Common exposing (nameToText)
+import Morphir.Visual.Components.DatePickerComponent as DatePicker
 import Morphir.Visual.Components.FieldList as FieldList
+import Morphir.Visual.Components.InputComponent as InputComponent
 import Morphir.Visual.Components.Picklist as Picklist
 import Morphir.Visual.Theme exposing (Theme)
 import Svg
@@ -138,6 +142,7 @@ type ComponentState
     | GridEditor (List ( Name, Type () )) (List (Array EditorState))
     | DictEditor ( Type (), Type () ) (List ( EditorState, EditorState ))
     | GenericEditor String
+    | LocalDateEditor DatePicker.DatePickerState
 
 
 type alias CustomTypeEditorState =
@@ -187,7 +192,7 @@ handleTypeCases typeCases valueType =
   - `maybeInitialValue` - Optional starting value for the editor.
 
 -}
-initEditorState : IR -> Type () -> Maybe RawValue -> EditorState
+initEditorState : Distribution -> Type () -> Maybe RawValue -> EditorState
 initEditorState ir valueType maybeInitialValue =
     let
         adjustedInitialValue : Maybe RawValue
@@ -232,7 +237,7 @@ initEditorState ir valueType maybeInitialValue =
 An error might be reported when the initial value being passed in is invalid for the given editor.
 
 -}
-initComponentState : IR -> Type () -> Maybe RawValue -> ( Maybe Error, ComponentState )
+initComponentState : Distribution -> Type () -> Maybe RawValue -> ( Maybe Error, ComponentState )
 initComponentState ir valueType maybeInitialValue =
     let
         textEditorTypes : List (Type ())
@@ -252,6 +257,9 @@ initComponentState ir valueType maybeInitialValue =
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValueType ] ->
             initDictEditor ir dictKeyType dictValueType maybeInitialValue
 
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "date" ] ], [ "local", "date" ] ) [] ->
+            initLocalDateEditor maybeInitialValue
+
         _ ->
             if valueType == Basics.boolType () then
                 initBoolEditor maybeInitialValue
@@ -262,7 +270,7 @@ initComponentState ir valueType maybeInitialValue =
             else
                 case valueType of
                     Type.Reference _ fQName _ ->
-                        case ir |> IR.lookupTypeSpecification fQName of
+                        case ir |> Distribution.lookupTypeSpecification fQName of
                             Just typeSpec ->
                                 case typeSpec of
                                     Type.TypeAliasSpecification _ typeExp ->
@@ -342,7 +350,7 @@ initBoolEditor maybeInitialValue =
 
 {-| Creates a component state for a record editor with an optional error.
 -}
-initRecordEditor : IR -> List (Type.Field ()) -> Maybe RawValue -> ( Maybe Error, ComponentState )
+initRecordEditor : Distribution -> List (Type.Field ()) -> Maybe RawValue -> ( Maybe Error, ComponentState )
 initRecordEditor ir fieldTypes maybeInitialValue =
     let
         recordEditor initialFieldValues =
@@ -374,7 +382,7 @@ initRecordEditor ir fieldTypes maybeInitialValue =
 
 {-| Creates a component state for a custom type editor with an optional error.
 -}
-initCustomEditor : IR -> FQName -> Type.Constructors () -> Maybe RawValue -> ( Maybe Error, ComponentState )
+initCustomEditor : Distribution -> FQName -> Type.Constructors () -> Maybe RawValue -> ( Maybe Error, ComponentState )
 initCustomEditor ir fqn constructors maybeSelected =
     let
         findConstructor : Name -> Maybe (Type.Constructor ())
@@ -426,7 +434,7 @@ initCustomEditor ir fqn constructors maybeSelected =
 
 {-| Creates a component state for a optional values.
 -}
-initMaybeEditor : IR -> Type () -> Maybe RawValue -> ( Maybe Error, ComponentState )
+initMaybeEditor : Distribution -> Type () -> Maybe RawValue -> ( Maybe Error, ComponentState )
 initMaybeEditor ir itemType maybeInitialValue =
     case maybeInitialValue of
         Just initialValue ->
@@ -446,9 +454,9 @@ initMaybeEditor ir itemType maybeInitialValue =
 
 {-| Creates a component state for a list values.
 -}
-initListEditor : IR -> Type () -> Maybe RawValue -> ( Maybe Error, ComponentState )
+initListEditor : Distribution -> Type () -> Maybe RawValue -> ( Maybe Error, ComponentState )
 initListEditor ir itemType maybeInitialValue =
-    case ir |> IR.resolveType itemType of
+    case ir |> Distribution.resolveType itemType of
         Type.Record _ fieldTypes ->
             let
                 columnTypes : List ( Name, Type () )
@@ -506,7 +514,7 @@ initListEditor ir itemType maybeInitialValue =
 
 {-| Creates a component state for a list values.
 -}
-initDictEditor : IR -> Type () -> Type () -> Maybe RawValue -> ( Maybe Error, ComponentState )
+initDictEditor : Distribution -> Type () -> Type () -> Maybe RawValue -> ( Maybe Error, ComponentState )
 initDictEditor ir dictKeyType dictValueType maybeInitialValue =
     case maybeInitialValue of
         Just initialValue ->
@@ -527,7 +535,7 @@ initDictEditor ir dictKeyType dictValueType maybeInitialValue =
                                             _ ->
                                                 Err ("Invalid Dict entry: " ++ Debug.toString item)
                                     )
-                                |> ListOfResults.liftFirstError
+                                |> ListOfResults.keepFirstError
                     in
                     case editorResult of
                         Ok editors ->
@@ -543,6 +551,21 @@ initDictEditor ir dictKeyType dictValueType maybeInitialValue =
             ( Nothing, DictEditor ( dictKeyType, dictValueType ) [] )
 
 
+initLocalDateEditor : Maybe RawValue -> ( Maybe Error, ComponentState )
+initLocalDateEditor maybeInitialValue =
+    case maybeInitialValue of
+        Just initialValue ->
+            case initialValue of
+                Value.Apply _ (Value.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "date" ] ], [ "from", "i", "s", "o" ] )) (Value.Literal () (StringLiteral dateString)) ->
+                    ( Nothing, LocalDateEditor (DatePicker.initState (LocalDate.fromISO dateString)) )
+
+                _ ->
+                    ( Just ("Cannot initialize editor with value: " ++ Debug.toString initialValue), LocalDateEditor (DatePicker.initState Nothing) )
+
+        Nothing ->
+            ( Nothing, LocalDateEditor (DatePicker.initState Nothing) )
+
+
 {-| Display the editor. It takes the following inputs:
 
   - `theme` - This is used for styling the component.
@@ -552,14 +575,13 @@ initDictEditor ir dictKeyType dictValueType maybeInitialValue =
   - `editorState` - The current editor state.
 
 -}
-view : Theme -> IR -> Type () -> (EditorState -> msg) -> EditorState -> Element msg
+view : Theme -> Distribution -> Type () -> (EditorState -> msg) -> EditorState -> Element msg
 view theme ir valueType updateEditorState editorState =
     let
         baseStyle : List (Element.Attribute msg)
         baseStyle =
             [ width <| Element.fillPortion 3
             , height fill
-            , paddingXY 10 3
             , Events.onLoseFocus
                 (updateEditorState (initEditorState ir valueType editorState.lastValidValue))
             ]
@@ -567,35 +589,6 @@ view theme ir valueType updateEditorState editorState =
         labelStyle : List (Element.Attr () msg)
         labelStyle =
             [ Background.color (rgb 0.2 0.3 0.4), centerY, Font.color (rgb 0.7 0.7 0.7), paddingEach { top = 5, bottom = 5, right = 10, left = 0 } ]
-
-        errorBorderStyle : List (Element.Attr () msg)
-        errorBorderStyle =
-            case editorState.errorState of
-                Just _ ->
-                    [ Border.color (rgb 1 0 0)
-                    , Border.width 2
-                    ]
-
-                Nothing ->
-                    [ Border.width 2
-                    ]
-
-        errorMessageStyle : List (Element.Attribute msg)
-        errorMessageStyle =
-            case editorState.errorState of
-                Just errorMessage ->
-                    [ below
-                        (el
-                            [ padding 5
-                            , Background.color (rgb 1 0.7 0.7)
-                            , moveDown 5
-                            ]
-                            (text errorMessage)
-                        )
-                    ]
-
-                Nothing ->
-                    []
     in
     case editorState.componentState of
         TextEditor currentText ->
@@ -620,7 +613,8 @@ view theme ir valueType updateEditorState editorState =
                         "?"
             in
             row [ width fill, spacing 5 ]
-                [ Input.text (baseStyle ++ errorBorderStyle ++ errorMessageStyle)
+                [ InputComponent.textInput theme
+                    baseStyle
                     { onChange =
                         \updatedText ->
                             let
@@ -671,7 +665,7 @@ view theme ir valueType updateEditorState editorState =
                                                         localName =
                                                             Name.fromString "fooFunction"
                                                     in
-                                                    case sourceFileIR |> IR.lookupValueDefinition ( packageName, moduleName, localName ) of
+                                                    case sourceFileIR |> Distribution.lookupValueDefinition ( packageName, moduleName, localName ) of
                                                         Just valDef ->
                                                             Ok (valDef.body |> Value.toRawValue)
 
@@ -685,7 +679,7 @@ view theme ir valueType updateEditorState editorState =
 
                             else
                                 updateEditorState
-                                    (applyResult (valueResult (IR.resolveType valueType ir))
+                                    (applyResult (valueResult (Distribution.resolveType valueType ir))
                                         { editorState
                                             | componentState = TextEditor updatedText
                                             , defaultValueCheckbox = { show = editorState.defaultValueCheckbox.show, checked = False }
@@ -694,17 +688,18 @@ view theme ir valueType updateEditorState editorState =
                     , text = currentText
                     , placeholder =
                         Just (placeholder [ center, paddingXY 0 1 ] (text "not set"))
-                    , label = Input.labelLeft labelStyle (text <| iconLabel (IR.resolveType valueType ir))
+                    , label = Input.labelLeft labelStyle (text <| iconLabel (Distribution.resolveType valueType ir))
                     }
+                    editorState.errorState
                 , if editorState.defaultValueCheckbox.show then
-                    Input.checkbox [ center ]
-                        { icon = Input.defaultCheckbox
-                        , label = Input.labelRight (labelStyle ++ [ Background.color <| rgba 0 0 0 0 ]) (text "empty (\"\")")
+                    InputComponent.checkBox theme
+                        [ center ]
+                        { label = Input.labelRight (labelStyle ++ [ Background.color <| rgba 0 0 0 0 ]) (text "empty (\"\")")
                         , checked = editorState.defaultValueCheckbox.checked
                         , onChange =
                             \updatedIsChecked ->
                                 updateEditorState
-                                    (applyResult ((\_ -> Ok (Value.Literal () (StringLiteral ""))) (IR.resolveType valueType ir))
+                                    (applyResult ((\_ -> Ok (Value.Literal () (StringLiteral ""))) (Distribution.resolveType valueType ir))
                                         { editorState
                                             | componentState = TextEditor ""
                                             , defaultValueCheckbox = { show = True, checked = updatedIsChecked }
@@ -762,6 +757,21 @@ view theme ir valueType updateEditorState editorState =
                                                         fieldEditorStates
                                                             |> Dict.insert fieldName ( fieldType, newFieldEditorState )
 
+                                                    allFieldsAreEmpty : Bool
+                                                    allFieldsAreEmpty =
+                                                        newFieldEditorStates
+                                                            |> Dict.values
+                                                            |> List.filterMap
+                                                                (\( _, nextFieldEditorState ) ->
+                                                                    case editorStateToRawValueResult nextFieldEditorState of
+                                                                        Ok (Just value) ->
+                                                                            Just value
+
+                                                                        _ ->
+                                                                            Nothing
+                                                                )
+                                                            |> List.isEmpty
+
                                                     recordResult : Result String RawValue
                                                     recordResult =
                                                         newFieldEditorStates
@@ -791,14 +801,27 @@ view theme ir valueType updateEditorState editorState =
                                                                 (Ok [])
                                                             |> Result.map (Dict.fromList >> Value.Record ())
                                                 in
-                                                updateEditorState
-                                                    (applyResult recordResult
+                                                if allFieldsAreEmpty then
+                                                    updateEditorState
                                                         { editorState
                                                             | componentState =
                                                                 RecordEditor
                                                                     newFieldEditorStates
+                                                            , lastValidValue =
+                                                                Nothing
+                                                            , errorState =
+                                                                Nothing
                                                         }
-                                                    )
+
+                                                else
+                                                    updateEditorState
+                                                        (applyResult recordResult
+                                                            { editorState
+                                                                | componentState =
+                                                                    RecordEditor
+                                                                        newFieldEditorStates
+                                                            }
+                                                        )
                                             )
                                             fieldEditorState
                                         )
@@ -997,10 +1020,10 @@ view theme ir valueType updateEditorState editorState =
                                                                                 )
                                                            )
                                                 )
-                                            |> ListOfResults.liftFirstError
+                                            |> ListOfResults.keepFirstError
                                             |> Result.map (Dict.fromList >> Value.Record ())
                                     )
-                                |> ListOfResults.liftFirstError
+                                |> ListOfResults.keepFirstError
                                 |> Result.map (Value.List ())
                     in
                     updateEditorState
@@ -1219,55 +1242,83 @@ view theme ir valueType updateEditorState editorState =
                 ]
 
         GenericEditor currentText ->
-            el (baseStyle ++ errorMessageStyle)
-                (Input.multiline errorBorderStyle
-                    { onChange =
-                        \updatedText ->
-                            let
-                                valueResult tpe =
-                                    updatedText
-                                        |> Frontend.mapValueToFile ir tpe
-                                        |> Result.andThen
-                                            (\sourceFileIR ->
-                                                let
-                                                    packageName =
-                                                        Path.fromString "My.Package"
+            InputComponent.multiLine theme
+                baseStyle
+                { onChange =
+                    \updatedText ->
+                        let
+                            valueResult tpe =
+                                updatedText
+                                    |> Frontend.mapValueToFile ir tpe
+                                    |> Result.andThen
+                                        (\sourceFileIR ->
+                                            let
+                                                packageName =
+                                                    Path.fromString "My.Package"
 
-                                                    moduleName =
-                                                        Path.fromString "A"
+                                                moduleName =
+                                                    Path.fromString "A"
 
-                                                    localName =
-                                                        Name.fromString "fooFunction"
-                                                in
-                                                case sourceFileIR |> IR.lookupValueDefinition ( packageName, moduleName, localName ) of
-                                                    Just valDef ->
-                                                        Ok (valDef.body |> Value.toRawValue)
+                                                localName =
+                                                    Name.fromString "fooFunction"
+                                            in
+                                            case sourceFileIR |> Distribution.lookupValueDefinition ( packageName, moduleName, localName ) of
+                                                Just valDef ->
+                                                    Ok (valDef.body |> Value.toRawValue)
 
-                                                    Nothing ->
-                                                        Err "Function name Not found"
-                                            )
-                            in
-                            if updatedText == "" then
-                                updateEditorState
-                                    (initEditorState ir valueType Nothing)
+                                                Nothing ->
+                                                    Err "Function name Not found"
+                                        )
+                        in
+                        if updatedText == "" then
+                            updateEditorState
+                                (initEditorState ir valueType Nothing)
 
-                            else
-                                updateEditorState
-                                    (applyResult (valueResult (IR.resolveType valueType ir))
-                                        { editorState
-                                            | componentState = GenericEditor updatedText
-                                        }
-                                    )
-                    , text = currentText
-                    , placeholder =
-                        Just (placeholder [ center, paddingXY 0 1 ] (text "not set"))
-                    , label = Input.labelHidden ""
-                    , spellcheck = False
-                    }
-                )
+                        else
+                            updateEditorState
+                                (applyResult (valueResult (Distribution.resolveType valueType ir))
+                                    { editorState
+                                        | componentState = GenericEditor updatedText
+                                    }
+                                )
+                , text = currentText
+                , placeholder =
+                    Just (placeholder [ center, paddingXY 0 1 ] (text "not set"))
+                , label = Input.labelHidden ""
+                , spellcheck = False
+                }
+                editorState.errorState
+
+        LocalDateEditor state ->
+            let
+                localDateValue : String -> Value () ()
+                localDateValue str =
+                    fromISO () (Value.Literal () (StringLiteral str))
+            in
+            DatePicker.view theme
+                { placeholder =
+                    Just (placeholder [ center, paddingXY 0 1 ] (text "not set"))
+                , label = el labelStyle (text "local date")
+                , state = state
+                , onStateChange =
+                    \datePickerState ->
+                        updateEditorState
+                            (applyResult
+                                (case datePickerState.date of
+                                    Just date ->
+                                        Ok <| localDateValue (toISOString date)
+
+                                    Nothing ->
+                                        Err "Invalid Date!"
+                                )
+                                { editorState
+                                    | componentState = LocalDateEditor datePickerState
+                                }
+                            )
+                }
 
 
-viewCustomTypeEditor : Theme -> List (Element.Attribute msg) -> IR -> (EditorState -> msg) -> EditorState -> FQName -> Type.Constructors () -> CustomTypeEditorState -> Element msg
+viewCustomTypeEditor : Theme -> List (Element.Attribute msg) -> Distribution -> (EditorState -> msg) -> EditorState -> FQName -> Type.Constructors () -> CustomTypeEditorState -> Element msg
 viewCustomTypeEditor theme labelStyle ir updateEditorState editorState (( packageName, moduleName, typeName ) as fqn) constructors customTypeEditorState =
     let
         viewConstructor : Element msg
@@ -1389,7 +1440,8 @@ viewCustomTypeEditor theme labelStyle ir updateEditorState editorState (( packag
         [ el labelStyle (text <| nameToText typeName)
         , viewConstructor
         , row
-            [ spacing 5
+            [ width fill
+            , spacing 5
             ]
             viewArguments
         ]

@@ -17,7 +17,8 @@ port module Morphir.Elm.CLI exposing (..)
 import Dict
 import Json.Decode as Decode exposing (field, string)
 import Json.Encode as Encode
-import Morphir.Correctness.Codec exposing (decodeTestSuite)
+import Morphir.Correctness.Codec as TestCodec
+import Morphir.Correctness.Test exposing (TestSuite)
 import Morphir.Elm.Frontend as Frontend exposing (PackageInfo, SourceFile, SourceLocation)
 import Morphir.Elm.Frontend.Codec as FrontendCodec
 import Morphir.Elm.IncrementalFrontend as IncrementalFrontend exposing (Errors, ModuleChange(..), OrderedFileChanges)
@@ -29,20 +30,17 @@ import Morphir.File.FileMap exposing (FileMap)
 import Morphir.File.FileMap.Codec exposing (encodeFileMap)
 import Morphir.File.FileSnapshot as FileSnapshot exposing (FileSnapshot)
 import Morphir.File.FileSnapshot.Codec as FileSnapshotCodec
-import Morphir.IR as IR
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..), lookupPackageName, lookupPackageSpecification)
 import Morphir.IR.Distribution.Codec as DistroCodec
-import Morphir.IR.FQName as FQName
-import Morphir.IR.Name as Name
+import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package exposing (PackageName, Specification)
-import Morphir.IR.Path as Path
+import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.Repo as Repo exposing (Error(..), Repo)
 import Morphir.IR.SDK as SDK
-import Morphir.IR.Value as Value
 import Morphir.JsonSchema.Backend
-import Morphir.ListOfResults as List
 import Morphir.Stats.Backend as Stats
-import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
+import Morphir.TestCoverage.Backend exposing (TestCoverageResult, getBranchCoverage)
+import Morphir.TestCoverage.Codec exposing (encodeTestCoverageError, encodeTestCoverageResult)
 import Process
 import Task
 
@@ -68,7 +66,7 @@ port reportProgress : String -> Cmd msg
 port jsonDecodeError : String -> Cmd msg
 
 
-port generate : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
+port generate : (( Decode.Value, Decode.Value, Decode.Value ) -> msg) -> Sub msg
 
 
 port generateResult : Encode.Value -> Cmd msg
@@ -80,13 +78,10 @@ port stats : (Decode.Value -> msg) -> Sub msg
 port statsResult : Encode.Value -> Cmd msg
 
 
-port runTestCases : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
+port testCoverage : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
 
 
-port runTestCasesResult : Encode.Value -> Cmd msg
-
-
-port runTestCasesResultError : Encode.Value -> Cmd msg
+port testCoverageResult : Encode.Value -> Cmd msg
 
 
 subscriptions : () -> Sub Msg
@@ -96,7 +91,7 @@ subscriptions _ =
         , buildIncrementally BuildIncrementally
         , generate Generate
         , stats Stats
-        , runTestCases RunTestCases
+        , testCoverage TestCoverage
         ]
 
 
@@ -122,9 +117,9 @@ type Msg
     | BuildIncrementally Decode.Value
     | OrderFileChanges PackageName PackageInfo Frontend.Options FileChanges Repo
     | ApplyFileChanges PackageInfo Frontend.Options (List ModuleChange) Repo
-    | Generate ( Decode.Value, Decode.Value )
+    | Generate ( Decode.Value, Decode.Value, Decode.Value )
     | Stats Decode.Value
-    | RunTestCases ( Decode.Value, Decode.Value )
+    | TestCoverage ( Decode.Value, Decode.Value )
 
 
 main : Platform.Program () () Msg
@@ -263,7 +258,7 @@ process msg =
             IncrementalFrontend.applyFileChanges packageInfo.name orderedModuleChanges opts packageInfo.exposedModules repo
                 |> returnDistribution
 
-        Generate ( optionsJson, packageDistJson ) ->
+        Generate ( optionsJson, packageDistJson, testSuiteJson ) ->
             let
                 targetOption =
                     Decode.decodeValue (field "target" string) optionsJson
@@ -273,21 +268,38 @@ process msg =
 
                 packageDistroResult =
                     Decode.decodeValue DistroCodec.decodeVersionedDistribution packageDistJson
-            in
-            case Result.map2 Tuple.pair optionsResult packageDistroResult of
-                Ok ( options, packageDist ) ->
-                    let
-                        enrichedDistro =
-                            case packageDist of
-                                Library packageName dependencies packageDef ->
-                                    Library packageName (Dict.union Frontend.defaultDependencies dependencies) packageDef
 
-                        fileMap : Result Morphir.JsonSchema.Backend.Errors FileMap
-                        fileMap =
-                            mapDistribution options enrichedDistro
-                    in
+                testSuiteResult =
+                    packageDistroResult
+                        |> Result.andThen
+                            (\packageDist ->
+                                Decode.decodeValue
+                                    (TestCodec.decodeTestSuite packageDist)
+                                    testSuiteJson
+                            )
+            in
+            case
+                Result.map3
+                    (\options packageDist maybeTestSuite ->
+                        let
+                            enrichedDistro =
+                                case packageDist of
+                                    Library packageName dependencies packageDef ->
+                                        Library packageName (Dict.union Frontend.defaultDependencies dependencies) packageDef
+
+                            fileMap : Result Encode.Value FileMap
+                            fileMap =
+                                mapDistribution options maybeTestSuite enrichedDistro
+                        in
+                        fileMap
+                    )
+                    optionsResult
+                    packageDistroResult
+                    testSuiteResult
+            of
+                Ok fileMap ->
                     fileMap
-                        |> encodeResult encodeErrors encodeFileMap
+                        |> encodeResult identity encodeFileMap
                         |> generateResult
 
                 Err errorMessage ->
@@ -315,116 +327,60 @@ process msg =
                 Err errorMessage ->
                     errorMessage |> Decode.errorToString |> jsonDecodeError
 
-        RunTestCases ( distributionJson, testSuiteJson ) ->
+        TestCoverage ( packageDistJson, testSuiteJson ) ->
             let
-                resultIR =
-                    distributionJson
-                        |> Decode.decodeValue DistroCodec.decodeVersionedDistribution
-                        |> Result.map IR.fromDistribution
+                packageDistroResult : Result Decode.Error Distribution
+                packageDistroResult =
+                    Decode.decodeValue DistroCodec.decodeVersionedDistribution packageDistJson
+
+                testSuiteResult : Result Decode.Error TestSuite
+                testSuiteResult =
+                    packageDistroResult
+                        |> Result.andThen
+                            (\packageDist ->
+                                Decode.decodeValue
+                                    (TestCodec.decodeTestSuite packageDist)
+                                    testSuiteJson
+                            )
             in
-            case resultIR of
-                Ok ir ->
-                    case testSuiteJson |> Decode.decodeValue (decodeTestSuite ir) of
-                        Ok testSuite ->
-                            let
-                                finalResult =
-                                    testSuite
-                                        |> Dict.toList
-                                        |> List.map
-                                            (\( functionName, testCaseList ) ->
-                                                let
-                                                    totalTestCase =
-                                                        List.length testCaseList
+            case packageDistroResult of
+                Ok packageDistro ->
+                    case packageDistro of
+                        Library packageName dependencies packageDef ->
+                            packageDef.modules
+                                |> Dict.toList
+                                |> List.map
+                                    (\( modName, accesscontrolledModDef ) ->
+                                        case testSuiteResult of
+                                            Ok testSuite ->
+                                                accesscontrolledModDef.value
+                                                    |> getBranchCoverage ( packageName, modName ) packageDistro testSuite
 
-                                                    resultList : List ( String, Encode.Value )
-                                                    resultList =
-                                                        testCaseList
-                                                            |> List.map
-                                                                (\testCase ->
-                                                                    case evaluateFunctionValue SDK.nativeFunctions ir functionName testCase.inputs of
-                                                                        Ok rawValue ->
-                                                                            if rawValue == testCase.expectedOutput then
-                                                                                ( "PASS"
-                                                                                , Encode.object
-                                                                                    [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
-                                                                                    , ( "Actual Output", rawValue |> Value.toString |> Encode.string )
-                                                                                    ]
-                                                                                )
+                                            Err err ->
+                                                accesscontrolledModDef.value
+                                                    |> getBranchCoverage ( packageName, modName ) packageDistro Dict.empty
+                                    )
+                                |> List.map encodeTestCoverageResult
+                                |> (\lstValues ->
+                                        if not (lstValues |> List.isEmpty) then
+                                            Encode.list identity
+                                                [ Encode.null
+                                                , Encode.list identity lstValues
+                                                ]
+                                                |> testCoverageResult
 
-                                                                            else
-                                                                                ( "FAIL"
-                                                                                , Encode.object
-                                                                                    [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
-                                                                                    , ( "Actual Output", rawValue |> Value.toString |> Encode.string )
-                                                                                    ]
-                                                                                )
+                                        else
+                                            Encode.list identity
+                                                [ Encode.string "An Error Occurred From Elm"
+                                                , Encode.null
+                                                ]
+                                                |> testCoverageResult
+                                   )
 
-                                                                        Err error ->
-                                                                            ( "FAIL"
-                                                                            , Encode.object
-                                                                                [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
-                                                                                , ( "Actual Output", Debug.toString error |> Encode.string )
-                                                                                ]
-                                                                            )
-                                                                )
-
-                                                    ( passedList, failList ) =
-                                                        resultList
-                                                            |> List.partition
-                                                                (\( status, encodedJson ) ->
-                                                                    if status == "PASS" then
-                                                                        True
-
-                                                                    else
-                                                                        False
-                                                                )
-                                                in
-                                                if List.length failList == 0 then
-                                                    Ok
-                                                        (Encode.object
-                                                            [ ( "Function Name"
-                                                              , functionName |> FQName.toString |> Encode.string
-                                                              )
-                                                            , ( "Total TestCases"
-                                                              , totalTestCase |> Encode.int
-                                                              )
-                                                            , ( "Pass TestCases"
-                                                              , passedList |> List.length |> Encode.int
-                                                              )
-                                                            , ( "Fail TestCases List", failList |> List.map Tuple.second |> Encode.list identity )
-                                                            ]
-                                                        )
-
-                                                else
-                                                    Err
-                                                        (Encode.object
-                                                            [ ( "Function Name"
-                                                              , functionName |> FQName.toString |> Encode.string
-                                                              )
-                                                            , ( "Total TestCases"
-                                                              , totalTestCase |> Encode.int
-                                                              )
-                                                            , ( "Fail TestCases"
-                                                              , failList |> List.length |> Encode.int
-                                                              )
-                                                            , ( "Fail TestCases List", failList |> List.map Tuple.second |> Encode.list identity )
-                                                            ]
-                                                        )
-                                            )
-                                        |> List.liftAllErrors
-                            in
-                            case finalResult of
-                                Ok passList ->
-                                    passList |> Encode.list identity |> runTestCasesResult
-
-                                Err failList ->
-                                    failList |> Encode.list identity |> runTestCasesResultError
-
-                        Err errorMessage ->
-                            errorMessage |> Decode.errorToString |> jsonDecodeError
-
-                Err errorMessage ->
-                    errorMessage |> Decode.errorToString |> jsonDecodeError
+                Err err ->
+                    err
+                        |> encodeTestCoverageError
+                        |> testCoverageResult
 
 
 report : Msg -> Cmd Msg
@@ -461,14 +417,14 @@ report msg =
                     ]
                 )
 
-        Generate ( optionJson, packageDistJson ) ->
+        Generate ( optionJson, packageDistJson, _ ) ->
             reportProgress " Generating target code from IR ..."
 
         Stats _ ->
             reportProgress "Generating stats from IR ..."
 
-        RunTestCases ( distributionJson, testSuiteJson ) ->
-            reportProgress "Generating TestCases from IR Test ..."
+        TestCoverage ( _, _ ) ->
+            reportProgress "Generating Tests Coverage from testSuites ..."
 
 
 keepElmFilesOnly : FileChanges -> FileChanges
@@ -483,12 +439,14 @@ keepElmFilesOnly fileChanges =
 returnDistribution : Result IncrementalFrontend.Errors Repo -> Cmd Msg
 returnDistribution repoResult =
     let
-        removeDependencies (Library packageName _ packageDefinition) =
-            Library packageName Dict.empty packageDefinition
+        removeMorphirSDK (Library packageName dependencies packageDefinition) =
+            Library packageName
+                (dependencies |> Dict.remove [ [ "morphir" ], [ "s", "d", "k" ] ])
+                packageDefinition
     in
     repoResult
         |> Result.map Repo.toDistribution
-        |> Result.map removeDependencies
+        |> Result.map removeMorphirSDK
         |> encodeResult (Encode.list IncrementalFrontendCodec.encodeError) DistroCodec.encodeVersionedDistribution
         |> buildCompleted
 

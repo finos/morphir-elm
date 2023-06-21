@@ -9,13 +9,12 @@ takes a `Value` and returns a `Value` (or an error for invalid expressions):
 -}
 
 import Dict exposing (Dict)
-import Morphir.IR as IR exposing (IR)
+import Morphir.IR.Distribution as Distribution exposing (Distribution)
 import Morphir.IR.FQName exposing (FQName)
 import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Type as Type
 import Morphir.IR.Value as Value exposing (Pattern, RawValue, Value, toRawValue)
-import Morphir.ListOfResults as ListOfResults
 import Morphir.SDK.ResultList as ResultList
 import Morphir.Value.Error exposing (Error(..), PatternMismatch(..))
 import Morphir.Value.Native as Native
@@ -28,10 +27,10 @@ type alias Variables =
 
 
 {-| -}
-evaluateFunctionValue : Dict FQName Native.Function -> IR -> FQName -> List (Maybe RawValue) -> Result Error RawValue
+evaluateFunctionValue : Dict FQName Native.Function -> Distribution -> FQName -> List (Maybe RawValue) -> Result Error RawValue
 evaluateFunctionValue nativeFunctions ir fQName variableValues =
     ir
-        |> IR.lookupValueDefinition fQName
+        |> Distribution.lookupValueDefinition fQName
         -- If we cannot find the value in the IR we return an error.
         |> Result.fromMaybe (ReferenceNotFound fQName)
         |> Result.andThen
@@ -62,7 +61,7 @@ by fully-qualified name that will be used for lookup if the expression contains 
         -- (Value.Literal () (BoolLiteral False))
 
 -}
-evaluate : Dict FQName Native.Function -> IR -> RawValue -> Result Error RawValue
+evaluate : Dict FQName Native.Function -> Distribution -> RawValue -> Result Error RawValue
 evaluate nativeFunctions ir value =
     evaluateValue nativeFunctions ir Dict.empty [] value
 
@@ -70,7 +69,7 @@ evaluate nativeFunctions ir value =
 {-| Evaluates a value expression recursively in a single pass while keeping track of variables and arguments along the
 evaluation.
 -}
-evaluateValue : Dict FQName Native.Function -> IR -> Variables -> List RawValue -> RawValue -> Result Error RawValue
+evaluateValue : Dict FQName Native.Function -> Distribution -> Variables -> List RawValue -> RawValue -> Result Error RawValue
 evaluateValue nativeFunctions ir variables arguments value =
     case value of
         Value.Literal _ _ ->
@@ -81,10 +80,10 @@ evaluateValue nativeFunctions ir variables arguments value =
             arguments
                 |> List.map (evaluateValue nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
-                |> ListOfResults.liftFirstError
+                |> ResultList.keepFirstError
                 |> Result.andThen
                     (\evaluatedArgs ->
-                        case ir |> IR.lookupTypeSpecification (ir |> IR.resolveAliases fQName) of
+                        case ir |> Distribution.lookupTypeSpecification (ir |> Distribution.resolveAliases fQName) of
                             Just (Type.TypeAliasSpecification _ (Type.Record _ fields)) ->
                                 Ok
                                     (Value.Record ()
@@ -115,7 +114,7 @@ evaluateValue nativeFunctions ir variables arguments value =
                 -- We evaluate each element separately.
                 |> List.map (evaluateValue nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
-                |> ListOfResults.liftFirstError
+                |> ResultList.keepFirstError
                 -- If nothing fails we wrap the result in a tuple.
                 |> Result.map (Value.Tuple ())
 
@@ -125,7 +124,7 @@ evaluateValue nativeFunctions ir variables arguments value =
                 -- We evaluate each element separately.
                 |> List.map (evaluateValue nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
-                |> ListOfResults.liftFirstError
+                |> ResultList.keepFirstError
                 -- If nothing fails we wrap the result in a list.
                 |> Result.map (Value.List ())
 
@@ -140,7 +139,7 @@ evaluateValue nativeFunctions ir variables arguments value =
                             |> Result.map (Tuple.pair fieldName)
                     )
                 -- If any of those fails we return the first failure.
-                |> ListOfResults.liftFirstError
+                |> ResultList.keepFirstError
                 -- If nothing fails we wrap the result in a record.
                 |> Result.map (Dict.fromList >> Value.Record ())
 
@@ -283,7 +282,7 @@ evaluateValue nativeFunctions ir variables arguments value =
             -- Recursive let bindings will be evaluated simply by assigning them to variable names and evaluating the
             -- in value using them. The in value evaluation will evaluate the recursive definitions.
             let
-                defVariables : Dict Name (Value () ())
+                defVariables : Dict Name RawValue
                 defVariables =
                     defs |> Dict.map (\_ def -> Value.definitionToValue def)
             in
@@ -318,7 +317,7 @@ evaluateValue nativeFunctions ir variables arguments value =
                         case conditionValue of
                             Value.Literal _ (BoolLiteral conditionTrue) ->
                                 let
-                                    branchToFollow : Value () ()
+                                    branchToFollow : RawValue
                                     branchToFollow =
                                         if conditionTrue then
                                             thenBranch
@@ -336,7 +335,7 @@ evaluateValue nativeFunctions ir variables arguments value =
             -- For a pattern match we first need to evaluate the subject value then step through th cases, match
             -- each pattern until we find a matching case and when we do evaluate the body
             let
-                findMatch : List ( Pattern (), Value () () ) -> Value () () -> Result Error (Value () ())
+                findMatch : List ( Pattern (), RawValue ) -> RawValue -> Result Error RawValue
                 findMatch remainingCases evaluatedSubject =
                     case remainingCases of
                         ( nextPattern, nextBody ) :: restOfCases ->
@@ -448,7 +447,7 @@ matchPattern pattern value =
                         -- We recursively match each element
                         List.map2 matchPattern elemPatterns elemValues
                             -- If there is a mismatch we return the first error
-                            |> ListOfResults.liftFirstError
+                            |> ResultList.keepFirstError
                             -- If the match is successful we union the variables returned
                             |> Result.map (List.foldl Dict.union Dict.empty)
 
@@ -494,7 +493,7 @@ matchPattern pattern value =
                         -- Then the arguments
                         if patternLength == valueLength then
                             List.map2 matchPattern argPatterns argValues
-                                |> ListOfResults.liftFirstError
+                                |> ResultList.keepFirstError
                                 |> Result.map (List.foldl Dict.union Dict.empty)
 
                         else

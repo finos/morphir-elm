@@ -196,7 +196,7 @@ mapStatefulAppImplementation opt distribution currentPackagePath currentModulePa
             typeNamesStatefulApp
                 |> List.concatMap
                     (\name ->
-                        case lookupTypeSpecification currentPackagePath currentModulePath (Name.fromString name) distribution of
+                        case lookupTypeSpecification ( currentPackagePath, currentModulePath, Name.fromString name ) distribution of
                             Just (TypeAliasSpecification _ aliasType) ->
                                 case mapType aliasType of
                                     TypeRef _ typeName ->
@@ -267,6 +267,7 @@ mapStatefulAppImplementation opt distribution currentPackagePath currentModulePa
                                 ]
                             , members =
                                 []
+                            , body = []
                             }
                         )
                     )
@@ -376,6 +377,7 @@ mapStatefulAppImplementation opt distribution currentPackagePath currentModulePa
                                 ]
                             , extends = []
                             , members = []
+                            , body = []
                             }
                         )
                     )
@@ -561,6 +563,7 @@ mapStatefulAppImplementation opt distribution currentPackagePath currentModulePa
                                         }
                                     )
                                 ]
+                            , body = []
                             }
                         )
                     )
@@ -653,6 +656,7 @@ mapMainApp currentPackagePath currentModulePath =
                                         }
                                     )
                                 ]
+                            , body = []
                             }
                         )
                     )
@@ -724,6 +728,7 @@ mapStatefulAppDefinition currentPackagePath currentModulePath =
                                 []
                             , members =
                                 []
+                            , body = []
                             }
                         )
                     )
@@ -812,6 +817,7 @@ addJacksonAnnotations annotatedMembers =
                                             )
                                 , extends = class.extends
                                 , members = class.members
+                                , body = []
                                 }
                             )
                         )

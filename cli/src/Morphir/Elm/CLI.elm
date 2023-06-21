@@ -28,7 +28,6 @@ import Morphir.Elm.Frontend.Codec as FrontendCodec
 import Morphir.Elm.Target exposing (BackendOptions, decodeOptions, mapDistribution)
 import Morphir.File.FileMap exposing (FileMap)
 import Morphir.File.FileMap.Codec exposing (encodeFileMap)
-import Morphir.IR as IR exposing (IR)
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
 import Morphir.IR.Distribution.Codec as DistributionCodec
 import Morphir.IR.FQName as FQName
@@ -36,7 +35,7 @@ import Morphir.IR.Package as Package exposing (PackageName)
 import Morphir.IR.SDK as SDK
 import Morphir.IR.Type exposing (Type)
 import Morphir.IR.Value as Value
-import Morphir.ListOfResults as List
+import Morphir.SDK.ResultList as ResultList
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
 
@@ -121,11 +120,14 @@ update msg model =
                                                     |> Package.definitionToSpecificationWithPrivate
                                                     |> Package.mapSpecificationAttributes (\_ -> ())
 
-                                            ir : IR
+                                            ir : Distribution
                                             ir =
-                                                Frontend.defaultDependencies
-                                                    |> Dict.insert packageInfo.name thisPackageSpec
-                                                    |> IR.fromPackageSpecifications
+                                                Library
+                                                    [ [ "empty" ] ]
+                                                    (Frontend.defaultDependencies
+                                                        |> Dict.insert packageInfo.name thisPackageSpec
+                                                    )
+                                                    Package.emptyDefinition
                                         in
                                         packageDef
                                             |> Package.mapDefinitionAttributes (\_ -> ()) identity
@@ -170,17 +172,13 @@ update msg model =
                                 Library packageName dependencies packageDef ->
                                     Library packageName (Dict.union Frontend.defaultDependencies dependencies) packageDef
 
-                        fileMap : Result (List String) FileMap
+                        fileMap : Result Encode.Value FileMap
                         fileMap =
                             mapDistribution options enrichedDistro
-
-                        encodedResult : Result (List String) FileMap -> Encode.Value
-                        encodedResult =
-                            encodeResult (Encode.list Encode.string) encodeFileMap
                     in
                     ( model
                     , fileMap
-                        |> encodedResult
+                        |> encodeResult identity encodeFileMap
                         |> generateResult
                     )
 
@@ -189,10 +187,10 @@ update msg model =
 
         RunTestCases ( distributionJson, testSuiteJson ) ->
             let
+                resultIR : Result Decode.Error Distribution
                 resultIR =
                     distributionJson
                         |> Decode.decodeValue DistributionCodec.decodeVersionedDistribution
-                        |> Result.map IR.fromDistribution
             in
             case resultIR of
                 Ok ir ->
@@ -283,7 +281,7 @@ update msg model =
                                                             ]
                                                         )
                                             )
-                                        |> List.liftAllErrors
+                                        |> ResultList.keepAllErrors
                             in
                             case finalResult of
                                 Ok passList ->

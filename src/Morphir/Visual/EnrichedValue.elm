@@ -1,4 +1,7 @@
-module Morphir.Visual.EnrichedValue exposing (EnrichedValue, fromRawValue, fromTypedValue, getId)
+module Morphir.Visual.EnrichedValue exposing
+    ( EnrichedValue, fromRawValue, fromTypedValue, getId
+    , getType, toTypedValue
+    )
 
 {-| This module contains utilities to work with values that are enriched with attributes that make visualization tasks
 easier.
@@ -7,7 +10,7 @@ easier.
 
 -}
 
-import Morphir.IR exposing (IR)
+import Morphir.IR.Distribution exposing (Distribution)
 import Morphir.IR.Type exposing (Type)
 import Morphir.IR.Value as Value exposing (RawValue, TypedValue, Value, indexedMapValue)
 import Morphir.Type.Infer as Infer exposing (TypeError)
@@ -25,7 +28,7 @@ type alias EnrichedValue =
 
 {-| Enrich a raw value. It requires access to the whole IR for type inference.
 -}
-fromRawValue : IR -> RawValue -> Result TypeError EnrichedValue
+fromRawValue : Distribution -> RawValue -> Result TypeError EnrichedValue
 fromRawValue ir rawValue =
     Infer.inferValue ir rawValue
         |> Result.andThen
@@ -53,3 +56,18 @@ getId enrichedValue =
             Value.valueAttribute enrichedValue
     in
     id
+
+
+getType : EnrichedValue -> Type ()
+getType enrichedValue =
+    let
+        ( _, t ) =
+            Value.valueAttribute enrichedValue
+    in
+    t
+
+
+toTypedValue : EnrichedValue -> TypedValue
+toTypedValue enrichedValue =
+    enrichedValue
+        |> Value.mapValueAttributes (always ()) (always Tuple.second (Value.valueAttribute enrichedValue))

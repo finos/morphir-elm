@@ -4,23 +4,23 @@ import Dict
 import Json.Decode as Decode exposing (string)
 import Json.Encode as Encode
 import Morphir.Correctness.Test exposing (TestCase, TestCases, TestSuite)
-import Morphir.IR as IR exposing (IR)
+import Morphir.IR.Distribution as Distribution exposing (Distribution)
 import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.FQName.CodecV1 as FQName exposing (decodeFQName)
 import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Type exposing (Type)
 import Morphir.IR.Type.DataCodec as DataCodec
 import Morphir.IR.Value as Value exposing (RawValue)
-import Morphir.ListOfResults as ListOfResults
+import Morphir.SDK.ResultList as ListOfResults
 
 
-encodeTestSuite : IR -> TestSuite -> Result String Encode.Value
+encodeTestSuite : Distribution -> TestSuite -> Result String Encode.Value
 encodeTestSuite ir testSuite =
     testSuite
         |> Dict.toList
         |> List.map
             (\( fQName, testCases ) ->
-                case IR.lookupValueSpecification fQName ir of
+                case Distribution.lookupValueSpecification fQName ir of
                     Just valueSpec ->
                         testCases
                             |> encodeTestCases ir valueSpec
@@ -35,18 +35,18 @@ encodeTestSuite ir testSuite =
                     Nothing ->
                         Err "Cannot find function in IR"
             )
-        |> ListOfResults.liftFirstError
+        |> ListOfResults.keepFirstError
         |> Result.map (Encode.list identity)
 
 
-decodeTestSuite : IR -> Decode.Decoder TestSuite
+decodeTestSuite : Distribution -> Decode.Decoder TestSuite
 decodeTestSuite ir =
     Decode.map Dict.fromList
         (Decode.list
             (Decode.index 0 decodeFQName
                 |> Decode.andThen
                     (\fQName ->
-                        case IR.lookupValueSpecification fQName ir of
+                        case Distribution.lookupValueSpecification fQName ir of
                             Just valueSpec ->
                                 Decode.index 1
                                     (Decode.list (decodeTestCase ir valueSpec)
@@ -60,7 +60,7 @@ decodeTestSuite ir =
         )
 
 
-encodeTestCases : IR -> Value.Specification () -> TestCases -> Result String Encode.Value
+encodeTestCases : Distribution -> Value.Specification () -> TestCases -> Result String Encode.Value
 encodeTestCases ir valueSpec testCases =
     let
         encodeInput : List ( Name, Type () ) -> TestCase -> Result String Encode.Value
@@ -73,13 +73,14 @@ encodeTestCases ir valueSpec testCases =
                                 case maybeTestCaseInput of
                                     Just testCaseInput ->
                                         testCaseInput |> encoder
+
                                     Nothing ->
                                         Ok Encode.null
                             )
                 )
                 inputTypes
                 testCase.inputs
-                |> ListOfResults.liftFirstError
+                |> ListOfResults.keepFirstError
                 |> Result.map (Encode.list identity)
     in
     testCases
@@ -108,11 +109,11 @@ encodeTestCases ir valueSpec testCases =
                     inputEncoder
                     outputEncoder
             )
-        |> ListOfResults.liftFirstError
+        |> ListOfResults.keepFirstError
         |> Result.map (Encode.list identity)
 
 
-decodeTestCase : IR -> Value.Specification () -> Decode.Decoder TestCase
+decodeTestCase : Distribution -> Value.Specification () -> Decode.Decoder TestCase
 decodeTestCase ir valueSpec =
     let
         resultToFailure : Result String (Decode.Decoder a) -> Decode.Decoder a
@@ -136,10 +137,9 @@ decodeTestCase ir valueSpec =
                                     Decode.index index
                                         (DataCodec.decodeData ir argType
                                             |> resultToFailure
-                                            |> Decode.maybe
                                             |> Decode.map
                                                 (\input ->
-                                                    List.append inputsSoFar [ input ]
+                                                    List.append inputsSoFar [ Just input ]
                                                 )
                                         )
                                 )

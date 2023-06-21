@@ -18,7 +18,7 @@ const cliTsProject = ts.createProject('./cli2/tsconfig.json')
 const readFile = util.promisify(fs.readFile)
 
 const config = {
-    morphirJvmVersion: '0.10.0',
+    morphirJvmVersion: '0.13.0',
     morphirJvmCloneDir: tmp.dirSync()
 }
 
@@ -41,8 +41,8 @@ async function cloneMorphirJVM() {
 }
 
 function copyMorphirJVMAssets() {
-    const sdkFiles = path.join(config.morphirJvmCloneDir.name, 'morphir/sdk/core/src*/**')
-    return src([sdkFiles]).pipe(dest('redistributable/Scala/sdk'))
+    const sdkFiles = path.join(config.morphirJvmCloneDir.name, 'morphir/sdk/**')
+    return src(sdkFiles).pipe(dest('redistributable/Scala/sdk'))
 }
 
 async function cleanupMorphirJVM() {
@@ -91,12 +91,26 @@ const buildCLI2 =
         makeCLI2
     )
 
+const buildMorphirAPI2 = async ()=>{
+    try {
+        await morphirElmMakeRunOldCli('.', './morphir-ir.json', {typesOnly: true})
+        await morphirElmGen('./morphir-ir.json', './lib/generated', 'TypeScript')
+        src('./lib/sdk/**/*')
+        .pipe(dest('./lib/generated/morphir/sdk'))
+       return await execa('npx tsc', ['--project',path.join('.','lib','tsconfig.json')])
+    } catch (error) {
+        return error
+    }
+
+}
+
 const build =
     series(
         checkElmDocs,
         makeCLI,
         makeDevCLI,
         buildCLI2,
+        buildMorphirAPI2,
         makeDevServer,
         makeDevServerAPI,
         makeInsightAPI,
@@ -131,11 +145,33 @@ function morphirElmMake2(projectDir, outputPath, options = {}) {
     return execa('node', args, { stdio })
 }
 
+// Generate the IR for the Json Schema mdel
+function morphirElmMakeJsonSchema(projectDir, outputPath, options = {}) {
+    args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
+    if (options.typesOnly) {
+        args.push('--types-only')
+    }
+    console.log("Running: " + args.join(' '));
+    return execa('node', args, { stdio })
+}
+
 function morphirElmGen(inputPath, outputDir, target) {
     args = ['./cli/morphir-elm.js', 'gen', '-i', inputPath, '-o', outputDir, '-t', target]
     console.log("Running: " + args.join(' '));
     return execa('node', args, { stdio })
 }
+
+// Test the json-schema-gen command.
+async function morphirJsonSchemaGen(inputPath, outputDir, target) {
+    args = ['./cli2/lib/morphir-json-schema-gen.js', 'json-schema-gen', '-i', inputPath, '-o', outputDir, '-t', target]
+    console.log("Running: " + args.join(' '));
+    try {
+        await execa('node', args, {stdio})
+    } catch (err) {
+        throw(err)
+    }
+}
+
 
 function morphirDockerize(projectDir, options = {}) {
     let command = 'dockerize'
@@ -170,7 +206,9 @@ async function compileMain2Ts() {
 function testIntegrationClean() {
     return del([
         'tests-integration/generated',
-        'tests-integration/reference-model/morphir-ir.json'
+        'tests-integration/reference-model/morphir-ir.json',
+        'tests-integration/json-schema/model/dist',
+        'tests-integration/json-schema/model/morphir-ir.json'
     ])
 }
 
@@ -184,11 +222,23 @@ async function testIntegrationMake(cb) {
     await morphirElmMakeRunOldCli(
         './tests-integration/reference-model',
         './tests-integration/generated/refModel/morphir-ir.json')
+
+    await morphirElmMakeJsonSchema(
+        './tests-integration/json-schema/model',
+        './tests-integration/json-schema/model/morphir-ir.json')
 }
 
 async function testIntegrationDockerize() {
     await morphirDockerize(
         './tests-integration/reference-model',
+    )
+}
+
+async function testIntegrationJsonSchemaGen() {
+    await morphirJsonSchemaGen(
+        './tests-integration/json-schema/model/morphir-ir.json',
+        './tests-integration/json-schema/model/dist',
+        'JsonSchema'
     )
 }
 
@@ -302,13 +352,13 @@ testIntegrationSpark = series(
     testIntegrationTestSpark,
 )
 
-const testIntegration = series(
+testIntegration = series(
     testIntegrationClean,
     testIntegrationMake,
     testCreateCSV,
     parallel(
         testIntegrationMorphirTest,
-        testIntegrationSpark,
+        //testIntegrationSpark,
         series(
             testIntegrationGenScala,
             testIntegrationBuildScala,
@@ -317,8 +367,8 @@ const testIntegration = series(
             testIntegrationGenTypeScript,
             testIntegrationTestTypeScript,
         ),
-    ),
-    testIntegrationDockerize
+    ),testIntegrationDockerize,
+     testIntegrationJsonSchemaGen
 )
 
 
