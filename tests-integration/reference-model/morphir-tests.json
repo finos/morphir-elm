@@ -19,47 +19,6 @@
                     "k"
                 ],
                 [
-                    "local",
-                    "time"
-                ]
-            ],
-            [
-                "from",
-                "i",
-                "s",
-                "o"
-            ]
-        ],
-        [
-            {
-                "inputs": [
-                    "1:30"
-                ],
-                "expectedOutput": "1:30",
-                "description": ""
-            }
-        ]
-    ],
-    [
-        [
-            [
-                [
-                    "morphir"
-                ],
-                [
-                    "reference"
-                ],
-                [
-                    "model"
-                ]
-            ],
-            [
-                [
-                    "s",
-                    "d",
-                    "k"
-                ],
-                [
                     "string"
                 ]
             ],
@@ -72,6 +31,13 @@
             {
                 "inputs": [
                     "4"
+                ],
+                "expectedOutput": true,
+                "description": ""
+            },
+            {
+                "inputs": [
+                    "7"
                 ],
                 "expectedOutput": true,
                 "description": ""
