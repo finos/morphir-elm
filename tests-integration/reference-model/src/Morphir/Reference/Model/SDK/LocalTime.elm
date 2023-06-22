@@ -50,6 +50,13 @@ fromISO iso =
     Time.fromISO iso
 
 
+{-| Construct a LocalTime based on ISO formatted string. Opportunity for error denoted by Maybe return type.
+-}
+toISOString : LocalTime -> String
+toISOString localTime =
+    Time.toISOString localTime
+
+
 {-| Construct a localTime from Millisecond count .
 -}
 fromMilliseconds : Int -> LocalTime

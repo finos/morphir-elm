@@ -76,18 +76,21 @@ import Morphir.IR.SDK.Basics as Basics
 import Morphir.IR.SDK.Char as Basics
 import Morphir.IR.SDK.Decimal as Decimal
 import Morphir.IR.SDK.Dict as SDKDict
+import Morphir.IR.SDK.LocalDate as Date exposing (fromISO)
+import Morphir.IR.SDK.LocalTime as Time exposing (fromISO)
 import Morphir.IR.SDK.String as Basics
-import Morphir.IR.SDK.LocalDate exposing (fromISO)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (RawValue, Value(..))
 import Morphir.SDK.Decimal as Decimal
-import Morphir.SDK.LocalDate as LocalDate exposing ( toISOString)
+import Morphir.SDK.LocalDate as LocalDate exposing (toISOString)
+import Morphir.SDK.LocalTime as LocalTime
 import Morphir.SDK.ResultList as ListOfResults
 import Morphir.Visual.Common exposing (nameToText)
 import Morphir.Visual.Components.DatePickerComponent as DatePicker
 import Morphir.Visual.Components.FieldList as FieldList
 import Morphir.Visual.Components.InputComponent as InputComponent
 import Morphir.Visual.Components.Picklist as Picklist
+import Morphir.Visual.Components.TimePickerComponent as TimePicker
 import Morphir.Visual.Theme exposing (Theme)
 import Svg
 import Svg.Attributes
@@ -143,6 +146,7 @@ type ComponentState
     | DictEditor ( Type (), Type () ) (List ( EditorState, EditorState ))
     | GenericEditor String
     | LocalDateEditor DatePicker.DatePickerState
+    | LocalTimeEditor TimePicker.TimePickerState
 
 
 type alias CustomTypeEditorState =
@@ -259,6 +263,9 @@ initComponentState ir valueType maybeInitialValue =
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "date" ] ], [ "local", "date" ] ) [] ->
             initLocalDateEditor maybeInitialValue
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "local", "time" ] ) [] ->
+            initLocalTimeEditor maybeInitialValue
 
         _ ->
             if valueType == Basics.boolType () then
@@ -564,6 +571,21 @@ initLocalDateEditor maybeInitialValue =
 
         Nothing ->
             ( Nothing, LocalDateEditor (DatePicker.initState Nothing) )
+
+
+initLocalTimeEditor : Maybe RawValue -> ( Maybe Error, ComponentState )
+initLocalTimeEditor maybeInitialValue =
+    case maybeInitialValue of
+        Just initialValue ->
+            case initialValue of
+                Value.Apply _ (Value.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "from", "i", "s", "o" ] )) (Value.Literal () (StringLiteral timeString)) ->
+                    ( Nothing, LocalTimeEditor (TimePicker.initState (LocalTime.fromISO timeString)) )
+
+                _ ->
+                    ( Just ("Cannot initialize editor with value: " ++ Debug.toString initialValue), LocalTimeEditor (TimePicker.initState Nothing) )
+
+        Nothing ->
+            ( Nothing, LocalTimeEditor (TimePicker.initState Nothing) )
 
 
 {-| Display the editor. It takes the following inputs:
@@ -1293,7 +1315,7 @@ view theme ir valueType updateEditorState editorState =
             let
                 localDateValue : String -> Value () ()
                 localDateValue str =
-                    fromISO () (Value.Literal () (StringLiteral str))
+                    Date.fromISO () (Value.Literal () (StringLiteral str))
             in
             DatePicker.view theme
                 { placeholder =
@@ -1313,6 +1335,38 @@ view theme ir valueType updateEditorState editorState =
                                 )
                                 { editorState
                                     | componentState = LocalDateEditor datePickerState
+                                }
+                            )
+                }
+
+        LocalTimeEditor state ->
+            let
+                localTimeValue : String -> Value () ()
+                localTimeValue str =
+                    Time.fromISO () (Value.Literal () (StringLiteral str))
+            in
+            TimePicker.view theme
+                { placeholder =
+                    Just (placeholder [ center, paddingXY 0 1 ] (text "not set"))
+                , label = el labelStyle (text "local time")
+                , state = state
+                , onStateChange =
+                    \timePickerState ->
+                        updateEditorState
+                            (applyResult
+                                (case timePickerState.time of
+                                    Just time ->
+                                        let
+                                            _ =
+                                                Debug.log "time" time
+                                        in
+                                        Ok <| localTimeValue (LocalTime.toISOString time)
+
+                                    Nothing ->
+                                        Err "Invalid Time!"
+                                )
+                                { editorState
+                                    | componentState = LocalTimeEditor timePickerState
                                 }
                             )
                 }
@@ -1440,7 +1494,8 @@ viewCustomTypeEditor theme labelStyle ir updateEditorState editorState (( packag
         [ el labelStyle (text <| nameToText typeName)
         , viewConstructor
         , row
-            [ width fill, spacing 5
+            [ width fill
+            , spacing 5
             ]
             viewArguments
         ]

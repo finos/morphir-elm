@@ -14,111 +14,28 @@
             ],
             [
                 [
-                    "relational"
+                    "s",
+                    "d",
+                    "k"
+                ],
+                [
+                    "local",
+                    "time"
                 ]
             ],
             [
-                "inner",
-                "join",
-                "1"
+                "from",
+                "i",
+                "s",
+                "o"
             ]
         ],
         [
             {
                 "inputs": [
-                    [],
-                    []
+                    "1:30"
                 ],
-                "expectedOutput": [],
-                "description": ""
-            },
-            {
-                "inputs": [
-                    [
-                        {
-                            "companyName": "foo",
-                            "position": "12w21w"
-                        }
-                    ],
-                    []
-                ],
-                "expectedOutput": [],
-                "description": ""
-            },
-            {
-                "inputs": [
-                    [
-                        {
-                            "companyName": "foo",
-                            "position": "12w21w"
-                        }
-                    ],
-                    [
-                        {
-                            "name": "foo",
-                            "numberOfEmployees": 123
-                        }
-                    ]
-                ],
-                "expectedOutput": [
-                    {
-                        "position": "12w21w",
-                        "companySize": 123
-                    }
-                ],
-                "description": ""
-            },
-            {
-                "inputs": [
-                    [
-                        {
-                            "companyName": "foo",
-                            "position": "12w21w"
-                        }
-                    ],
-                    [
-                        {
-                            "name": "bar",
-                            "numberOfEmployees": 123
-                        }
-                    ]
-                ],
-                "expectedOutput": [],
-                "description": ""
-            },
-            {
-                "inputs": [
-                    [
-                        {
-                            "companyName": "bar",
-                            "position": "efewfwe"
-                        },
-                        {
-                            "companyName": "foo",
-                            "position": "12w21w"
-                        }
-                    ],
-                    [
-                        {
-                            "name": "foo",
-                            "numberOfEmployees": 123
-                        },
-                        {
-                            "name": "bar",
-                            "numberOfEmployees": 456
-                        }
-                    ]
-                ],
-                "expectedOutput": [
-                    {
-                        "position": "efewfwe",
-                        "companySize": 456
-                    },
-                    {
-                        "position": "12w21w",
-                        "companySize": 123
-                    }
-                ],
+                "expectedOutput": "1:30",
                 "description": ""
             }
         ]
@@ -138,121 +55,25 @@
             ],
             [
                 [
-                    "relational"
+                    "s",
+                    "d",
+                    "k"
+                ],
+                [
+                    "string"
                 ]
             ],
             [
-                "left",
-                "join",
-                "1"
+                "is",
+                "digit"
             ]
         ],
         [
             {
                 "inputs": [
-                    [
-                        {
-                            "companyName": "foo",
-                            "position": "wedfef"
-                        }
-                    ],
-                    []
+                    "4"
                 ],
-                "expectedOutput": [
-                    {
-                        "position": "wedfef",
-                        "companySize": 0
-                    }
-                ],
-                "description": ""
-            },
-            {
-                "inputs": [
-                    [
-                        {
-                            "companyName": "foo",
-                            "position": "wedfef"
-                        }
-                    ],
-                    [
-                        {
-                            "name": "foo",
-                            "numberOfEmployees": 12312
-                        }
-                    ]
-                ],
-                "expectedOutput": [
-                    {
-                        "position": "wedfef",
-                        "companySize": 12312
-                    }
-                ],
-                "description": ""
-            },
-            {
-                "inputs": [
-                    [
-                        {
-                            "companyName": "foo",
-                            "position": "wedfef"
-                        }
-                    ],
-                    [
-                        {
-                            "name": "bar",
-                            "numberOfEmployees": 12312
-                        }
-                    ]
-                ],
-                "expectedOutput": [
-                    {
-                        "position": "wedfef",
-                        "companySize": 0
-                    }
-                ],
-                "description": ""
-            }
-        ]
-    ],
-    [
-        [
-            [
-                [
-                    "morphir"
-                ],
-                [
-                    "reference"
-                ],
-                [
-                    "model"
-                ]
-            ],
-            [
-                [
-                    "test",
-                    "model"
-                ],
-                [
-                    "testing"
-                ]
-            ],
-            [
-                "add",
-                "7"
-            ]
-        ],
-        [
-            {
-                "inputs": [
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7
-                ],
-                "expectedOutput": 28,
+                "expectedOutput": true,
                 "description": ""
             }
         ]

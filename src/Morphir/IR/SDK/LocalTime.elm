@@ -28,6 +28,7 @@ import Morphir.IR.SDK.Common exposing (toFQName, vSpec)
 import Morphir.IR.SDK.Maybe exposing (maybeType)
 import Morphir.IR.SDK.String exposing (stringType)
 import Morphir.IR.Type exposing (Specification(..), Type(..))
+import Morphir.IR.Value as Value exposing (Value)
 import Morphir.SDK.LocalTime as LocalTime
 import Morphir.Value.Native as Native
 
@@ -37,18 +38,26 @@ moduleName =
     Path.fromString "LocalTime"
 
 
+config =
+    { baseType = stringType ()
+    , toBaseType = toFQName moduleName "toISOString"
+    , fromBaseType = toFQName moduleName "fromISO"
+    }
+
+
 moduleSpec : Module.Specification ()
 moduleSpec =
     { types =
         Dict.fromList
             [ ( Name.fromString "LocalTime"
-              , OpaqueTypeSpecification []
+              , DerivedTypeSpecification [] config
                     |> Documented "Type that represents a time concept."
               )
             ]
     , values =
         Dict.fromList
             [ vSpec "fromISO" [ ( "iso", stringType () ) ] (maybeType () (localTimeType ()))
+            , vSpec "toISOString" [ ( "time", localTimeType () ) ] (stringType ())
             , vSpec "fromMilliseconds" [ ( "millis", intType () ) ] (localTimeType ())
             , vSpec "diffInSeconds" [ ( "timeA", localTimeType () ), ( "timeB", localTimeType () ) ] (intType ())
             , vSpec "diffInMinutes" [ ( "timeA", localTimeType () ), ( "timeB", localTimeType () ) ] (intType ())
@@ -70,6 +79,9 @@ nativeFunctions : List ( String, Native.Function )
 nativeFunctions =
     [ ( "fromISO"
       , Native.eval1 LocalTime.fromISO (Native.decodeLiteral Native.stringLiteral) (Native.encodeMaybe Native.encodeLocalTime)
+      )
+    , ( "toISOString"
+      , Native.eval1 LocalTime.toISOString Native.decodeLocalTime (Native.encodeLiteral Literal.StringLiteral)
       )
     , ( "fromMilliseconds"
       , Native.eval1 LocalTime.fromMilliseconds (Native.decodeLiteral Native.intLiteral) Native.encodeLocalTime
@@ -93,3 +105,8 @@ nativeFunctions =
       , Native.eval2 LocalTime.addHours (Native.decodeLiteral Native.intLiteral) Native.decodeLocalTime Native.encodeLocalTime
       )
     ]
+
+
+fromISO : a -> Value a a -> Value a a
+fromISO a value =
+    Value.Apply a (Value.Reference a ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "from", "i", "s", "o" ] )) value

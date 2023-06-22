@@ -111,4 +111,5 @@ nativeFunctions =
         , moduleFunctions "Decimal" Decimal.nativeFunctions
         , moduleFunctions "Aggregate" Aggregate.nativeFunctions
         , moduleFunctions "LocalDate" LocalDate.nativeFunctions
+        , moduleFunctions "LocalTime" LocalTime.nativeFunctions
         ]

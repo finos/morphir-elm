@@ -54,14 +54,22 @@ module Morphir.SDK.LocalTime exposing
 
 -}
 
-import Iso8601 exposing (fromTime, toTime)
-import Time exposing (Posix, millisToPosix, posixToMillis)
+--import DateTime exposing (DateTime)
+--import Clock exposing (RawTime, Time)
+
+import Iso8601 exposing (decoder, fromTime, toTime)
+import Time exposing (Posix, millisToPosix, posixToMillis, utc)
 
 
 {-| Concept of time without time zones.
 -}
 type alias LocalTime =
     Posix
+
+
+
+--type Msg
+--    = CurrentTime DateTime
 
 
 {-| Add the given hours to a given time
@@ -116,15 +124,43 @@ diffInSeconds timeA timeB =
 -}
 fromISO : String -> Maybe LocalTime
 fromISO iso =
-    Result.toMaybe <|
-        toTime iso
+    let
+        getTimeInt : ( Int, Int )
+        getTimeInt =
+            case String.split ":" iso of
+                [ hourStr, minuteStr ] ->
+                    ( String.toInt hourStr |> Maybe.withDefault 0, String.toInt minuteStr |> Maybe.withDefault 0 )
+
+                _ ->
+                    ( 0, 0 )
+    in
+    case getTimeInt of
+        ( hours, minutes ) ->
+            Just
+                (Time.millisToPosix
+                    ((hours * 60 * 60 * 1000)
+                        + ((minutes - 0) * 60 * 1000)
+                        + (0 * 1000)
+                        + 0
+                    )
+                )
 
 
 {-| Construct an ISO formatted string.
 -}
 toISOString : LocalTime -> String
-toISOString localDate =
-    fromTime localDate
+toISOString localTime =
+    let
+        toString =
+            fromTime localTime
+
+        hours =
+            Time.toHour utc localTime
+
+        minutes =
+            Time.toMinute utc localTime
+    in
+    String.fromInt hours ++ ":" ++ String.fromInt minutes
 
 
 {-| Construct a LocalTime based on number of milliseconds from epoch. Opportunity for error denoted by Maybe return type.
