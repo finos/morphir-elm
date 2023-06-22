@@ -1315,7 +1315,7 @@ view theme ir valueType updateEditorState editorState =
             let
                 localDateValue : String -> Value () ()
                 localDateValue str =
-                    fromISO () (Value.Literal () (StringLiteral str))
+                    Date.fromISO () (Value.Literal () (StringLiteral str))
             in
             DatePicker.view theme
                 { placeholder =
