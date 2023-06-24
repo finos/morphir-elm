@@ -106,7 +106,8 @@ program
     .option('-p, --storageLocation <path>', 'Location to store the sidecar files', '/attributes')
     .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
     .option('-t, --target <type>', 'What to Generate.', 'DecorationConfig')
-    .option('-f, --force', 'Overwrite existing configuration.', false)
+    .option('-f, --overwrite', 'Overwrite existing configuration.', false)
+    .option('-g --decorationGroup <type>', 'What decoration group to set up', '')
     .parse(process.argv)
 
 gen(program.opts().irPath, path.resolve(program.opts().output), program.opts())
@@ -124,7 +125,6 @@ gen(program.opts().irPath, path.resolve(program.opts().output), program.opts())
 async function updateConfiguration(configPath: string, morphirPath: string, overwrite: boolean) {
     const configBuffer = await fsReadFile(configPath)
     const configJsonObject = JSON.parse(configBuffer.toString());
-
     const morphirBuffer = await fsReadFile(morphirPath)
     const morphirJsonObject = JSON.parse(morphirBuffer.toString());
 

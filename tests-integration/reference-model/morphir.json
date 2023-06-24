@@ -1,18 +1,12 @@
 {
-  "name": "Morphir.Reference.Model",
-  "sourceDirectory": "src",
-  "decorations": {
-    "test-id-1": {
-      "displayName": "Sensitivity",
-      "entryPoint": "Morphir.Attribute.Model:Sensitivity:Sensitivity",
-      "ir": "attributemodel/morphir-ir.json",
-      "storageLocation": "attributes/test-id-1.json"
-    },
-    "json-schema-enabled": {
-      "displayName": "SchemaEnabled",
-      "entryPoint": "Morphir.Attribute.Model:JsonSchema:SchemaEnabled",
-      "ir": "attributemodel/morphir-ir.json",
-      "storageLocation": "attributes/json-schema-enabled.json"
+    "name": "Morphir.Reference.Model",
+    "sourceDirectory": "src",
+    "decorations": {
+        "schema_enabled": {
+            "displayName": "SchemaEnabled",
+            "ir": "attributemodel/morphir-ir.json",
+            "entryPoint": "Morphir.Attribute.Model:JsonSchema:schemaEnabled",
+            "storageLocation": "/attributes/schema_enabled.json"
+        }
     }
-  }
 }

@@ -94,4 +94,5 @@ mapDistribution backendOptions morphirTestSuite dist =
                 |> Result.mapError Morphir.JsonSchema.Backend.Codec.encodeErrors
 
         DecorationConfigOptions options ->
-            Ok <| DecorationConfigBackend.mapDistribution options dist
+            DecorationConfigBackend.mapDistribution options dist
+                |> Result.mapError Encode.string
