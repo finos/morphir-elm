@@ -1356,10 +1356,6 @@ view theme ir valueType updateEditorState editorState =
                             (applyResult
                                 (case timePickerState.time of
                                     Just time ->
-                                        let
-                                            _ =
-                                                Debug.log "time" time
-                                        in
                                         Ok <| localTimeValue (LocalTime.toISOString time)
 
                                     Nothing ->

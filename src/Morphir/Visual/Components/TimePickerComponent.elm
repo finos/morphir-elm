@@ -44,8 +44,8 @@ view theme config =
             [ Html.text "local time" ]
         , Html.input
             [ type_ "time"
-            , value (config.state.time |> Maybe.map LocalTime.toISOString |> Debug.log "timePosix" |> Maybe.withDefault "")
-            , onInput (\timestr -> config.onStateChange { state | time = LocalTime.fromISO (timestr |> Debug.log "timestr") })
+            , value (config.state.time |> Maybe.map LocalTime.toISOString |> Maybe.withDefault "")
+            , onInput (\timestr -> config.onStateChange { state | time = LocalTime.fromISO timestr })
             , for "local time"
             ]
             []

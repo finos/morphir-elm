@@ -29,7 +29,7 @@ mathTests =
             \_ ->
                 addHours 1
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> toHour utc
                     |> Expect.equal 13
@@ -37,7 +37,7 @@ mathTests =
             \_ ->
                 addHours -1
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> toHour utc
                     |> Expect.equal 11
@@ -45,7 +45,7 @@ mathTests =
             \_ ->
                 addMinutes 1
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> toMinute utc
                     |> Expect.equal 57
@@ -53,64 +53,64 @@ mathTests =
             \_ ->
                 addMinutes -1
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> toMinute utc
                     |> Expect.equal 55
         , test "add seconds" <|
             \_ ->
-                addSeconds 1
+                addSeconds 60
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> toSecond utc
-                    |> Expect.equal 31
+                    |> Expect.equal 0
         , test "substract seconds" <|
             \_ ->
                 addSeconds -1
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> toSecond utc
-                    |> Expect.equal 29
+                    |> Expect.equal 59
         , test "diffInMinutes" <|
             \_ ->
                 diffInMinutes
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T13:49:30"
+                        fromISO "13:49"
                     )
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> Expect.equal 53
         , test "diffInHours less than an hour elapsed" <|
             \_ ->
                 diffInHours
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T13:49:30"
+                        fromISO "13:49"
                     )
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> Expect.equal 0
         , test "diffInHours more than an hour elapsed" <|
             \_ ->
                 diffInHours
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T15:49:30"
+                        fromISO "15:49"
                     )
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> Expect.equal 2
         , test "diffInSeconds" <|
             \_ ->
                 diffInSeconds
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:58:30"
+                        fromISO "12:58"
                     )
                     (Maybe.withDefault (fromMilliseconds 0) <|
-                        fromISO "2022-01-28T12:56:30"
+                        fromISO "12:56"
                     )
                     |> Expect.equal 120
         ]
@@ -121,18 +121,22 @@ constructorTests =
     describe "constructor tests"
         [ test "valid fromIso" <|
             \_ ->
-                fromISO "2022-01-28T12:56:30"
-                    |> Expect.equal (Just (Time.millisToPosix 1643374590000))
+                fromISO "12:56"
+                    |> Expect.equal (Just (Time.millisToPosix 46560000))
         , test "invalid fromISO parsing" <|
             \_ ->
-                fromISO "2022-01-28TTTTT"
+                fromISO "TTTTT"
                     |> Expect.equal Nothing
         , test "invalid fromISO numeric" <|
             \_ ->
-                fromISO "12:56:30"
+                fromISO "T12:56:30"
                     |> Expect.equal Nothing
         , test "fromMilliseconds" <|
             \_ ->
                 fromMilliseconds 0
                     |> Expect.equal (Time.millisToPosix 0)
+        , test "fromISOString" <|
+            \_ ->
+                toISOString (Time.millisToPosix 46560000)
+                    |> Expect.equal "12:56"
         ]

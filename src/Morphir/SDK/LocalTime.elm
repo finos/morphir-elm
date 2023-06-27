@@ -124,26 +124,24 @@ diffInSeconds timeA timeB =
 -}
 fromISO : String -> Maybe LocalTime
 fromISO iso =
-    let
-        getTimeInt : ( Int, Int )
-        getTimeInt =
-            case String.split ":" iso of
-                [ hourStr, minuteStr ] ->
-                    ( String.toInt hourStr |> Maybe.withDefault 0, String.toInt minuteStr |> Maybe.withDefault 0 )
+    case String.split ":" iso of
+        [ hourStr, minuteStr ] ->
+            case ( String.toInt hourStr, String.toInt minuteStr ) of
+                ( Just h, Just m ) ->
+                    Just
+                        (Time.millisToPosix
+                            ((h * 60 * 60 * 1000)
+                                + ((m - 0) * 60 * 1000)
+                                + (0 * 1000)
+                                + 0
+                            )
+                        )
 
                 _ ->
-                    ( 0, 0 )
-    in
-    case getTimeInt of
-        ( hours, minutes ) ->
-            Just
-                (Time.millisToPosix
-                    ((hours * 60 * 60 * 1000)
-                        + ((minutes - 0) * 60 * 1000)
-                        + (0 * 1000)
-                        + 0
-                    )
-                )
+                    Nothing
+
+        _ ->
+            Nothing
 
 
 {-| Construct an ISO formatted string.

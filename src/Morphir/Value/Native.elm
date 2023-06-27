@@ -448,18 +448,38 @@ encodeLocalTime localTime =
 
 {-| -}
 decodeLocalTime : Decoder LocalTime
-decodeLocalTime _ value =
-    case value of
-        Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "from", "i", "s", "o" ] )) (Value.Literal () (StringLiteral str)) ->
-            case LocalTime.fromISO str of
-                Just localtime ->
-                    Ok localtime
+decodeLocalTime e value =
+    e value
+        |> Result.andThen
+            (\v ->
+                case v of
+                    Value.Apply () (Value.Constructor _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "just" ] )) (Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "from", "i", "s", "o" ] )) (Value.Literal () (StringLiteral str))) ->
+                        case LocalTime.fromISO str of
+                            Just localTime ->
+                                Ok localTime
 
-                Nothing ->
-                    Err <| ErrorWhileEvaluatingDerivedType ("Invalid ISO format: " ++ str)
+                            Nothing ->
+                                Err <| ErrorWhileEvaluatingDerivedType ("Invalid ISO format: " ++ str)
 
-        _ ->
-            Err (ExpectedDerivedType ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "local", "time" ] ) value)
+                    Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "from", "i", "s", "o" ] )) (Value.Literal () (StringLiteral str)) ->
+                        case LocalTime.fromISO str of
+                            Just localTime ->
+                                Ok localTime
+
+                            Nothing ->
+                                Err <| ErrorWhileEvaluatingDerivedType ("Invalid ISO format: " ++ str)
+
+                    Value.Literal () (StringLiteral str) ->
+                        case LocalTime.fromISO str of
+                            Just localTime ->
+                                Ok localTime
+
+                            Nothing ->
+                                Err <| ErrorWhileEvaluatingDerivedType ("Invalid ISO format: " ++ str)
+
+                    _ ->
+                        Err (ExpectedDerivedType ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "time" ] ], [ "local", "time" ] ) v)
+            )
 
 
 {-| -}
