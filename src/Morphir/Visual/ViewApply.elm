@@ -113,7 +113,7 @@ view config viewDefinitionBody viewValue functionValue argValues =
                 Err firstError ->
                     case firstError of
                         ReferenceNotFound _ ->
-                            case evaluateValue config.nativeFunctions config.ir config.state.variables (List.map toRawValue argValues) (toRawValue functionValue) of
+                            case evaluateValue False config.nativeFunctions config.ir config.state.variables (List.map toRawValue argValues) (toRawValue functionValue) of
                                 Ok value ->
                                     el popupstyles (viewRawValue value)
 

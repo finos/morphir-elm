@@ -1442,3 +1442,34 @@ evaluateValueTests =
             )
             (Value.List () [ Value.Literal () (WholeNumberLiteral -2), Value.Literal () (WholeNumberLiteral -4), Value.Literal () (WholeNumberLiteral -6) ])
         ]
+
+
+
+--
+--
+--evaluateValuePartialTests : Test
+--evaluateValuePartialTests =
+--    let
+--        ir =
+--            Distribution
+--
+--        positiveCheck : String -> Value.RawValue -> Value.RawValue -> Test
+--        positiveCheck desc input expectedOutput =
+--            test desc
+--                (\_ ->
+--                    evaluate SDK.nativeFunctions IR.empty input
+--                        |> Expect.equal
+--                            (Ok expectedOutput)
+--                )
+--
+--        listCheck : String -> List QName -> List QName -> Result String (List QName) -> ModuleName -> Test
+--        listCheck desc sdkList sdkImplementedList pendingSDK moduleName =
+--            test desc
+--                (\_ ->
+--                    compareList sdkList sdkImplementedList moduleName |> Expect.equal pendingSDK
+--                )
+--    in
+--    [ positiveCheck """if age > 17 && 1 == 1 then "adult" else "young"  =  if age > 17 then "adult" else "young" """
+--        (Value.IfThenElse ())
+--        (Value.Unit ())
+--    ]
