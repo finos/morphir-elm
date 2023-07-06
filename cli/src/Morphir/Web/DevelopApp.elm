@@ -70,7 +70,7 @@ import Morphir.IR.Value as Value exposing (RawValue, Value(..))
 import Morphir.SDK.Dict as SDKDict
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Error exposing (Error)
-import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
+import Morphir.Value.Interpreter exposing (complete, evaluateFunctionValue)
 import Morphir.Visual.Common exposing (nameToText, nameToTitleText, pathToDisplayString, pathToFullUrl, pathToTitleText, pathToUrl, tooltip)
 import Morphir.Visual.Components.Card as Card
 import Morphir.Visual.Components.FieldList as FieldList
@@ -2132,7 +2132,7 @@ viewDefinitionDetails model =
 
         evaluateOutput : Distribution -> List (Maybe RawValue) -> FQName -> Result Error RawValue
         evaluateOutput ir inputs fQName =
-            evaluateFunctionValue SDK.nativeFunctions ir fQName inputs
+            evaluateFunctionValue complete SDK.nativeFunctions ir fQName inputs
 
         viewRawValue : Morphir.Visual.Config.Config Msg -> Distribution -> RawValue -> Element Msg
         viewRawValue config ir rawValue =
