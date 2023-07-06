@@ -1,10 +1,14 @@
-module Morphir.Value.Interpreter exposing (evaluate, evaluateValue, evaluateFunctionValue, matchPattern, Variables)
+module Morphir.Value.Interpreter exposing
+    ( evaluate, evaluateValue, evaluateFunctionValue, matchPattern, Variables
+    , Config, complete, partial
+    )
 
 {-| This module contains an interpreter for Morphir expressions. The interpreter takes a piece of logic as input,
 evaluates it and returns the resulting data. In Morphir both logic and data is captured as a `Value` so the interpreter
 takes a `Value` and returns a `Value` (or an error for invalid expressions):
 
 @docs evaluate, evaluateValue, evaluateFunctionValue, matchPattern, Variables
+@docs Config, complete, partial
 
 -}
 
@@ -26,16 +30,42 @@ type alias Variables =
     Dict Name RawValue
 
 
+{-| Configuration for the interpreter
+
+  - allowPartials: When turned on, allows partial evaluation of a Value.
+
+-}
+type alias Config =
+    { allowPartial : Bool
+    }
+
+
+{-| Configuration for complete evaluation
+-}
+complete : Config
+complete =
+    { allowPartial = False
+    }
+
+
+{-| Configuration for partial evaluation
+-}
+partial : Config
+partial =
+    { allowPartial = True
+    }
+
+
 {-| -}
-evaluateFunctionValue : Bool -> Dict FQName Native.Function -> Distribution -> FQName -> List (Maybe RawValue) -> Result Error RawValue
-evaluateFunctionValue allowPartial nativeFunctions ir fQName variableValues =
+evaluateFunctionValue : Config -> Dict FQName Native.Function -> Distribution -> FQName -> List (Maybe RawValue) -> Result Error RawValue
+evaluateFunctionValue config nativeFunctions ir fQName variableValues =
     ir
         |> Distribution.lookupValueDefinition fQName
         -- If we cannot find the value in the IR we return an error.
         |> Result.fromMaybe (ReferenceNotFound fQName)
         |> Result.andThen
             (\valueDef ->
-                evaluateValue allowPartial
+                evaluateValue config
                     nativeFunctions
                     ir
                     (List.map2 Tuple.pair
@@ -65,14 +95,14 @@ by fully-qualified name that will be used for lookup if the expression contains 
 evaluate : Dict FQName Native.Function -> Distribution -> RawValue -> Result Error RawValue
 evaluate nativeFunctions ir value =
     --  do not permit partial evaluation
-    evaluateValue False nativeFunctions ir Dict.empty [] value
+    evaluateValue complete nativeFunctions ir Dict.empty [] value
 
 
 {-| Evaluates a value expression recursively in a single pass while keeping track of variables and arguments along the
 evaluation.
 -}
-evaluateValue : Bool -> Dict FQName Native.Function -> Distribution -> Variables -> List RawValue -> RawValue -> Result Error RawValue
-evaluateValue allowPartial nativeFunctions ir variables arguments value =
+evaluateValue : Config -> Dict FQName Native.Function -> Distribution -> Variables -> List RawValue -> RawValue -> Result Error RawValue
+evaluateValue ({ allowPartial } as config) nativeFunctions ir variables arguments value =
     case value of
         Value.Literal _ _ ->
             -- Literals cannot be evaluated any further
@@ -80,7 +110,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
 
         Value.Constructor _ fQName ->
             arguments
-                |> List.map (evaluateValue allowPartial nativeFunctions ir variables [])
+                |> List.map (evaluateValue config nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
                 |> ResultList.keepFirstError
                 |> Result.andThen
@@ -114,7 +144,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
             -- For a tuple we need to evaluate each element and return them wrapped back into a tuple
             elems
                 -- We evaluate each element separately.
-                |> List.map (evaluateValue allowPartial nativeFunctions ir variables [])
+                |> List.map (evaluateValue config nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
                 |> ResultList.keepFirstError
                 -- If nothing fails we wrap the result in a tuple.
@@ -124,7 +154,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
             -- For a list we need to evaluate each element and return them wrapped back into a list
             items
                 -- We evaluate each element separately.
-                |> List.map (evaluateValue allowPartial nativeFunctions ir variables [])
+                |> List.map (evaluateValue config nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
                 |> ResultList.keepFirstError
                 -- If nothing fails we wrap the result in a list.
@@ -137,7 +167,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                 -- We evaluate each field separately.
                 |> List.map
                     (\( fieldName, fieldValue ) ->
-                        evaluateValue allowPartial nativeFunctions ir variables [] fieldValue
+                        evaluateValue config nativeFunctions ir variables [] fieldValue
                             |> Result.map (Tuple.pair fieldName)
                     )
                 -- If any of those fails we return the first failure.
@@ -159,7 +189,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
             case nativeFunctions |> Dict.get fQName of
                 Just nativeFunction ->
                     nativeFunction
-                        (evaluateValue allowPartial
+                        (evaluateValue config
                             -- This is the state that will be used when native functions call "eval".
                             -- We need to retain most of the current state but clear out the argument since
                             -- the native function will evaluate completely new expressions.
@@ -176,7 +206,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                 Nothing ->
                     arguments
                         |> List.map
-                            (evaluateValue allowPartial
+                            (evaluateValue config
                                 nativeFunctions
                                 ir
                                 variables
@@ -185,12 +215,12 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                         |> ResultList.keepFirstError
                         -- If this is a reference to another Morphir value we need to look it up and evaluate.
                         |> Result.map (\resultList -> List.map (\result -> Just result) resultList)
-                        |> Result.andThen (evaluateFunctionValue allowPartial nativeFunctions ir fQName)
+                        |> Result.andThen (evaluateFunctionValue config nativeFunctions ir fQName)
 
         Value.Field _ subjectValue fieldName ->
             -- Field selection is evaluated by evaluating the subject first then matching on the resulting record and
             -- getting the field with the specified name.
-            evaluateValue allowPartial nativeFunctions ir variables [] subjectValue
+            evaluateValue config nativeFunctions ir variables [] subjectValue
                 |> Result.andThen
                     (\evaluatedSubjectValue ->
                         case evaluatedSubjectValue of
@@ -213,7 +243,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
             -- it behaves exactly like a `Field` expression.
             case arguments of
                 [ subjectValue ] ->
-                    evaluateValue allowPartial nativeFunctions ir variables [] subjectValue
+                    evaluateValue config nativeFunctions ir variables [] subjectValue
                         |> Result.andThen
                             (\evaluatedSubjectValue ->
                                 case evaluatedSubjectValue of
@@ -239,7 +269,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
             -- When there are multiple arguments there will be another Apply within the function so arguments will be
             -- repeatedly collected until we hit another node (lambda, reference or variable) where the arguments will
             -- be used to execute the calculation.
-            evaluateValue allowPartial
+            evaluateValue config
                 nativeFunctions
                 ir
                 variables
@@ -259,7 +289,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                     (\argumentValue ->
                         -- To match the pattern we call a helper function that both matches and extracts variables out
                         -- of the pattern.
-                        matchPattern allowPartial argumentPattern argumentValue
+                        matchPattern argumentPattern argumentValue
                             -- If the pattern does not match we error out. This should never happen with valid
                             -- expressions as lambda argument patterns should only be used for decomposition not
                             -- filtering.
@@ -268,7 +298,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                 -- Finally we evaluate the body of the lambda using the variables extracted by the pattern.
                 |> Result.andThen
                     (\argumentVariables ->
-                        evaluateValue allowPartial
+                        evaluateValue config
                             nativeFunctions
                             ir
                             (Dict.union argumentVariables variables)
@@ -279,10 +309,10 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
         Value.LetDefinition _ defName def inValue ->
             -- We evaluate a let definition by first evaluating the definition, then assigning it to the variable name
             -- given in `defName`. Finally we evaluate the `inValue` passing in the new variable in the state.
-            evaluateValue allowPartial nativeFunctions ir variables [] (Value.definitionToValue def)
+            evaluateValue config nativeFunctions ir variables [] (Value.definitionToValue def)
                 |> Result.andThen
                     (\defValue ->
-                        evaluateValue allowPartial
+                        evaluateValue config
                             nativeFunctions
                             ir
                             (variables |> Dict.insert defName defValue)
@@ -298,7 +328,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                 defVariables =
                     defs |> Dict.map (\_ def -> Value.definitionToValue def)
             in
-            evaluateValue allowPartial
+            evaluateValue config
                 nativeFunctions
                 ir
                 (Dict.union defVariables variables)
@@ -308,11 +338,11 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
         Value.Destructure _ bindPattern bindValue inValue ->
             -- A destructure can be evaluated by evaluating the bind value, matching it against the bind pattern and
             -- finally evaluating the in value using the variables from the bind pattern.
-            evaluateValue allowPartial nativeFunctions ir variables [] bindValue
-                |> Result.andThen (matchPattern allowPartial bindPattern >> Result.mapError (BindPatternDidNotMatch bindValue))
+            evaluateValue config nativeFunctions ir variables [] bindValue
+                |> Result.andThen (matchPattern bindPattern >> Result.mapError (BindPatternDidNotMatch bindValue))
                 |> Result.andThen
                     (\bindVariables ->
-                        evaluateValue allowPartial
+                        evaluateValue config
                             nativeFunctions
                             ir
                             (Dict.union bindVariables variables)
@@ -346,11 +376,11 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                             [] ->
                                 -- If we got this far, then we never encountered an partially evaluated condition
                                 -- or a True, evaluate the else branch
-                                evaluateValue allowPartial nativeFunctions ir variables [] elseBranch
+                                evaluateValue config nativeFunctions ir variables [] elseBranch
 
                             ( Value.Literal _ (BoolLiteral True), branch ) :: _ ->
                                 -- We met a True first, evaluate this branch
-                                evaluateValue allowPartial nativeFunctions ir variables [] branch
+                                evaluateValue config nativeFunctions ir variables [] branch
 
                             ( Value.Literal _ (BoolLiteral False), _ ) :: rest ->
                                 -- If the branch is False, continue looking for True or a partially evaluated condition
@@ -364,16 +394,16 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                                        List.foldr
                                         (\( cond, branch ) ->
                                             Result.map2 (Value.IfThenElse () cond)
-                                                (evaluateValue allowPartial nativeFunctions ir variables [] branch)
+                                                (evaluateValue config nativeFunctions ir variables [] branch)
                                         )
-                                        (evaluateValue allowPartial nativeFunctions ir variables [] elseBranch)
+                                        (evaluateValue config nativeFunctions ir variables [] elseBranch)
                 in
                 flatten ifThenElse []
                     |> List.reverse
                     |> List.map
                         (\( cond, branch ) ->
                             -- evaluate all the conditions
-                            evaluateValue allowPartial nativeFunctions ir variables [] cond
+                            evaluateValue config nativeFunctions ir variables [] cond
                                 |> Result.map (\evaluatedCond -> ( evaluatedCond, branch ))
                         )
                     -- If any of those fails we return the first failure.
@@ -383,7 +413,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
             else
                 -- When allow partial is false, If then else evaluation becomes trivial: you evaluate the condition
                 -- and depending on the result you evaluate one of the branches
-                evaluateValue allowPartial nativeFunctions ir variables [] condition
+                evaluateValue config nativeFunctions ir variables [] condition
                     |> Result.andThen
                         (\conditionValue ->
                             case conditionValue of
@@ -397,7 +427,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                                             else
                                                 elseBranch
                                     in
-                                    evaluateValue allowPartial nativeFunctions ir variables [] branchToFollow
+                                    evaluateValue config nativeFunctions ir variables [] branchToFollow
 
                                 _ ->
                                     Err (IfThenElseConditionShouldEvaluateToBool condition conditionValue)
@@ -405,15 +435,48 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
 
         Value.PatternMatch _ subjectValue cases ->
             -- For a pattern match we first need to evaluate the subject value then step through the cases, match
-            -- each pattern until we find a matching case and when we do evaluate the body
+            -- each pattern until we find a matching case and when we do evaluate the body.
+            -- However, when partial evaluation is turned on and no case match, we evaluate the body of all branches
+            -- and wrap it back into a PatternMatch.
             let
+                evaluatedSubjectResult =
+                    evaluateValue config nativeFunctions ir variables [] subjectValue
+
+                collectNewVars : Pattern () -> Variables
+                collectNewVars pattern =
+                    case pattern of
+                        Value.WildcardPattern _ ->
+                            variables
+
+                        Value.AsPattern _ patt name ->
+                            Dict.insert name (Value.Variable () name) variables
+                                |> Dict.union (collectNewVars patt)
+
+                        Value.TuplePattern _ patterns ->
+                            List.foldl (\pat vars -> collectNewVars pat |> Dict.union vars) variables patterns
+
+                        Value.ConstructorPattern _ _ patterns ->
+                            List.foldl (\pat vars -> collectNewVars pat |> Dict.union vars) variables patterns
+
+                        Value.EmptyListPattern _ ->
+                            variables
+
+                        Value.HeadTailPattern _ patt1 patt2 ->
+                            Dict.union (collectNewVars patt1) variables |> Dict.union (collectNewVars patt2)
+
+                        Value.LiteralPattern _ _ ->
+                            variables
+
+                        Value.UnitPattern _ ->
+                            variables
+
                 findMatch : List ( Pattern (), RawValue ) -> RawValue -> Result Error RawValue
                 findMatch remainingCases evaluatedSubject =
                     case remainingCases of
                         ( nextPattern, nextBody ) :: restOfCases ->
-                            case matchPattern allowPartial nextPattern evaluatedSubject of
+                            case matchPattern nextPattern evaluatedSubject of
                                 Ok patternVariables ->
-                                    evaluateValue allowPartial
+                                    evaluateValue config
                                         nativeFunctions
                                         ir
                                         (Dict.union patternVariables variables)
@@ -424,9 +487,22 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                                     findMatch restOfCases evaluatedSubject
 
                         [] ->
-                            Err (NoPatternsMatch evaluatedSubject (cases |> List.map Tuple.first))
+                            if allowPartial then
+                                cases
+                                    |> List.foldl
+                                        (\( patt, body ) evaluatedBranchesSoFar ->
+                                            Result.map2 (\evaluatedBody lst -> ( patt, evaluatedBody ) :: lst)
+                                                -- evaluate each body with any new variables from it's pattern added to the state
+                                                (evaluateValue config nativeFunctions ir (collectNewVars patt) [] body)
+                                                evaluatedBranchesSoFar
+                                        )
+                                        (Ok [])
+                                    |> Result.map (Value.PatternMatch () evaluatedSubject)
+
+                            else
+                                Err (NoPatternsMatch evaluatedSubject (cases |> List.map Tuple.first))
             in
-            evaluateValue allowPartial nativeFunctions ir variables [] subjectValue
+            evaluatedSubjectResult
                 -- if the subject value was not evaluated further and we allow partial evaluation,
                 -- then we exit with the entire evaluation with the
                 |> Result.andThen (findMatch cases)
@@ -434,7 +510,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
         Value.UpdateRecord _ subjectValue fieldUpdates ->
             -- To update a record first we need to evaluate the subject value, then extract the record fields and
             -- finally replace all updated fields with the new values
-            evaluateValue allowPartial nativeFunctions ir variables [] subjectValue
+            evaluateValue config nativeFunctions ir variables [] subjectValue
                 |> Result.andThen
                     (\evaluatedSubjectValue ->
                         case evaluatedSubjectValue of
@@ -457,7 +533,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                                                                 (\_ ->
                                                                     -- Before we replace the field value we need to
                                                                     -- evaluate the updated value.
-                                                                    evaluateValue allowPartial nativeFunctions ir variables [] newFieldValue
+                                                                    evaluateValue config nativeFunctions ir variables [] newFieldValue
                                                                         |> Result.map
                                                                             (\evaluatedNewFieldValue ->
                                                                                 fieldsSoFar
@@ -481,7 +557,7 @@ evaluateValue allowPartial nativeFunctions ir variables arguments value =
                                             (\k v ->
                                                 Result.map2
                                                     (Dict.insert k)
-                                                    (evaluateValue allowPartial nativeFunctions ir variables [] v)
+                                                    (evaluateValue config nativeFunctions ir variables [] v)
                                             )
                                             (Ok Dict.empty)
                                         |> Result.map (Value.UpdateRecord () partiallyEvaluated)
@@ -502,8 +578,8 @@ During partial evaluation, we accept the possibility of values that may not matc
 extract variables regardless of matches.
 
 -}
-matchPattern : Bool -> (RawValue -> RawValue) -> Pattern () -> RawValue -> Result PatternMismatch Variables
-matchPattern allowPartial apply pattern value =
+matchPattern : Pattern () -> RawValue -> Result PatternMismatch Variables
+matchPattern pattern value =
     let
         error : Result PatternMismatch Variables
         error =
@@ -516,7 +592,7 @@ matchPattern allowPartial apply pattern value =
 
         Value.AsPattern _ subjectPattern alias ->
             -- As patterns always succeed and will assign the alias as variable name to the value passed in
-            matchPattern allowPartial identity subjectPattern value
+            matchPattern subjectPattern value
                 |> Result.map
                     (\subjectVariables ->
                         subjectVariables
@@ -537,7 +613,7 @@ matchPattern allowPartial apply pattern value =
                     -- The number of elements in the pattern and the value have to match
                     if patternLength == valueLength then
                         -- We recursively match each element
-                        List.map2 (matchPattern allowPartial) elemPatterns elemValues
+                        List.map2 matchPattern elemPatterns elemValues
                             -- If there is a mismatch we return the first error
                             |> ResultList.keepFirstError
                             -- If the match is successful we union the variables returned
@@ -547,33 +623,7 @@ matchPattern allowPartial apply pattern value =
                         error
 
                 _ ->
-                    -- if partials are allowed, then we need to collect the variables within the Tuple pattern as Variables
-                    if allowPartial then
-                        elemPatterns
-                            |> List.map
-                                (\p ->
-                                    -- we need to collect variables as a Value.Variable, but since we don't names of the
-                                    -- variables, we collect the sub patterns using the current value (which shouldn't be)
-                                    -- and change the values to Variable where current value was used.
-                                    matchPattern allowPartial p value
-                                        |> Result.map
-                                            (Dict.map
-                                                (\k v ->
-                                                    if v == value then
-                                                        Value.Variable () k
-
-                                                    else
-                                                        v
-                                                )
-                                            )
-                                )
-                            -- If there is a mismatch we return the first error
-                            |> ResultList.keepFirstError
-                            -- If the match is successful we union the variables returned
-                            |> Result.map (List.foldl Dict.union Dict.empty)
-
-                    else
-                        error
+                    error
 
         Value.ConstructorPattern _ ctorPatternFQName argPatterns ->
             -- When we match on a constructor pattern we need to match the constructor name and all the arguments
@@ -610,7 +660,7 @@ matchPattern allowPartial apply pattern value =
                         in
                         -- Then the arguments
                         if patternLength == valueLength then
-                            List.map2 (matchPattern allowPartial) argPatterns argValues
+                            List.map2 matchPattern argPatterns argValues
                                 |> ResultList.keepFirstError
                                 |> Result.map (List.foldl Dict.union Dict.empty)
 
@@ -638,8 +688,8 @@ matchPattern allowPartial apply pattern value =
                 Value.List a (headValue :: tailValue) ->
                     -- We recursively apply the head and tail patterns and union the resulting variables
                     Result.map2 Dict.union
-                        (matchPattern allowPartial headPattern headValue)
-                        (matchPattern allowPartial tailPattern (Value.List a tailValue))
+                        (matchPattern headPattern headValue)
+                        (matchPattern tailPattern (Value.List a tailValue))
 
                 _ ->
                     error

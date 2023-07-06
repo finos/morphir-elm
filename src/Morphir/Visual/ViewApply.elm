@@ -13,7 +13,7 @@ import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (RawValue, Value(..), toRawValue)
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Error exposing (Error(..))
-import Morphir.Value.Interpreter exposing (evaluateFunctionValue, evaluateValue)
+import Morphir.Value.Interpreter exposing (complete, evaluateFunctionValue, evaluateValue)
 import Morphir.Visual.Common exposing (nameToText, tooltip)
 import Morphir.Visual.Components.DrillDownPanel as DrillDownPanel exposing (Depth)
 import Morphir.Visual.Components.FieldList as FieldList
@@ -106,14 +106,14 @@ view config viewDefinitionBody viewValue functionValue argValues =
                     , smallPadding config.state.theme |> padding
                     ]
             in
-            case evaluateFunctionValue config.nativeFunctions config.ir fqName variables of
+            case evaluateFunctionValue complete config.nativeFunctions config.ir fqName variables of
                 Ok value ->
                     el popupstyles (viewRawValue value)
 
                 Err firstError ->
                     case firstError of
                         ReferenceNotFound _ ->
-                            case evaluateValue False config.nativeFunctions config.ir config.state.variables (List.map toRawValue argValues) (toRawValue functionValue) of
+                            case evaluateValue complete config.nativeFunctions config.ir config.state.variables (List.map toRawValue argValues) (toRawValue functionValue) of
                                 Ok value ->
                                     el popupstyles (viewRawValue value)
 
