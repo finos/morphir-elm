@@ -420,9 +420,9 @@ encodeLocalDate localDate =
 
 {-| -}
 decodeLocalDate : Decoder LocalDate
-decodeLocalDate _ value =
-    case value of
-        Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "date" ] ], [ "from", "i", "s", "o" ] )) (Value.Literal () (StringLiteral str)) ->
+decodeLocalDate eval value =
+    case eval value of
+        Ok (Value.Apply () (Value.Constructor () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "just" ] )) (Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "date" ] ], [ "from", "i", "s", "o" ] )) (Value.Literal () (StringLiteral str)))) ->
             case LocalDate.fromISO str of
                 Just localDate ->
                     Ok localDate

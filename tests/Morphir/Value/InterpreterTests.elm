@@ -1451,14 +1451,13 @@ evaluateValuePartialTests =
         name =
             Name.fromString
 
-        intVar =
-            Value.Variable () (name "intVar")
+        var =
+            Value.Variable () (name "var")
 
         vars : Dict Name RawValue
         vars =
             Dict.fromList
-                [ ( name "int1", Value.Literal () (WholeNumberLiteral 1) )
-                , ( name "intVar", intVar )
+                [ ( name "var", var )
                 ]
 
         positiveCheck : String -> Value.RawValue -> Value.RawValue -> Test
@@ -1469,16 +1468,9 @@ evaluateValuePartialTests =
                         |> Expect.equal
                             (Ok expectedOutput)
                 )
-
-        listCheck : String -> List QName -> List QName -> Result String (List QName) -> ModuleName -> Test
-        listCheck desc sdkList sdkImplementedList pendingSDK moduleName =
-            test desc
-                (\_ ->
-                    compareList sdkList sdkImplementedList moduleName |> Expect.equal pendingSDK
-                )
     in
     describe "evaluateValue partial"
-        [ positiveCheck "(\\val1 val2 val3 -> val1 + val2 + val3) 1 2 intVar"
+        [ positiveCheck "(\\val1 val2 val3 -> val1 + val2 + val3) 1 2 var == 3 + var"
             (Value.Apply ()
                 (Value.Apply ()
                     (Value.Apply ()
@@ -1490,11 +1482,14 @@ evaluateValuePartialTests =
                                     (Value.AsPattern () (Value.WildcardPattern ()) [ "val", "3" ])
                                     (Value.Apply ()
                                         (Value.Apply ()
+                                            (Value.Reference () (fqn "Morphir.SDK" "Basics" "add"))
                                             (Value.Apply ()
-                                                (Value.Reference () (fqn "Morphir.SDK" "Basics" "add"))
-                                                (Value.Variable () [ "val", "1" ])
+                                                (Value.Apply ()
+                                                    (Value.Reference () (fqn "Morphir.SDK" "Basics" "add"))
+                                                    (Value.Variable () [ "val", "1" ])
+                                                )
+                                                (Value.Variable () [ "val", "2" ])
                                             )
-                                            (Value.Variable () [ "val", "2" ])
                                         )
                                         (Value.Variable () [ "val", "3" ])
                                     )
@@ -1505,11 +1500,11 @@ evaluateValuePartialTests =
                     )
                     (Value.Literal () (WholeNumberLiteral 2))
                 )
-                intVar
+                var
             )
-            (Value.Literal () (WholeNumberLiteral 3))
+            (Value.Apply () (Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "add" ] )) (Value.Literal () (WholeNumberLiteral 3))) var)
         , {- Basics.always -}
-          positiveCheck "List.map (always 0) [1,2,3] = [0,0,0]"
+          positiveCheck "List.map (always 0) [1,2,var] = [0,0,0]"
             (Value.Apply ()
                 (Value.Apply ()
                     (Value.Reference () (fqn "Morphir.SDK" "List" "map"))
@@ -1518,46 +1513,42 @@ evaluateValuePartialTests =
                         (Value.Literal () (WholeNumberLiteral 0))
                     )
                 )
-                (Value.List () [ Value.Literal () (WholeNumberLiteral 1), Value.Literal () (WholeNumberLiteral 2), Value.Literal () (WholeNumberLiteral 3) ])
+                (Value.List () [ Value.Literal () (WholeNumberLiteral 1), Value.Literal () (WholeNumberLiteral 2), var ])
             )
             (Value.List () [ Value.Literal () (WholeNumberLiteral 0), Value.Literal () (WholeNumberLiteral 0), Value.Literal () (WholeNumberLiteral 0) ])
-        , positiveCheck "List.isEmpty [] == True"
+        , positiveCheck "List.isEmpty var = List.isEmpty var"
             (Value.Apply ()
                 (Value.Reference () (fqn "Morphir.SDK" "List" "isEmpty"))
-                (Value.List () [])
+                var
             )
-            (Value.Literal () (BoolLiteral True))
-        , positiveCheck "List.isEmpty [1,2] == False"
             (Value.Apply ()
                 (Value.Reference () (fqn "Morphir.SDK" "List" "isEmpty"))
-                (Value.List () [ Value.Literal () (WholeNumberLiteral 1), Value.Literal () (WholeNumberLiteral 2) ])
+                var
             )
-            (Value.Literal () (BoolLiteral False))
-        , positiveCheck "List.head [] == Nothing"
+        , positiveCheck "List.head var = List.head var"
             (Value.Apply ()
                 (Value.Reference () (fqn "Morphir.SDK" "List" "head"))
-                (Value.List () [])
+                var
             )
-            (Value.Constructor () (fqn "Morphir.SDK" "Maybe" "Nothing"))
-        , positiveCheck "List.head [[\"1\"],[\"2\"]] == Just [\"1\"]"
             (Value.Apply ()
                 (Value.Reference () (fqn "Morphir.SDK" "List" "head"))
-                (Value.List () [ Value.List () [ Value.Literal () (StringLiteral "1") ], Value.List () [ Value.Literal () (StringLiteral "2") ] ])
+                var
             )
-            (Value.Apply () (Value.Constructor () (fqn "Morphir.SDK" "Maybe" "Just")) (Value.List () [ Value.Literal () (StringLiteral "1") ]))
-        , positiveCheck "List.concat [[\"1\"],[\"2\"]] == [\"1\",\"2\"]"
+        , positiveCheck "List.head [var,[\"2\"]] == Just var"
+            (Value.Apply ()
+                (Value.Reference () (fqn "Morphir.SDK" "List" "head"))
+                (Value.List () [ var, Value.List () [ Value.Literal () (StringLiteral "2") ] ])
+            )
+            (Value.Apply () (Value.Constructor () (fqn "Morphir.SDK" "Maybe" "Just")) var)
+        , positiveCheck "List.concat [[\"1\"],[\"2\"],var] = List.concat [[\"1\"],[\"2\"],var]"
             (Value.Apply ()
                 (Value.Reference () (fqn "Morphir.SDK" "List" "concat"))
-                (Value.List () [ Value.List () [ Value.Literal () (StringLiteral "1") ], Value.List () [ Value.Literal () (StringLiteral "2") ] ])
+                (Value.List () [ Value.List () [ Value.Literal () (StringLiteral "1") ], Value.List () [ Value.Literal () (StringLiteral "2") ], var ])
             )
-            (Value.List () [ Value.Literal () (StringLiteral "1"), Value.Literal () (StringLiteral "2") ])
-
-        --, positiveCheck "List.concatMap List [1,2] == [\"1\",\"2\"]"
-        --    (Value.Apply ()
-        --        (Value.Reference () (fqn "Morphir.SDK" "List" "concat"))
-        --        (Value.List () [ Value.List () [ Value.Literal () (StringLiteral "1") ], Value.List () [ Value.Literal () (StringLiteral "2") ] ])
-        --    )
-        --    (Value.List () [ Value.Literal () (StringLiteral "1"), Value.Literal () (StringLiteral "2") ])
+            (Value.Apply ()
+                (Value.Reference () (fqn "Morphir.SDK" "List" "concat"))
+                (Value.List () [ Value.List () [ Value.Literal () (StringLiteral "1") ], Value.List () [ Value.Literal () (StringLiteral "2") ], var ])
+            )
         , positiveCheck "List.intersperse 4 [2,3,5] == [2,4,3,4,5]"
             (Value.Apply ()
                 (Value.Apply ()

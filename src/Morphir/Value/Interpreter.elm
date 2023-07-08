@@ -183,25 +183,53 @@ evaluateValue ({ allowPartial } as config) nativeFunctions ir variables argument
                 |> Result.fromMaybe (VariableNotFound varName)
                 -- Wrap the error to make it easier to understand where it happened
                 |> Result.mapError (ErrorWhileEvaluatingVariable varName)
+                |> Result.andThen
+                    (\stateValue ->
+                        if stateValue == value then
+                            -- some variables may remain unresolved
+                            Ok stateValue
+
+                        else
+                            -- evaluate value of the variable
+                            evaluateValue config nativeFunctions ir variables [] stateValue
+                    )
 
         Value.Reference _ fQName ->
             -- We check if there is a native function first
             case nativeFunctions |> Dict.get fQName of
                 Just nativeFunction ->
-                    nativeFunction
-                        (evaluateValue config
-                            -- This is the state that will be used when native functions call "eval".
-                            -- We need to retain most of the current state but clear out the argument since
-                            -- the native function will evaluate completely new expressions.
-                            nativeFunctions
-                            ir
-                            variables
-                            []
-                        )
-                        -- Pass down the arguments we collected before we got here (if we are inside an apply).
-                        arguments
-                        -- Wrap the error to make it easier to understand where it happened
-                        |> Result.mapError (ErrorWhileEvaluatingReference fQName)
+                    let
+                        result =
+                            nativeFunction
+                                (evaluateValue config
+                                    -- This is the state that will be used when native functions call "eval".
+                                    -- We need to retain most of the current state but clear out the argument since
+                                    -- the native function will evaluate completely new expressions.
+                                    nativeFunctions
+                                    ir
+                                    variables
+                                    []
+                                )
+                                -- Pass down the arguments we collected before we got here (if we are inside an apply).
+                                arguments
+                                -- Wrap the error to make it easier to understand where it happened
+                                |> Result.mapError (ErrorWhileEvaluatingReference fQName)
+                    in
+                    case result of
+                        Ok _ ->
+                            result
+
+                        Err _ ->
+                            -- We wrap the arguments to the native functions in an Apply
+                            -- if the native function failed evaluation
+                            if allowPartial then
+                                arguments
+                                    |> List.map (evaluateValue config nativeFunctions ir variables [])
+                                    |> ResultList.keepFirstError
+                                    |> Result.map (List.foldl (\arg target -> Value.Apply () target arg) value)
+
+                            else
+                                result
 
                 Nothing ->
                     arguments
