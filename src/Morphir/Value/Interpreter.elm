@@ -380,14 +380,14 @@ evaluateValue ({ allowPartial } as config) nativeFunctions ir variables argument
 
         (Value.IfThenElse _ condition thenBranch elseBranch) as ifThenElse ->
             if allowPartial then
-                -- When allow partial is true, we need to first evaluate all the conditions.
-                -- We need to go through the evaluated conditions, looking for either a condition that evaluated to True
+                -- When allow partial is true, we first evaluate all the conditions.
+                -- We need to go through the evaluated conditions, looking for either a True
                 -- or a partially evaluated condition. If we find a True before a partially evaluated condition, we take
-                -- that branch. If we find a condition that was only partially evaluated first, then we evaluate
-                -- all branches and preserve the IfThenElse value with the evaluated branches and conditions.
+                -- that branch. If we find a condition that was only partially evaluated first, then we evaluate that and
+                -- all other branches and preserve the IfThenElse structure with the evaluated branches and conditions.
                 -- If neither was found, we take the else branch.
                 let
-                    flatten : RawValue -> List ( RawValue, RawValue ) -> List ( RawValue, RawValue )
+                    flatten : RawValue -> List ( RawValue, RawValue ) -> ( List ( RawValue, RawValue ), RawValue )
                     flatten v branchesSoFar =
                         case v of
                             Value.IfThenElse _ cond then_ else_ ->
@@ -395,38 +395,43 @@ evaluateValue ({ allowPartial } as config) nativeFunctions ir variables argument
                                     :: branchesSoFar
                                     |> flatten else_
 
-                            _ ->
-                                branchesSoFar
+                            finalElse ->
+                                ( branchesSoFar, finalElse )
+
+                    ( flattened, finalElseBranch ) =
+                        flatten ifThenElse []
 
                     chooseBranch : List ( RawValue, RawValue ) -> Result Error RawValue
-                    chooseBranch condByBranches =
-                        case condByBranches of
+                    chooseBranch conditionByBranches =
+                        case conditionByBranches of
                             [] ->
-                                -- If we got this far, then we never encountered an partially evaluated condition
-                                -- or a True, evaluate the else branch
-                                evaluateValue config nativeFunctions ir variables [] elseBranch
+                                -- We never encountered a partially evaluated condition or a True
+                                -- evaluate the else branch
+                                evaluateValue config nativeFunctions ir variables [] finalElseBranch
 
                             ( Value.Literal _ (BoolLiteral True), branch ) :: _ ->
                                 -- We met a True first, evaluate this branch
                                 evaluateValue config nativeFunctions ir variables [] branch
 
                             ( Value.Literal _ (BoolLiteral False), _ ) :: rest ->
-                                -- If the branch is False, continue looking for True or a partially evaluated condition
+                                -- Unreachable branch, skip entirely and continue looking
+                                -- for True or a partially evaluated condition
                                 chooseBranch rest
 
                             _ ->
                                 -- We encountered a partially evaluated condition,
                                 -- evaluate all branches and wrap with an IfThenElse
-                                condByBranches
+                                -- TODO we could remove all the unreachable branches
+                                conditionByBranches
                                     |> -- starting from the tail, chain the values into an IfThenElse
                                        List.foldr
                                         (\( cond, branch ) ->
                                             Result.map2 (Value.IfThenElse () cond)
                                                 (evaluateValue config nativeFunctions ir variables [] branch)
                                         )
-                                        (evaluateValue config nativeFunctions ir variables [] elseBranch)
+                                        (evaluateValue config nativeFunctions ir variables [] finalElseBranch)
                 in
-                flatten ifThenElse []
+                flattened
                     |> List.reverse
                     |> List.map
                         (\( cond, branch ) ->
@@ -439,7 +444,7 @@ evaluateValue ({ allowPartial } as config) nativeFunctions ir variables argument
                     |> Result.andThen chooseBranch
 
             else
-                -- When allow partial is false, If then else evaluation becomes trivial: you evaluate the condition
+                -- When allow partial is false, If-then-else evaluation becomes trivial: you evaluate the condition
                 -- and depending on the result you evaluate one of the branches
                 evaluateValue config nativeFunctions ir variables [] condition
                     |> Result.andThen
@@ -515,25 +520,28 @@ evaluateValue ({ allowPartial } as config) nativeFunctions ir variables argument
                                     findMatch restOfCases evaluatedSubject
 
                         [] ->
-                            if allowPartial then
-                                cases
-                                    |> List.foldl
-                                        (\( patt, body ) evaluatedBranchesSoFar ->
-                                            Result.map2 (\evaluatedBody lst -> ( patt, evaluatedBody ) :: lst)
-                                                -- evaluate each body with any new variables from it's pattern added to the state
-                                                (evaluateValue config nativeFunctions ir (collectNewVars patt) [] body)
-                                                evaluatedBranchesSoFar
-                                        )
-                                        (Ok [])
-                                    |> Result.map (Value.PatternMatch () evaluatedSubject)
-
-                            else
-                                Err (NoPatternsMatch evaluatedSubject (cases |> List.map Tuple.first))
+                            Err (NoPatternsMatch evaluatedSubject (cases |> List.map Tuple.first))
             in
             evaluatedSubjectResult
                 -- if the subject value was not evaluated further and we allow partial evaluation,
                 -- then we exit with the entire evaluation with the
-                |> Result.andThen (findMatch cases)
+                |> Result.andThen
+                    (\evalSubject ->
+                        if allowPartial then
+                            cases
+                                |> List.foldr
+                                    (\( patt, body ) evaluatedBranchesSoFar ->
+                                        Result.map2 (\evaluatedBody lst -> ( patt, evaluatedBody ) :: lst)
+                                            -- evaluate each body with any new variables from it's pattern added to the state
+                                            (evaluateValue config nativeFunctions ir (collectNewVars patt) [] body)
+                                            evaluatedBranchesSoFar
+                                    )
+                                    (Ok [])
+                                |> Result.map (Value.PatternMatch () evalSubject)
+
+                        else
+                            findMatch cases evalSubject
+                    )
 
         Value.UpdateRecord _ subjectValue fieldUpdates ->
             -- To update a record first we need to evaluate the subject value, then extract the record fields and
