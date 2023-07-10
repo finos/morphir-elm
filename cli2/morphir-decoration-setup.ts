@@ -100,11 +100,11 @@ const generate = async (
 
 const program = new Command()
 program
-    .name('morphir decoration-config-gen')
+    .name('morphir decoration-setup')
     .description('Generate the decorations config from the decorations IR')
-    .option('-i, --irPath <path>', 'Source location where the decorations IR will be loaded from.', 'attributemodel/morphir-ir.json')
-    .option('-p, --storageLocation <path>', 'Location to store the sidecar files', '/attributes')
-    .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
+    .option('-i, --irPath <path>', 'Source location where the decorations IR will be loaded from.', 'decoration-model/morphir-ir.json')
+    .option('-p, --storageLocation <path>', 'Location to store the sidecar files', '/decorations')
+    .option('-o, --output <path>', 'Target location where the generated code will be saved.', './decorations/config')
     .option('-t, --target <type>', 'What to Generate.', 'DecorationConfig')
     .option('-f, --overwrite', 'Overwrite existing configuration.', false)
     .option('-g --decorationGroup <type>', 'What decoration group to set up', '')

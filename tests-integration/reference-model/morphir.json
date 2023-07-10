@@ -2,11 +2,29 @@
     "name": "Morphir.Reference.Model",
     "sourceDirectory": "src",
     "decorations": {
+        "clearance": {
+            "displayName": "Clearance",
+            "ir": "decoration-model/morphir-ir.json",
+            "entryPoint": "Morphir.Decoration.Model:Security:clearance",
+            "storageLocation": "/decorations/clearance.json"
+        },
+        "levels": {
+            "displayName": "Levels",
+            "ir": "decoration-model/morphir-ir.json",
+            "entryPoint": "Morphir.Decoration.Model:Security:levels",
+            "storageLocation": "/decorations/levels.json"
+        },
         "schema_enabled": {
             "displayName": "SchemaEnabled",
-            "ir": "attributemodel/morphir-ir.json",
-            "entryPoint": "Morphir.Attribute.Model:JsonSchema:schemaEnabled",
-            "storageLocation": "/attributes/schema_enabled.json"
+            "ir": "decoration-model/morphir-ir.json",
+            "entryPoint": "Morphir.Decoration.Model:JsonSchema:schemaEnabled",
+            "storageLocation": "/decorations/schema_enabled.json"
+        },
+        "sensitivity": {
+            "displayName": "Sensitivity",
+            "ir": "decoration-model/morphir-ir.json",
+            "entryPoint": "Morphir.Decoration.Model:Sensitivity:sensitivity",
+            "storageLocation": "/decorations/sensitivity.json"
         }
     }
 }
