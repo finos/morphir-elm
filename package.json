@@ -45,6 +45,8 @@
     "dist/morphir-server/*",
     "src/Morphir/SDK/*",
     "redistributable/**",
+    "cli2/assets/*",
+    "cli2/web/*",
     "cli2/lib/*",
     "cli2/Morphir.Elm.CLI.js",
     "cli2/Morphir.Elm.Generator.js",
@@ -61,6 +63,7 @@
   },
   "homepage": "https://github.com/Morgan-Stanley/morphir-elm#readme",
   "devDependencies": {
+    "@types/express": "^4.17.17",
     "@types/jest": "^27.4.0",
     "@types/mocha": "^9.0.0",
     "@typespec/compiler": "^0.42.0",
