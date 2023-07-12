@@ -4,10 +4,9 @@ module Morphir.DecorationConfig.Backend exposing (..)
 -}
 
 import Dict exposing (Dict)
-import Morphir.DecorationConfig.AST exposing (DecorationConfig)
-import Morphir.DecorationConfig.PrettyPrinter as PrettyPrinter
+import Morphir.DecorationConfig.Codec exposing (Error, Options, printDecorationConfigs)
 import Morphir.File.FileMap exposing (FileMap)
-import Morphir.IR.Decoration exposing (AllDecorationConfigAndData, DecorationID)
+import Morphir.IR.Decoration exposing (AllDecorationConfigAndData, DecorationConfig, DecorationID)
 import Morphir.IR.Distribution exposing (Distribution(..))
 import Morphir.IR.Module exposing (ModuleName)
 import Morphir.IR.Name as Name
@@ -15,19 +14,6 @@ import Morphir.IR.Package as Package exposing (PackageName)
 import Morphir.IR.Path as Path
 import Morphir.IR.Type exposing (Type)
 import Set exposing (Set)
-
-
-{-| Code generator options. Contains the irPath and storageLocation
--}
-type alias Options =
-    { irPath : String
-    , storageLocation : String
-    , decorationGroup : String
-    }
-
-
-type alias Error =
-    String
 
 
 mapDistribution : Options -> Distribution -> Result Error FileMap
@@ -91,6 +77,6 @@ toFile : Dict DecorationID DecorationConfig -> ( ( List String, String ), String
 toFile configs =
     let
         content =
-            PrettyPrinter.printDecorationConfigs configs
+            printDecorationConfigs configs
     in
     ( ( [], "decorationConfigs.json" ), content )
