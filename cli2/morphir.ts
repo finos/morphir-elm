@@ -21,4 +21,5 @@ program
     .command('scala-gen','Generate Scala code from Morphir IR')
     .command('json-schema-gen', 'Generate Json Schema from the Morphir IR')
     .command('typespec-gen', 'Generate TypeSpec(previously CADL) from the Morphir IR')
+    .command('typescript-gen', 'Generate TypeSpec(previously CADL) from the Morphir IR')
     .parse(process.argv)

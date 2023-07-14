@@ -8,11 +8,11 @@ import cli from './cli'
 // Command Description and Options
 const program = new Command()
 program
-    .name('morphir typespec-gen')
+    .name('morphir typescript-gen')
     .description('Generate TypeSpec(previously CADL) from the Morphir IR')
     .option('-i, --input <path>', 'Source location where the Morphir IR will be loaded from.', 'morphir-ir.json')
     .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
-    .option('-t, --target <type>', 'Language to Generate.', 'TypeSpec')
+    .option('-t, --target <type>', 'Language to Generate.', 'TypeScript')
     .option('-c, --copy-deps', 'Copy the dependencies used by the generated code to the output path.', false)
     .option('-m, --limitToModules <comma.separated,list.of,module.names>', 'Limit the set of modules that will be included.', '')
     .option('-s, --include-codecs <boolean>', 'Generate the scala codecs as well', false)

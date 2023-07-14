@@ -11,6 +11,7 @@ const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
 const readdir = util.promisify(fs.readdir);
+const fsUnlinkSync = fs.unlinkSync
 
 const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
 
@@ -535,7 +536,7 @@ async function testCoverage(
   });
 }
 
-async function test(projectDir: string) {
+async function test(projectDir: string) { 
   const morphirIRJsonPath = path.join(projectDir, "morphir-ir.json");
   const morphirIRJson = JSON.parse(
     (await fsReadFile(morphirIRJsonPath)).toString()
@@ -563,7 +564,10 @@ async function test(projectDir: string) {
 export = {
   gen,
   make,
+  fsReadFile,
+  fsMakeDir,
   writeFile,
+  fsUnlinkSync,
   fileExist,
   stats,
   writeDockerfile,
