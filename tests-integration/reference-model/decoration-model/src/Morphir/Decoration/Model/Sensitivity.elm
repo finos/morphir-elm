@@ -1,4 +1,4 @@
-module Morphir.Attribute.Model.Sensitivity exposing (..)
+module Morphir.Decoration.Model.Sensitivity exposing (..)
 
 -- @docs Sensitivity
 

@@ -3,6 +3,8 @@ module Morphir.Elm.Target exposing (..)
 import Json.Decode as Decode exposing (Error, Value)
 import Json.Encode as Encode
 import Morphir.Correctness.Test exposing (TestSuite)
+import Morphir.DecorationConfig.Backend as DecorationConfigBackend
+import Morphir.DecorationConfig.Codec as DecorationConfigCodec exposing (Options)
 import Morphir.File.FileMap exposing (FileMap)
 import Morphir.Graph.Backend.Codec
 import Morphir.Graph.CypherBackend as Cypher
@@ -30,6 +32,7 @@ type BackendOptions
     | TypeScriptOptions Morphir.TypeScript.Backend.Options
     | SparkOptions Morphir.Scala.Spark.Backend.Options
     | JsonSchemaOptions JsonSchemaBackend.Options
+    | DecorationConfigOptions Options
 
 
 type alias Errors =
@@ -56,6 +59,9 @@ decodeOptions gen =
 
         Ok "JsonSchema" ->
             Decode.map (\options -> JsonSchemaOptions options) Morphir.JsonSchema.Backend.Codec.decodeOptions
+
+        Ok "DecorationConfig" ->
+            Decode.map (\option -> DecorationConfigOptions option) DecorationConfigCodec.decodeOptions
 
         _ ->
             Decode.map (\options -> ScalaOptions options) Morphir.Scala.Backend.Codec.decodeOptions
@@ -86,3 +92,7 @@ mapDistribution backendOptions morphirTestSuite dist =
         JsonSchemaOptions options ->
             JsonSchemaBackend.mapDistribution options dist
                 |> Result.mapError Morphir.JsonSchema.Backend.Codec.encodeErrors
+
+        DecorationConfigOptions options ->
+            DecorationConfigBackend.mapDistribution options dist
+                |> Result.mapError Encode.string

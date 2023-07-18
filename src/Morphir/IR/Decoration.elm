@@ -12,12 +12,28 @@ type alias DecorationID =
     String
 
 
+type alias IRPath =
+    String
+
+
+type alias StorageLocation =
+    String
+
+
 type alias AllDecorationConfigAndData =
     Dict DecorationID DecorationConfigAndData
 
 
 type alias DecorationData =
     SDKDict.Dict NodeID RawValue
+
+
+type alias DecorationConfig =
+    { displayName : String
+    , irPath : IRPath
+    , entryPoint : FQName
+    , storageLocation : StorageLocation
+    }
 
 
 type alias DecorationConfigAndData =
@@ -40,6 +56,7 @@ getDecoratedNodeIds decorationId allDecorationConfigData =
 getNodeIdsDecoratedWithValue : DecorationID -> RawValue -> AllDecorationConfigAndData -> List NodeID
 getNodeIdsDecoratedWithValue decorationId decorationValue allDecorationConfigData =
     filterDecorations decorationId (\_ v -> v == decorationValue) allDecorationConfigData
+
 
 {-| Given a decoration type and a predicate, return a List of NodeIDs where the decoration satisfies the predicate.
 -}
