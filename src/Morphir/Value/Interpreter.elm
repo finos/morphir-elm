@@ -183,16 +183,6 @@ evaluateValue ({ allowPartial } as config) nativeFunctions ir variables argument
                 |> Result.fromMaybe (VariableNotFound varName)
                 -- Wrap the error to make it easier to understand where it happened
                 |> Result.mapError (ErrorWhileEvaluatingVariable varName)
-                |> Result.andThen
-                    (\stateValue ->
-                        if stateValue == value then
-                            -- some variables may remain unresolved
-                            Ok stateValue
-
-                        else
-                            -- evaluate value of the variable
-                            evaluateValue config nativeFunctions ir variables [] stateValue
-                    )
 
         Value.Reference _ fQName ->
             -- We check if there is a native function first
@@ -315,13 +305,16 @@ evaluateValue ({ allowPartial } as config) nativeFunctions ir variables argument
                 -- In Morphir (just like in Elm) you can pattern-match on the argument of a lambda.
                 |> Result.andThen
                     (\argumentValue ->
-                        -- To match the pattern we call a helper function that both matches and extracts variables out
-                        -- of the pattern.
-                        matchPattern argumentPattern argumentValue
-                            -- If the pattern does not match we error out. This should never happen with valid
-                            -- expressions as lambda argument patterns should only be used for decomposition not
-                            -- filtering.
-                            |> Result.mapError LambdaArgumentDidNotMatch
+                        evaluateValue config nativeFunctions ir variables [] argumentValue
+                            -- To match the pattern we call a helper function that both matches and extracts variables out
+                            -- of the pattern.
+                            |> Result.andThen
+                                (matchPattern argumentPattern
+                                    -- If the pattern does not match we error out. This should never happen with valid
+                                    -- expressions as lambda argument patterns should only be used for decomposition not
+                                    -- filtering.
+                                    >> Result.mapError LambdaArgumentDidNotMatch
+                                )
                     )
                 -- Finally we evaluate the body of the lambda using the variables extracted by the pattern.
                 |> Result.andThen

@@ -93,6 +93,17 @@ basicRecordMany =
     , record = basicRecordOne
     }
 
+type alias Rec =
+    { foo: Int
+    , bar: String
+    }
+
+calcFoo: Rec -> Int
+calcFoo rec =
+    rec.foo
+
+res = calcFoo { foo = 2, bar = "hello" }
+
 
 basicField : { foo : String } -> String
 basicField rec =
