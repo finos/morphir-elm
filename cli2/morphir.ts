@@ -17,7 +17,8 @@ program
     .command('test','Start Testing all the test cases present in morphir-ir.json')
     .command('test-coverage', 'Generates report on number of branches in a Morphir IR value and TestCases covered')
     .command('generate-test-data', 'Generate test data for Models (types) in a Morphir IR')
-    // Transpiler commands
+    .command('init', 'Launches an interactive session to initialize a new morphir project.')
+    // Transpile commands
     .command('scala-gen','Generate Scala code from Morphir IR')
     .command('json-schema-gen', 'Generate Json Schema from the Morphir IR')
     .command('typespec-gen', 'Generate TypeSpec(previously CADL) from the Morphir IR')

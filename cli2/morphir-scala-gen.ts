@@ -73,9 +73,6 @@ const generate = async (
         console.log("could not read morphir-tests.json, defaulting to an empty test!")
     }
 
-    console.log(options);
-    
-
     const generatedFiles: string[] = await generate(
       options,
       JSON.parse(morphirIrJson.toString()),
