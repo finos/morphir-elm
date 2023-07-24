@@ -9,6 +9,7 @@ const readdir = util.promisify(fs.readdir)
 const mkdir = util.promisify(fs.mkdir)
 const readFile = util.promisify(fs.readFile)
 const fsWriteFile = util.promisify(fs.writeFile)
+const execa = require('execa')
 
 // Elm imports
 const worker = require('./Morphir.Elm.CLI').Elm.Morphir.Elm.CLI.init()
@@ -76,150 +77,48 @@ async function readElmSources(dir) {
 }
 
 async function gen(input, outputPath, options) {
-    await mkdir(outputPath, {
-        recursive: true
-    })
-    const morphirIrJson = await readFile(path.resolve(input))
     const opts = options
     opts.limitToModules = options.modulesToInclude ? options.modulesToInclude.split(",") : null
-    opts.includeCodecs = options.includeCodecs ? true : false
     opts.filename = options.filename == '' ? '' : options.filename
-    const fileMap = await generate(opts, JSON.parse(morphirIrJson.toString()))
+    const commonOptions = [
+        `--input=${opts.input}`,
+        `--output=${opts.output}`,
+        `--target-version=${opts.targetVersion}`,
+        `--limitToModules=${opts.limitToModules}`
+    ]
 
-    const writePromises =
-        fileMap.map(async ([
-            [dirPath, fileName], content
-        ]) => {
-            const fileDir = dirPath.reduce((accum, next) => path.join(accum, next), outputPath)
-            const filePath = path.join(fileDir, fileName)
-            if (await fileExist(filePath)) {
-                console.log(`UPDATE - ${filePath}`)
-            } else {
-                await mkdir(fileDir, {
-                    recursive: true
-                })
-                console.log(`INSERT - ${filePath}`)
-            }
-            if (options.target == 'TypeScript') {
-                return fsWriteFile(filePath, prettier.format(content, { parser: "typescript" }))
-            } else {
-                return fsWriteFile(filePath, content)
-            }
-        })
-    const filesToDelete = await findFilesToDelete(outputPath, fileMap)
-    const deletePromises =
-        filesToDelete.map(async (fileToDelete) => {
-            console.log(`DELETE - ${fileToDelete}`)
-            return fs.unlinkSync(fileToDelete)
-        })
-    copyRedistributables(options, outputPath)
-    return Promise.all(writePromises.concat(deletePromises))
-}
-
-function copyRedistributables(options, outputPath) {
-    const copyFiles = (src, dest) => {
-        const sourceDirectory = path.join(path.dirname(__dirname), 'redistributable', src)
-        copyRecursiveSync(sourceDirectory, outputPath)
+    // invoking new cli using options 
+    switch (opts.target) {
+        case "Scala":
+            console.log("This Command is Deprecated. Switch to `morphir scala-gen` \n Running `morphir scala-gen` command ..............");
+            await execa('morphir scala-gen', [
+                `--copy-deps=${opts.copyDeps}`,
+                `include-codecs=${opts.includeCodecs}`,
+                ...commonOptions
+            ]);
+            break;
+        
+        case "TypeScript": 
+            console.log("This Command is Deprecated. Switch to `morphir typescript-gen` \n Running `morphir typescript-gen` command ..............");
+            await execa('morphir typescript-gen', [
+                `--copy-deps=${opts.copyDeps}`,
+                ...commonOptions
+            ]);
+            break;
+        
+        case "JsonSchema": 
+            console.log("This Command is Deprecated. Switch to `morphir json-schema-gen` \n Running `morphir json-schema-gen` command ..............");
+            await execa('morphir json-schema-gen', commonOptions);
+            break;
+        
+        case "TypeSpec": 
+            console.log("This Command is Deprecated. Switch to `morphir typespec-gen` \n Running `morphir typespec-gen` command ..............");
+            await execa('morphir typespec-gen', commonOptions);
+            break;
+    
+        default:
+            break;
     }
-    if (options.target == 'SpringBoot') {
-        copyFiles('SpringBoot', outputPath)
-    } else if (options.target == 'Scala' && options.copyDeps) {
-        const copyScalaFeature = (feature) => {
-            copyFiles(`Scala/sdk/${feature}/src`, outputPath)
-            copyFiles(`Scala/sdk/${feature}/src-${options.targetVersion}`, outputPath)
-        }
-        if (options.includeCodecs) {
-            copyScalaFeature('json')
-        }
-        copyScalaFeature('core')
-    } else if (options.target == 'TypeScript') {
-        copyFiles('TypeScript/', outputPath)
-    } 
-}
-
-function copyRecursiveSync(src, dest) {
-    const exists = fs.existsSync(src);
-    if (exists) {
-        const stats = exists && fs.statSync(src);
-        const isDirectory = exists && stats.isDirectory();
-        if (isDirectory) {
-            if (!fs.existsSync(dest))
-                fs.mkdirSync(dest);
-            fs.readdirSync(src).forEach(function (childItemName) {
-                copyRecursiveSync(path.join(src, childItemName),
-                    path.join(dest, childItemName));
-            });
-        } else {
-            fs.copyFileSync(src, dest);
-            console.log(`COPY - ${dest}`)
-        }
-    }
-}
-
-async function generate(options, ir) {
-    return new Promise((resolve, reject) => {
-        worker.ports.jsonDecodeError.subscribe(err => {
-            reject(err)
-        })
-
-        worker.ports.generateResult.subscribe(([err, ok]) => {
-            if (err) {
-                reject(err)
-            } else {
-                resolve(ok)
-            }
-        })
-
-        worker.ports.generate.send([options, ir])
-    })
-}
-
-async function fileExist(filePath) {
-    return new Promise((resolve, reject) => {
-        fs.access(filePath, fs.F_OK, (err) => {
-            if (err) {
-                resolve(false)
-            } else {
-                resolve(true)
-            }
-        })
-    });
-}
-
-async function findFilesToDelete(outputPath, fileMap) {
-    const readDir = async function (currentDir, generatedFiles) {
-        const entries = await readdir(currentDir, {
-            withFileTypes: true
-        })
-        const filesToDelete =
-            entries
-                .map(entry => [entry, path.resolve(path.join(currentDir, entry.name))])
-                .filter(([entry, absolutePath]) => {
-                    return entry.isFile() && !generatedFiles.includes(absolutePath)
-                })
-                .map(([entry, absolutePath]) => {
-                    return absolutePath
-                })
-        const subDirFilesToDelete =
-            entries
-                .filter(entry => entry.isDirectory())
-                .map(entry => readDir(path.join(currentDir, entry.name), generatedFiles))
-                .reduce(async (soFarPromise, nextPromise) => {
-                    const soFar = await soFarPromise
-                    const next = await nextPromise
-                    return soFar.concat(next)
-                }, Promise.resolve([]))
-        return filesToDelete.concat(await subDirFilesToDelete)
-    }
-
-    const files =
-        fileMap.map(([
-            [dirPath, fileName], content
-        ]) => {
-            const fileDir = dirPath.reduce((accum, next) => path.join(accum, next), outputPath)
-            return path.resolve(fileDir, fileName)
-        })
-    return Promise.all(await readDir(outputPath, files))
 }
 
 async function writeFile(filePath, content) {

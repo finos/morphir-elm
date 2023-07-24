@@ -13,7 +13,8 @@ program
     .option('-i, --input <path>', 'Source location where the Morphir IR will be loaded from.', 'morphir-ir.json')
     .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
     .option('-t, --target <type>', 'Language to Generate.', 'TypeSpec')
-    .option('-c, --copy-deps', 'Copy the dependencies used by the generated code to the output path.', false)
+    .option('-e, --target-version <version>', 'Language version to Generate.', '0.1.0')
+    .option('-c, --copy-deps  <boolean>', 'Copy the dependencies used by the generated code to the output path.', false)
     .option('-m, --limitToModules <comma.separated,list.of,module.names>', 'Limit the set of modules that will be included.', '')
     .option('-s, --include-codecs <boolean>', 'Generate the scala codecs as well', false)
     .parse(process.argv)
@@ -54,11 +55,11 @@ const generate = async (
 
 
 
-const gen = async (
+  async function gen  (
     input: string,
     outputPath: string,
     options: CommandOptions
-  ) => {
+  )  {
     await cli.fsMakeDir(outputPath, {
       recursive: true,
     });
@@ -120,3 +121,7 @@ gen(program.opts().input, path.resolve(program.opts().output), program.opts())
         console.log(err)
         process.exit(1)
     })
+
+export {
+  gen
+}    

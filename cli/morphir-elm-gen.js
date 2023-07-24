@@ -26,9 +26,7 @@ program
     .parse(process.argv)
 
 cli.gen(program.opts().input, path.resolve(program.opts().output), program.opts())
-    .then(() => {
-        console.log("Done.")
-    })
+    .then()
     .catch((err) => {
         console.error(err)
         process.exit(1)

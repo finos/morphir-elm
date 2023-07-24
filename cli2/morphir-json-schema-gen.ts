@@ -17,7 +17,7 @@ program
     .option('-t, --target <type>', 'Language to Generate.', 'JsonSchema')
     .option('-e, --target-version <version>', 'Language version to Generate.', '2020-12')
     .option('-f, --filename <filename>', 'Filename of the generated JSON Schema.', '')
-    .option('-m, --limit-to-modules <comma.separated,list.of,module.names>', 'Limit the set of modules that will be included.', '')
+    .option('-m, --limitToModules <comma.separated,list.of,module.names>', 'Limit the set of modules that will be included.', '')
     .option('-g, --group-schema-by <string>', 'Group generate schema by package, module or type.', 'package')
     .option('-c, --use-config', 'Use configuration specified in the config file.', false)
     .option('-ls, --include <comma.separated,list.of,strings>', 'Limit what will be included.', '')

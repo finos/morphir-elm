@@ -435,7 +435,7 @@ const gen = async (input: string, outputPath: string, options: any) => {
   await fsMakeDir(outputPath, {
     recursive: true,
   });
-  const morphirIrJson: Buffer = await fsReadFile(path.resolve(input));
+  const morphirIrJson: Buffer = await fsReadFile(path.resolve(input.trim()));
 
   const generatedFiles: string[] = await generate(
     options,

@@ -7,15 +7,27 @@ import {Command} from 'commander'
 import cli = require('./cli')
 import * as util from 'util'
 
-
 const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
-
 const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
 
-
 require('log-timestamp')
+
+const program = new Command()
+program
+    .name('morphir scala-gen')
+    .description('Generate scala code from Morphir IR')
+    .option('-i, --input <path>', 'Source location where the Morphir IR will be loaded from.', 'morphir-ir.json')
+    .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
+    .option('-t, --target <type>', 'Language to Generate.', 'Scala')
+    .option('-e, --target-version <version>', 'Language version to Generate.', '2.11')
+    .option('-c, --copy-deps <boolean>', 'Copy the dependencies used by the generated code to the output path.', false)
+    .option('-m, --limitToModules <comma.separated,list.of,module.names>', 'Limit the set of modules that will be included.', '')
+    .option('-s, --include-codecs', 'Generate the scala codecs as well', false)
+    .option('-g, --generate-test-generic', 'Generate generic test cases from morphir tests that can be used for testing', false)
+    .option('-G, --generate-test-scalatest', 'Generate runnable scalatest test cases', false)
+    .parse(process.argv)
 
 interface CommandOptions {
   targetVersion: string;
@@ -46,13 +58,7 @@ const generate = async (
     });
   };
 
-
-
-const gen = async (
-    input: string,
-    outputPath: string,
-    options: CommandOptions
-  ) => {
+  async function gen(input: string, outputPath: string, options: CommandOptions) {
     await fsMakeDir(outputPath, {
       recursive: true,
     });
@@ -66,6 +72,9 @@ const gen = async (
     } catch (_) {
         console.log("could not read morphir-tests.json, defaulting to an empty test!")
     }
+
+    console.log(options);
+    
 
     const generatedFiles: string[] = await generate(
       options,
@@ -104,22 +113,7 @@ const gen = async (
     });
     cli.copyRedistributables(options, outputPath);
     return Promise.all(writePromises.concat(deletePromises));
-  };
-  
-const program = new Command()
-program
-    .name('morphir scala-gen')
-    .description('Generate scala code from Morphir IR')
-    .option('-i, --input <path>', 'Source location where the Morphir IR will be loaded from.', 'morphir-ir.json')
-    .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
-    .option('-t, --target <type>', 'Language to Generate.', 'Scala')
-    .option('-e, --target-version <version>', 'Language version to Generate.', '2.11')
-    .option('-c, --copy-deps', 'Copy the dependencies used by the generated code to the output path.', false)
-    .option('-m, --limitToModules <comma.separated,list.of,module.names>', 'Limit the set of modules that will be included.', '')
-    .option('-s, --include-codecs <boolean>', 'Generate the scala codecs as well', false)
-    .option('--generate-test-generic', 'Generate generic test cases from morphir tests that can be used for testing', false)
-    .option('--generate-test-scalatest', 'Generate runnable scalatest test cases', false)
-    .parse(process.argv)
+  }
 
 gen(program.opts().input, path.resolve(program.opts().output), program.opts())
     .then(() =>{
@@ -129,3 +123,7 @@ gen(program.opts().input, path.resolve(program.opts().output), program.opts())
         console.log(err)
         process.exit(1)
     })
+
+export {
+  gen
+}
