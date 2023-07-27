@@ -11,19 +11,22 @@ const addFormats = require("ajv-formats")
 const fs = require('fs')
 const util = require('util')
 const cli = require('../../../cli/cli')
+const path = require('path')
+const execa = require("execa")
 
 // Variables
 const basePath = "tests-integration/json-schema/model/"
-const schemaBasePath = "tests-integration/generated/jsonSchema/"
+const schemaBasePath = "tests-integration/generated/jsonSchema"
 const cliOptions = { typesOnly: false }
 const writeFile = util.promisify(fs.writeFile)
+const readFile = util.promisify(fs.readFile)
 var jsonObject
-
-const options = {
-    target : 'JsonSchema',
-    filename: '',
-    include: ""
-}
+const morphirIRJsonPath = basePath + 'morphir-ir.json'
+const schemaPath = path.join(schemaBasePath,"TestModel.json")
+const options = [
+    `--input=${morphirIRJsonPath}`,
+    `--output=${schemaBasePath}`
+]
 
 
 describe('Test Suite for Basic Types and Decimal',  () => {
@@ -37,11 +40,13 @@ describe('Test Suite for Basic Types and Decimal',  () => {
 		await writeFile(basePath + 'morphir-ir.json', JSON.stringify(IR))
 
         // Generate the Json schema
-        await cli.gen(basePath + 'morphir-ir.json', schemaBasePath , options)
-        const schemaPath = schemaBasePath + "TestModel.json"
+        
+        await execa("morphir json-schema-gen", options)
+        // await cli.gen(basePath + 'morphir-ir.json', schemaBasePath , options)
+        //const schemaPath = schemaBasePath + "TestModel.json"
 
         // Read json into an object
-        const jsonBuffer = fs.readFileSync(schemaPath, 'utf8')
+        const jsonBuffer = await readFile(schemaPath)
         jsonObject = JSON.parse(jsonBuffer)
     })
 

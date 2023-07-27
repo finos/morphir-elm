@@ -81,9 +81,8 @@ async function gen(input, outputPath, options) {
     opts.limitToModules = options.modulesToInclude ? options.modulesToInclude.split(",") : null
     opts.filename = options.filename == '' ? '' : options.filename
     const commonOptions = [
-        `--input=${opts.input}`,
-        `--output=${opts.output}`,
-        `--target-version=${opts.targetVersion}`,
+        `--input=${input}`,
+        `--output=${outputPath}`,
         `--limitToModules=${opts.limitToModules}`
     ]
 
@@ -95,7 +94,7 @@ async function gen(input, outputPath, options) {
                 `--copy-deps=${opts.copyDeps}`,
                 `include-codecs=${opts.includeCodecs}`,
                 ...commonOptions
-            ]);
+            ]).stdout.pipe(process.stdout);
             break;
         
         case "TypeScript": 
@@ -103,17 +102,21 @@ async function gen(input, outputPath, options) {
             await execa('morphir typescript-gen', [
                 `--copy-deps=${opts.copyDeps}`,
                 ...commonOptions
-            ]);
+            ]).stdout.pipe(process.stdout);
             break;
         
         case "JsonSchema": 
             console.log("This Command is Deprecated. Switch to `morphir json-schema-gen` \n Running `morphir json-schema-gen` command ..............");
-            await execa('morphir json-schema-gen', commonOptions);
+            await execa(`morphir json-schema-gen`, commonOptions)
+                .stdout.pipe(process.stdout);
             break;
         
         case "TypeSpec": 
             console.log("This Command is Deprecated. Switch to `morphir typespec-gen` \n Running `morphir typespec-gen` command ..............");
-            await execa('morphir typespec-gen', commonOptions);
+            await execa('morphir typespec-gen', [
+                `--copy-deps=${opts.copyDeps}`,
+                ...commonOptions
+            ]).stdout.pipe(process.stdout);
             break;
     
         default:
