@@ -31,7 +31,7 @@ describe("Validating Generated TypeSpec", () => {
         await writeFile(morphirIR,JSON.stringify(IR))
 
         // run gen cmd
-        await cli.gen(morphirIR, generatedCadl, genCmdOpts)
+        await execa("morphir typespec-gen", [`--input=${morphirIR}`, `--output=${generatedCadl}`])
 
         // compile generated Cadl to look for errors
         const args = ['compile', path.join(generatedCadl,"TestModel.tsp")]
