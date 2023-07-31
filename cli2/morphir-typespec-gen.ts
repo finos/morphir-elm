@@ -14,9 +14,8 @@ program
     .option('-o, --output <path>', 'Target location where the generated code will be saved.', './dist')
     .option('-t, --target <type>', 'Language to Generate.', 'TypeSpec')
     .option('-e, --target-version <version>', 'Language version to Generate.', '0.1.0')
-    .option('-c, --copy-deps  <boolean>', 'Copy the dependencies used by the generated code to the output path.', false)
+    .option('-c, --copy-deps', 'Copy the dependencies used by the generated code to the output path.', false)
     .option('-m, --limitToModules <comma.separated,list.of,module.names>', 'Limit the set of modules that will be included.', '')
-    .option('-s, --include-codecs <boolean>', 'Generate the scala codecs as well', false)
     .parse(process.argv)
 
 const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
@@ -120,8 +119,4 @@ gen(program.opts().input, path.resolve(program.opts().output), program.opts())
     .catch((err) =>{
         console.log(err)
         process.exit(1)
-    })
-
-export {
-  gen
-}    
+    })   

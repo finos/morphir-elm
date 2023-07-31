@@ -374,17 +374,25 @@ const findFilesToDelete = async (outputPath: string, fileMap: string[]) => {
   return Promise.all(await readDir(outputPath, files));
 };
 
-function copyRedistributables(options: CommandOptions, outputPath: string) {
-  const copyFiles = (src: string, dest: string) => {
-    const sourceDirectory: string = path.join(
-      path.dirname(__dirname),
-      "redistributable",
-      src
-    );
-    copyRecursiveSync(sourceDirectory, outputPath);
-  };
-  copyFiles("Scala/sdk/src", outputPath);
-  copyFiles(`Scala/sdk/src-${options.targetVersion}`, outputPath);
+function copyRedistributables(options: any, outputPath: string) {
+  const copyFiles = (src:string, dest:string) => {
+    const sourceDirectory = path.join(path.dirname(__dirname), '..', 'redistributable', src)
+    copyRecursiveSync(sourceDirectory, outputPath)
+  }
+  if (options.target == 'SpringBoot') {
+      copyFiles('SpringBoot', outputPath)
+  } else if (options.target == 'Scala' && options.copyDeps) {
+      const copyScalaFeature = (feature:string) => {
+          copyFiles(`Scala/sdk/${feature}/src`, outputPath)
+          copyFiles(`Scala/sdk/${feature}/src-${options.targetVersion}`, outputPath)
+      }
+      if (options.includeCodecs) {
+          copyScalaFeature('json')
+      }
+      copyScalaFeature('core')
+  } else if (options.target == 'TypeScript') {
+      copyFiles('TypeScript/', outputPath)
+  } 
 }
 
 function copyRecursiveSync(src: string, dest: string) {

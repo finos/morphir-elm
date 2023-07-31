@@ -145,7 +145,7 @@ function morphirElmMake2(projectDir, outputPath, options = {}) {
     return execa('node', args, { stdio })
 }
 
-// Generate the IR for the Json Schema mdel
+// Generate the IR for the Json Schema model
 function morphirElmMakeJsonSchema(projectDir, outputPath, options = {}) {
     args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {

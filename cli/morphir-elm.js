@@ -12,7 +12,7 @@ const packageJson = require(path.join(__dirname, '../package.json'))
 const program = new commander.Command()
 program
     .version(packageJson.version, '-v, --version')
-    .description("This command shall be Deprecated soon. Use `morphir` instead")
+    .description("This command is deprecated. Use `morphir`")
     .command('make', 'Translate Elm sources to Morphir IR')
     .command('gen', 'Generate code from Morphir IR')
     .command('develop', 'Start up a web server and expose developer tools through a web UI')

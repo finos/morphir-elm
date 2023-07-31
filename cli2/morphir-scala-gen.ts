@@ -120,7 +120,3 @@ gen(program.opts().input, path.resolve(program.opts().output), program.opts())
         console.log(err)
         process.exit(1)
     })
-
-export {
-  gen
-}
