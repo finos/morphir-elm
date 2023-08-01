@@ -5,6 +5,7 @@
 const path = require('path')
 const commander = require('commander')
 const cli = require('./cli')
+const execa = require('execa')
 
 //logging
 require('log-timestamp')
@@ -25,10 +26,65 @@ program
     .option('-ls, --include <comma.separated,list.of,strings>', 'Limit what will be included.', '')
     .parse(process.argv)
 
-cli.gen(program.opts().input, path.resolve(program.opts().output), program.opts())
-    .then()
-    .catch((err) => {
-        console.error(err)
-        process.exit(1)
-    })
+    const opts = program.opts()
+    const input = opts.input
+    const outputPath = opts.output
+    opts.limitToModules = opts.modulesToInclude ? opts.modulesToInclude.split(",") : null
+    opts.filename = opts.filename == '' ? '' : opts.filename
+    const commonOptions = [
+        `--input=${input}`,
+        `--output=${outputPath}`,
+        `--limitToModules=${opts.limitToModules}`
+    ]
+
+    // invoking new cli using options 
+    switch (opts.target) {
+        case "Scala":
+            console.log("This Command is Deprecated. Switch to `morphir scala-gen` \n Running `morphir scala-gen` command ..............");
+            execa('morphir scala-gen', [
+                `--copy-deps=${opts.copyDeps}`,
+                `include-codecs=${opts.includeCodecs}`,
+                ...commonOptions
+            ]).stdout.pipe(process.stdout);
+            break;
+        
+        case "TypeScript": 
+            console.log("This Command is Deprecated. Switching to `morphir typescript-gen`");
+            execa('morphir typescript-gen', [
+                ...commonOptions,
+                `--copy-deps=${opts.copyDeps}`
+            ]).stdout.pipe(process.stdout);
+            break;
+        
+        case "JsonSchema": 
+            console.log("This Command is Deprecated. Switch to `morphir json-schema-gen` \n Running `morphir json-schema-gen` command ..............");
+            execa(`morphir json-schema-gen`, commonOptions)
+                .stdout.pipe(process.stdout);
+            break;
+        
+        case "TypeSpec": 
+            console.log("This Command is Deprecated. Switch to `morphir typespec-gen` \n Running `morphir typespec-gen` command ..............");
+            execa('morphir typespec-gen', [
+                `--copy-deps=${opts.copyDeps}`,
+                ...commonOptions
+            ]).stdout.pipe(process.stdout);
+            break;
+    
+        default:
+            console.log("This Command is Deprecated. Switch to `morphir scala-gen` \n Running `morphir scala-gen` command ..............");
+            execa('morphir scala-gen', [
+                `--copy-deps=${opts.copyDeps}`,
+                `include-codecs=${opts.includeCodecs}`,
+                ...commonOptions
+            ]).stdout.pipe(process.stdout);
+            break;
+    }
+
+
+// cli.gen(program.opts().input, path.resolve(program.opts().output), program.opts())
+//     .then()
+//     .catch((err) => {
+//         console.error(err)
+//         process.exit(1)
+//     })
 

@@ -76,13 +76,13 @@ async function readElmSources(dir) {
     return Promise.all(await readDir(dir))
 }
 
-async function gen(input, outputPath, options) {
+async function gen(input, outputPath, options) { console.log({outputPath});
     const opts = options
     opts.limitToModules = options.modulesToInclude ? options.modulesToInclude.split(",") : null
     opts.filename = options.filename == '' ? '' : options.filename
     const commonOptions = [
-        `--input=${input}`,
-        `--output=${outputPath}`,
+        `--input="${input}"`,
+        `--output="${outputPath}"`,
         `--limitToModules=${opts.limitToModules}`
     ]
 
@@ -100,8 +100,8 @@ async function gen(input, outputPath, options) {
         case "TypeScript": 
             console.log("This Command is Deprecated. Switch to `morphir typescript-gen` \n Running `morphir typescript-gen` command ..............");
             await execa('morphir typescript-gen', [
-                `--copy-deps=${opts.copyDeps}`,
-                ...commonOptions
+                ...commonOptions,
+                `--copy-deps=${opts.copyDeps}`
             ]).stdout.pipe(process.stdout);
             break;
         

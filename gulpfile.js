@@ -94,7 +94,7 @@ const buildCLI2 =
 const buildMorphirAPI2 = async ()=>{
     try {
         await morphirElmMakeRunOldCli('.', './morphir-ir.json', {typesOnly: true})
-        await morphirElmGen('./morphir-ir.json', './lib/generated', 'TypeScript')
+        await morphirElmGen('./morphir-ir.json', './lib/generated/', 'TypeScript')
         src('./lib/sdk/**/*')
         .pipe(dest('./lib/generated/morphir/sdk'))
        return await execa('npx tsc', ['--project',path.join('.','lib','tsconfig.json')])
@@ -110,11 +110,11 @@ const build =
         makeCLI,
         makeDevCLI,
         buildCLI2,
-        buildMorphirAPI2,
         makeDevServer,
         makeDevServerAPI,
         makeInsightAPI,
-        makeTryMorphir
+        makeTryMorphir,
+        buildMorphirAPI2,
     )
 
 
