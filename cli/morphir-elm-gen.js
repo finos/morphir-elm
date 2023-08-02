@@ -5,6 +5,7 @@
 const path = require('path')
 const commander = require('commander')
 const cli = require('./cli')
+const execa = require('execa')
 
 //logging
 require('log-timestamp')
@@ -25,12 +26,32 @@ program
     .option('-ls, --include <comma.separated,list.of,strings>', 'Limit what will be included.', '')
     .parse(process.argv)
 
-cli.gen(program.opts().input, path.resolve(program.opts().output), program.opts())
-    .then(() => {
-        console.log("Done.")
-    })
-    .catch((err) => {
-        console.error(err)
-        process.exit(1)
-    })
+const options = program.opts();
+const backendTarget = options.target;
+const showDeprecationMessage = (cmd, opts) => {
+    console.warn(`This Command is Deprecated. Switching to morphir ${cmd}-gen`);
+    console.info(`Running => morphir ${cmd}-gen ${opts}`);
+}
+
+switch (backendTarget) {
+    case "TypeScript":
+        const copyDeps = (options.copyDeps) ? "-c" : "";
+        const cmdOptions = `--input=${program.opts().input} --output=${program.opts().output} ${copyDeps}`
+        showDeprecationMessage("typescript", cmdOptions)
+        execa(`morphir typescript-gen ${cmdOptions}`).stdout.pipe(process.stdout)
+        break;
+
+    default:
+        cli.gen(program.opts().input, path.resolve(program.opts().output), program.opts())
+        .then(() => {
+            console.log("Done.")
+        })
+        .catch((err) => {
+            console.error(err)
+            process.exit(1)
+        })
+        break;
+}
+
+
 

@@ -156,7 +156,7 @@ function morphirElmMakeJsonSchema(projectDir, outputPath, options = {}) {
 }
 
 function morphirElmGen(inputPath, outputDir, target) {
-    args = ['./cli/morphir-elm.js', 'gen', '-i', inputPath, '-o', outputDir, '-t', target]
+    args = ['./cli/morphir-elm.js', 'gen', '-i', inputPath, '-o', outputDir, '-t', target, '-c']
     console.log("Running: " + args.join(' '));
     return execa('node', args, { stdio })
 }

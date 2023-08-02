@@ -546,4 +546,5 @@ export = {
   copyRedistributables,
   testCoverage,
   worker,
+  copyRecursiveSync
 };
