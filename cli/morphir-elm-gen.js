@@ -35,7 +35,7 @@ const showDeprecationMessage = (cmd, opts) => {
 
 switch (backendTarget) {
     case "TypeScript":
-        const copyDeps = (options.copyDeps) ? "-c" : "";
+        const copyDeps = (options.copyDeps) ? "--copy-deps" : "";
         const cmdOptions = `--input=${program.opts().input} --output=${program.opts().output} ${copyDeps}`
         showDeprecationMessage("typescript", cmdOptions)
         execa(`morphir typescript-gen ${cmdOptions}`).stdout.pipe(process.stdout)

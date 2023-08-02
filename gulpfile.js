@@ -356,19 +356,25 @@ testIntegration = series(
     testIntegrationClean,
     testIntegrationMake,
     testCreateCSV,
-    parallel(
-        testIntegrationMorphirTest,
-        //testIntegrationSpark,
-        series(
-            testIntegrationGenScala,
-            testIntegrationBuildScala,
-        ),
-        series(
-            testIntegrationGenTypeScript,
-            testIntegrationTestTypeScript,
-        ),
-    ),testIntegrationDockerize,
-     testIntegrationJsonSchemaGen
+    testIntegrationMorphirTest,
+    testIntegrationGenScala,
+    testIntegrationBuildScala,
+    testIntegrationGenTypeScript,
+    testIntegrationTestTypeScript,
+    // parallel(
+    //     testIntegrationMorphirTest,
+    //     //testIntegrationSpark,
+    //     series(
+    //         testIntegrationGenScala,
+    //         testIntegrationBuildScala,
+    //     ),
+    //     series(
+    //         testIntegrationGenTypeScript,
+    //         testIntegrationTestTypeScript,
+    //     ),
+    // ),
+    testIntegrationDockerize,
+    testIntegrationJsonSchemaGen
 )
 
 
