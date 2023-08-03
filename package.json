@@ -92,11 +92,13 @@
     "chalk": "^4.1.1",
     "commander": "^9.0.0",
     "cookie-parser": "^1.4.6",
+    "elm-live": "^4.0.2",
     "express": "^4.18.2",
     "fs-extra": "^9.1.0",
     "get-stdin": "^8.0.0",
     "inquirer": "^8.0.0",
     "log-timestamp": "^0.3.0",
+    "morphir-elm": "^2.81.0",
     "prettier": "^2.4.1",
     "vis-network": "^9.1.2"
   }

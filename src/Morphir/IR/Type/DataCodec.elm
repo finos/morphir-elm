@@ -1,4 +1,4 @@
-module Morphir.IR.Type.DataCodec exposing (decodeData, encodeData)
+module Morphir.IR.Type.DataCodec exposing (decodeData, encodeData, encodeDataWithOptions)
 
 import Dict exposing (Dict)
 import Json.Decode as Decode
@@ -19,6 +19,11 @@ import Morphir.Value.Interpreter as Interpreter
 
 encodeData : Distribution -> Type () -> Result String (RawValue -> Result String Encode.Value)
 encodeData ir tpe =
+    encodeDataWithOptions False ir tpe
+
+
+encodeDataWithOptions : Bool -> Distribution -> Type () -> Result String (RawValue -> Result String Encode.Value)
+encodeDataWithOptions allowPartials ir tpe =
     case tpe of
         Type.Reference _ (( [ [ "morphir" ], [ "s", "d", "k" ] ], typeModuleName, localName ) as fQName) typeArgs ->
             case ( typeModuleName, localName, typeArgs ) of
@@ -123,14 +128,14 @@ encodeData ir tpe =
                     ir
                         |> Distribution.lookupTypeSpecification fQName
                         |> Result.fromMaybe (String.concat [ "Cannot find reference: ", FQName.toString fQName ])
-                        |> Result.andThen (encodeTypeSpecification ir fQName typeArgs)
+                        |> Result.andThen (encodeTypeSpecification allowPartials ir fQName typeArgs)
 
         Type.Reference _ fQName typeArgs ->
             -- Handle references that are not part of the SDK
             ir
                 |> Distribution.lookupTypeSpecification fQName
                 |> Result.fromMaybe (String.concat [ "Cannot find reference: ", FQName.toString fQName ])
-                |> Result.andThen (encodeTypeSpecification ir fQName typeArgs)
+                |> Result.andThen (encodeTypeSpecification allowPartials ir fQName typeArgs)
 
         Type.Record _ fieldTypes ->
             fieldTypes
@@ -144,17 +149,32 @@ encodeData ir tpe =
                     (\fieldEncoders value ->
                         case value of
                             Value.Record _ fields ->
-                                fieldEncoders
-                                    |> List.map
-                                        (\( fieldName, fieldEncoder ) ->
-                                            fields
-                                                |> Dict.get fieldName
-                                                |> Result.fromMaybe (String.concat [ "Value for field not found: ", Name.toCamelCase fieldName ])
-                                                |> Result.andThen fieldEncoder
-                                                |> Result.map (Tuple.pair (fieldName |> Name.toCamelCase))
-                                        )
-                                    |> ListOfResults.keepFirstError
-                                    |> Result.map Encode.object
+                                if allowPartials then
+                                    fieldEncoders
+                                        |> List.filterMap
+                                            (\( fieldName, fieldEncoder ) ->
+                                                fields
+                                                    |> Dict.get fieldName
+                                                    |> Maybe.map
+                                                        (fieldEncoder
+                                                            >> Result.map (Tuple.pair (fieldName |> Name.toCamelCase))
+                                                        )
+                                            )
+                                        |> ListOfResults.keepFirstError
+                                        |> Result.map Encode.object
+
+                                else
+                                    fieldEncoders
+                                        |> List.map
+                                            (\( fieldName, fieldEncoder ) ->
+                                                fields
+                                                    |> Dict.get fieldName
+                                                    |> Result.fromMaybe (String.concat [ "Value for field not found: ", Name.toCamelCase fieldName ])
+                                                    |> Result.andThen fieldEncoder
+                                                    |> Result.map (Tuple.pair (fieldName |> Name.toCamelCase))
+                                            )
+                                        |> ListOfResults.keepFirstError
+                                        |> Result.map Encode.object
 
                             _ ->
                                 Err (String.concat [ "Expected record but found: ", Debug.toString value ])
@@ -321,8 +341,8 @@ decodeData ir tpe =
             Err "Cannot Decode this type"
 
 
-encodeTypeSpecification : Distribution -> FQName -> List (Type ()) -> Type.Specification () -> Result String (RawValue -> Result String Encode.Value)
-encodeTypeSpecification ir (( typePackageName, typeModuleName, _ ) as fQName) typeArgs typeSpec =
+encodeTypeSpecification : Bool -> Distribution -> FQName -> List (Type ()) -> Type.Specification () -> Result String (RawValue -> Result String Encode.Value)
+encodeTypeSpecification allowPartials ir (( typePackageName, typeModuleName, _ ) as fQName) typeArgs typeSpec =
     case typeSpec of
         Type.TypeAliasSpecification typeArgNames typeExp ->
             -- For type aliases we extract the type expression, substitute the type variables and recursively
@@ -335,7 +355,7 @@ encodeTypeSpecification ir (( typePackageName, typeModuleName, _ ) as fQName) ty
             in
             typeExp
                 |> Type.substituteTypeVariables argVariables
-                |> encodeData ir
+                |> encodeDataWithOptions allowPartials ir
 
         Type.OpaqueTypeSpecification _ ->
             Err (String.concat [ "Cannot serialize opaque type: ", FQName.toString fQName ])
@@ -361,7 +381,7 @@ encodeTypeSpecification ir (( typePackageName, typeModuleName, _ ) as fQName) ty
                                             |> Result.andThen
                                                 (\constructorArgTypes ->
                                                     constructorArgTypes
-                                                        |> List.map (Tuple.second >> Type.substituteTypeVariables argVariables >> encodeData ir)
+                                                        |> List.map (Tuple.second >> Type.substituteTypeVariables argVariables >> encodeDataWithOptions allowPartials ir)
                                                         |> ListOfResults.keepFirstError
                                                         |> Result.andThen
                                                             (\constructorArgEncoders ->
@@ -416,7 +436,7 @@ encodeTypeSpecification ir (( typePackageName, typeModuleName, _ ) as fQName) ty
                             fn evaluatedValue
                         )
                         (Type.substituteTypeVariables argVariables config.baseType
-                            |> encodeData ir
+                            |> encodeDataWithOptions allowPartials ir
                         )
                         (Interpreter.evaluate SDK.nativeFunctions ir valueAsBaseType
                             |> Result.mapError
