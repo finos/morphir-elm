@@ -70,3 +70,7 @@ type alias FooBarBazRecord =
 fooBarBazToString : FooBarBazRecord -> String
 fooBarBazToString fbb =
     fbb.foo
+
+fooBarBazToInt : FooBarBazRecord -> Int
+fooBarBazToInt fbb =
+    fbb.baz
