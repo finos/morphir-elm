@@ -19,7 +19,6 @@ import Morphir.Type.Infer as Infer exposing (TypeError)
 import Morphir.Visual.BoolOperatorTree as BoolOperatorTree exposing (BoolOperatorTree)
 import Morphir.Visual.Common exposing (nameToText)
 import Morphir.Visual.Components.AritmeticExpressions as ArithmeticOperatorTree exposing (ArithmeticOperatorTree)
-import Morphir.Visual.Components.DecisionTree as DecisionTree
 import Morphir.Visual.Components.DrillDownPanel as DrillDownPanel
 import Morphir.Visual.Config as Config exposing (Config, DrillDownFunctions(..), drillDownContains)
 import Morphir.Visual.EnrichedValue exposing (EnrichedValue, fromRawValue, fromTypedValue, getId)
@@ -35,6 +34,7 @@ import Morphir.Visual.ViewLiteral as ViewLiteral
 import Morphir.Visual.ViewPatternMatch as ViewPatternMatch
 import Morphir.Visual.ViewRecord as ViewRecord
 import Morphir.Visual.XRayView as XRayView
+import Morphir.Visual.ViewDifference as ViewDifference
 
 
 definition : Config msg -> String -> Element msg -> Element msg

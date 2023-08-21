@@ -2,6 +2,7 @@ module Morphir.Visual.DesignSystemApp exposing (..)
 
 import Array exposing (Array)
 import Browser
+import Dict
 import Element exposing (Color, Element, column, el, height, htmlAttribute, layout, none, padding, paddingEach, px, rgb, row, spacing, text, width)
 import Element.Background as Background
 import Element.Border as Border
@@ -11,10 +12,16 @@ import Element.Input as Input
 import FontAwesome.Styles as Icon
 import Html exposing (Html)
 import Html.Attributes
+import Morphir.IR.Literal exposing (Literal(..))
+import Morphir.IR.Name as Name
+import Morphir.IR.SDK.LocalDate as LocalDate
+import Morphir.IR.Value as Value exposing (Value)
+import Morphir.SDK.Decimal as Decimal
 import Morphir.Visual.Components.DrillDownPanel as DrillDownPanel
 import Morphir.Visual.Components.Picklist as Picklist
 import Morphir.Visual.Components.TabsComponent as TabsComponent
 import Morphir.Visual.Theme as Theme exposing (Colors, Theme)
+import Morphir.Visual.ViewDifference exposing (viewValueDifference)
 
 
 main : Program () Model Msg
@@ -158,6 +165,7 @@ view model =
             (column []
                 [ viewTheme model.theme
                 , viewComponents model
+                , viewDiffTest model.theme
                 ]
             )
         ]
@@ -195,6 +203,7 @@ viewComponents c =
                     , openHeader = text "Header"
                     , openElement = text "Detail"
                     , isOpen = c.drillDownIsOpen
+                    , zIndex = 9999
                     }
                 )
             , viewComponent "Picklist"
@@ -294,3 +303,76 @@ viewColors colors =
                         ]
                 )
         )
+
+
+viewDiffTest : Theme -> Element msg
+viewDiffTest theme =
+    let
+        viewDiffRow : Value ta va -> Value ta va -> Element msg
+        viewDiffRow a b =
+            column [ Element.spacing <| Theme.smallSpacing theme ]
+                [ row []
+                    [ el [ Font.bold ] (text <| "Value A: ")
+                    , text (Value.toString a)
+                    ]
+                , row []
+                    [ el [ Font.bold ] (text <| "Value B: ")
+                    , text (Value.toString b)
+                    ]
+                , row [] [ text "Difference: ", viewValueDifference theme a b ]
+                ]
+
+        stringA =
+            Value.Literal () (StringLiteral "MSBuys")
+
+        stringB =
+            Value.Literal () (StringLiteral "MSSells")
+
+        intA =
+            Value.Literal () (WholeNumberLiteral 86)
+
+        intB =
+            Value.Literal () (WholeNumberLiteral 33)
+
+        floatA =
+            Value.Literal () (FloatLiteral 5.5)
+
+        floatB =
+            Value.Literal () (FloatLiteral 10.5)
+
+        decimalA =
+            Value.Literal () (DecimalLiteral (Decimal.fromFloat 5.1))
+
+        decimalB =
+            Value.Literal () (DecimalLiteral (Decimal.fromFloat 99.33))
+
+        listA =
+            Value.List () [ intA, floatA, decimalA, decimalB ]
+
+        listB =
+            Value.List () [ intA, floatA, decimalB, intB ]
+
+        recordA =
+            Value.record ()
+                (Dict.fromList [ ( Name.fromString "position", stringA ), ( Name.fromString "amount", decimalA ) ])
+
+        recordB =
+            Value.record ()
+                (Dict.fromList [ ( Name.fromString "position", stringB ), ( Name.fromString "id", intA ), ( Name.fromString "value", decimalB ) ])
+
+        dictA =
+            Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "from", "list" ] )) (Value.List () [ Value.Tuple () [ stringA, floatA ], Value.Tuple () [ stringB, floatB ] ])
+
+        dictB =
+            Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "from", "list" ] )) (Value.List () [ Value.Tuple () [ stringB, floatA ] ])
+    in
+    Element.column [ spacing <| Theme.largeSpacing theme ]
+        [ viewDiffRow stringA stringB
+        , viewDiffRow intA intB
+        , viewDiffRow floatA floatB
+        --, viewDiffRow decimalA decimalB
+        , viewDiffRow listA listB
+        , viewDiffRow recordA recordB
+        , viewDiffRow dictA dictB
+        , viewDiffRow (LocalDate.fromISO () (Value.Literal () (StringLiteral "1999-01-02"))) (LocalDate.fromISO () (Value.Literal () (StringLiteral "2000-01-01")))
+        ]

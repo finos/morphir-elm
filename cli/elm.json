@@ -26,6 +26,7 @@
             "elm-community/maybe-extra": "5.3.0",
             "elm-explorations/markdown": "1.0.0",
             "fabhof/elm-ui-datepicker": "5.0.0",
+            "jinjor/elm-diff": "1.0.6",
             "justinmimbs/date": "3.2.1",
             "lattyware/elm-fontawesome": "6.0.0",
             "matthewsj/elm-ordering": "2.0.0",
