@@ -78,6 +78,7 @@ import Morphir.Visual.Components.InputComponent as InputComponent
 import Morphir.Visual.Components.ModalComponent exposing (attachModal)
 import Morphir.Visual.Components.SectionComponent as SectionComponent
 import Morphir.Visual.Components.SelectableElement as SelectableElement
+import Morphir.Visual.Components.TableView as TableView
 import Morphir.Visual.Components.TabsComponent as TabsComponent
 import Morphir.Visual.Components.TreeViewComponent as TreeViewComponent
 import Morphir.Visual.Config exposing (DrillDownFunctions(..), ExpressionTreePath, PopupScreenRecord, addToDrillDown, removeFromDrillDown)
@@ -139,6 +140,7 @@ type alias Model =
     , modalContent : Element Msg
     , version : String
     , showSaveTestError : Bool
+    , tableViewConfig : TableView.Config Msg
     }
 
 
@@ -228,6 +230,10 @@ init flags url key =
             , modalContent = none
             , version = flags.version
             , showSaveTestError = False
+            , tableViewConfig =
+                { state = TableView.init
+                , onStateChange = TableViewChanged
+                }
             }
     in
     ( toRoute url initModel
@@ -268,6 +274,7 @@ type Msg
     | Insight InsightMsg
     | Testing TestingMsg
     | Decoration DecorationMsg
+    | TableViewChanged TableView.State
     | DoNothing
 
 
@@ -730,6 +737,14 @@ update msg model =
 
         DoNothing ->
             ( model, Cmd.none )
+
+        TableViewChanged newTableViewState ->
+            let
+                tableViewConfig : TableView.Config Msg
+                tableViewConfig =
+                    model.tableViewConfig
+            in
+            ( { model | tableViewConfig = { tableViewConfig | state = newTableViewState } }, Cmd.none )
 
 
 
@@ -1434,6 +1449,19 @@ viewHome model packageName packageDef =
                                                 []
                                 in
                                 col decorationTabContent
+                          }
+                        , { name = "Type Table"
+                          , content =
+                                col
+                                    [ TableView.viewTypeTable
+                                        model.theme
+                                        model.tableViewConfig
+                                        packageName
+                                        packageDef
+                                        (model.homeState.selectedModule |> Maybe.map Tuple.second)
+                                        model.allDecorationConfigAndData
+
+                                    ]
                           }
                         ]
                 }
