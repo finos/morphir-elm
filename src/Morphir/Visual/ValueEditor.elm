@@ -803,7 +803,7 @@ view theme ir valueType updateEditorState editorState =
                                                                                                             Ok <| ( nextFieldName, Value.Constructor () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "nothing" ] ) ) :: fieldsSoFar
 
                                                                                                         _ ->
-                                                                                                            Err <| "Missing field value: " ++ Name.toCamelCase nextFieldName
+                                                                                                            Ok <| fieldsSoFar
                                                                                         )
                                                                             )
                                                                 )

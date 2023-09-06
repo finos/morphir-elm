@@ -67,7 +67,7 @@ encodeTestCases ir valueSpec testCases =
         encodeInput inputTypes testCase =
             List.map2
                 (\( _, tpe ) maybeTestCaseInput ->
-                    DataCodec.encodeData ir tpe
+                    DataCodec.encodeDataWithOptions True ir tpe
                         |> Result.andThen
                             (\encoder ->
                                 case maybeTestCaseInput of
@@ -91,7 +91,7 @@ encodeTestCases ir valueSpec testCases =
                         ( encodeInput
                             valueSpec.inputs
                             testCase
-                        , DataCodec.encodeData ir valueSpec.output
+                        , DataCodec.encodeDataWithOptions True ir valueSpec.output
                             |> Result.andThen
                                 (\encoder ->
                                     testCase.expectedOutput |> encoder
