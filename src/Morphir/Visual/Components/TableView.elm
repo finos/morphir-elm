@@ -1,26 +1,30 @@
 module Morphir.Visual.Components.TableView exposing (..)
 
 import Dict exposing (Dict)
-import Element exposing (Element, el, fill, fillPortion, height, padding, paddingXY, pointer, scrollbars, spacing, spacingXY, text, width)
+import Element exposing (Element, el, fill, fillPortion, height, padding, paddingXY, pointer, scrollbars, shrink, spacing, spacingXY, text, width)
 import Element.Background
 import Element.Border
 import Element.Events exposing (onClick)
 import Element.Font as Font
 import Element.Input
+import Html.Attributes
+import List.Extra
 import Morphir.Elm.ParsedModule exposing (documentation)
 import Morphir.IR.Decoration exposing (AllDecorationConfigAndData, DecorationConfigAndData, DecorationID)
+import Morphir.IR.Distribution as Distribution
 import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.NodeId exposing (NodeID(..))
 import Morphir.IR.Package as Package exposing (PackageName)
 import Morphir.IR.Path as Path exposing (Path)
-import Morphir.IR.Type as Type
+import Morphir.IR.Type as Type exposing (Specification(..), Type(..))
 import Morphir.IR.Value as Value exposing (RawValue)
 import Morphir.SDK.Dict as SDKDict
 import Morphir.Visual.Common exposing (nameToTitleText, tooltip)
 import Morphir.Visual.Components.InputComponent as InputComponent
 import Morphir.Visual.Theme as Theme exposing (Theme)
 import Ordering exposing (Ordering)
+import Set exposing (Set)
 
 
 type alias State =
@@ -28,6 +32,7 @@ type alias State =
     , ordering : Ordering Row
     , orderDirection : OrderDirection
     , searchTerms : SearchTerms
+    , hiddenColumns : Set Int
     }
 
 
@@ -61,6 +66,9 @@ type alias SearchTerms =
 type Msg
     = SetOrdering Int (Ordering Row)
     | Search Int String
+    | ClearSearch
+    | ToggleDisplayColumn Int
+    | ShowAllColumns
 
 
 type OrderDirection
@@ -74,6 +82,7 @@ init =
     , ordering = Ordering.byField .typeName
     , orderDirection = Desc
     , searchTerms = Dict.empty
+    , hiddenColumns = Set.empty
     }
 
 
@@ -104,6 +113,19 @@ update msg state =
 
         Search index term ->
             { state | searchTerms = Dict.insert index term state.searchTerms }
+
+        ClearSearch ->
+            { state | searchTerms = Dict.empty }
+
+        ToggleDisplayColumn index ->
+            if Set.member index state.hiddenColumns then
+                { state | hiddenColumns = Set.remove index state.hiddenColumns }
+
+            else
+                { state | hiddenColumns = Set.insert index state.hiddenColumns }
+
+        ShowAllColumns ->
+            { state | hiddenColumns = Set.empty }
 
 
 viewTypeTable : Theme -> Config msg -> PackageName -> Package.Definition () va -> Maybe Path -> AllDecorationConfigAndData -> Element msg
@@ -205,7 +227,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
 
         rowElem : Element msg -> Element msg
         rowElem =
-            el [ Theme.borderBottom 1, Element.Border.color theme.colors.lightGray, paddingXY 2 1 ]
+            el [ Theme.borderBottom 1, Element.Border.color theme.colors.lightGray, paddingXY (Theme.smallPadding theme) 1 ]
 
         searchIn : String -> String -> Bool
         searchIn string term =
@@ -219,39 +241,100 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
 
         decorationColumns : List (Column msg)
         decorationColumns =
+            let
+                getField : RawValue -> Name -> Maybe RawValue
+                getField value fieldName =
+                    case value of
+                        Value.Record _ fields ->
+                            Dict.get fieldName fields
+
+                        _ ->
+                            Nothing
+            in
             decorations
                 |> List.map
                     (\( id, configAndData ) ->
-                        { columnName = configAndData.displayName
-                        , ordering =
-                            \a b ->
-                                case ( Dict.get id a.decorations, Dict.get id b.decorations ) of
-                                    ( Just (Just aVal), Just (Just bVal) ) ->
-                                        Basics.compare (Value.toString aVal) (Value.toString bVal)
+                        case Distribution.lookupTypeSpecification configAndData.entryPoint configAndData.iR of
+                            Just (TypeAliasSpecification _ (Record _ fieldList)) ->
+                                let
+                                    rec f =
+                                        case f.tpe of
+                                            --(Record _ innerFieldList) ->
+                                            --    innerFieldList
+                                            --        |> List.map rec
+                                            --        |> List.foldl (++) []
+                                            _ ->
+                                                [ { columnName = configAndData.displayName ++ "." ++ (f.name |> nameToTitleText)
+                                                  , ordering = \a b -> EQ
+                                                  , view =
+                                                        \row ->
+                                                            case Dict.get id row.decorations of
+                                                                Just (Just val) ->
+                                                                    case getField val f.name of
+                                                                        Just fieldValue ->
+                                                                            fieldValue |> Value.toString |> text |> rowElem
 
-                                    ( Just Nothing, Just (Just _) ) ->
-                                        GT
+                                                                        Nothing ->
+                                                                            rowElem <| text "-"
 
-                                    _ ->
-                                        LT
-                        , view =
-                            \row ->
-                                case Dict.get id row.decorations of
-                                    Just (Just val) ->
-                                        rowElem <| Theme.ellipseText <| Value.toString val
+                                                                _ ->
+                                                                    rowElem <| text "-"
+                                                  , filtering =
+                                                        \term row ->
+                                                            case Dict.get id row.decorations of
+                                                                Just (Just val) ->
+                                                                    case getField val f.name of
+                                                                        Just fieldValue ->
+                                                                            searchIn (fieldValue |> Value.toString) term
 
-                                    _ ->
-                                        rowElem <| text "-"
-                        , filtering =
-                            \term row ->
-                                case Dict.get id row.decorations of
-                                    Just (Just val) ->
-                                        searchIn (Value.toString val) term
+                                                                        _ ->
+                                                                            False
 
-                                    _ ->
-                                        String.isEmpty term
-                        }
+                                                                _ ->
+                                                                    String.isEmpty term
+                                                  }
+                                                ]
+                                in
+                                fieldList
+                                    |> List.map
+                                        (\field ->
+                                            rec field
+                                        )
+                                    |> List.foldl (++) []
+
+                            _ ->
+                                [ { columnName = configAndData.displayName
+                                  , ordering =
+                                        \a b ->
+                                            case ( Dict.get id a.decorations, Dict.get id b.decorations ) of
+                                                ( Just (Just aVal), Just (Just bVal) ) ->
+                                                    Basics.compare (Value.toString aVal) (Value.toString bVal)
+
+                                                ( Just Nothing, Just (Just _) ) ->
+                                                    GT
+
+                                                _ ->
+                                                    LT
+                                  , view =
+                                        \row ->
+                                            case Dict.get id row.decorations of
+                                                Just (Just val) ->
+                                                    rowElem <| Theme.ellipseText <| Value.toString val
+
+                                                _ ->
+                                                    rowElem <| text "-"
+                                  , filtering =
+                                        \term row ->
+                                            case Dict.get id row.decorations of
+                                                Just (Just val) ->
+                                                    searchIn (Value.toString val) term
+
+                                                _ ->
+                                                    String.isEmpty term
+                                  }
+                                ]
                     )
+                |> List.foldl (++) []
 
         columns : List (Column msg)
         columns =
@@ -289,47 +372,146 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
 
         header : String -> Int -> Ordering Row -> Element msg
         header title index ordering =
-            Element.row [ spacing <| Theme.smallSpacing theme, Element.paddingEach { right = Theme.mediumPadding theme, left = 0, bottom = 0, top = 0 } ]
-                [ Element.row
-                    [ paddingXY 2 (Theme.largePadding theme)
-                    , Font.color theme.colors.mediumGray
-                    , onClick <| config.onStateChange (update (SetOrdering index ordering) config.state)
-                    , Element.Background.color theme.colors.lightest
-                    , pointer
-                    , width (fillPortion 1)
-                    ]
-                    [ text title
-                    , if index == config.state.orderByColumnIndex then
-                        el [ Font.color theme.colors.brandPrimary, Font.size (Theme.scaled 4 theme), Font.bold ]
-                            (case config.state.orderDirection of
-                                Desc ->
-                                    text " ⇩"
+            Element.row
+                [ paddingXY 2 (Theme.largePadding theme)
+                , Font.color theme.colors.mediumGray
+                , onClick <| config.onStateChange (update (SetOrdering index ordering) config.state)
+                , Element.Background.color theme.colors.lightest
+                , pointer
+                , width (fillPortion 1)
+                , Element.paddingEach { right = Theme.mediumPadding theme, left = 0, bottom = 0, top = 0 }
+                , Element.moveUp <| toFloat (Theme.scaled 2 theme)
+                , Element.height <| Element.minimum (Theme.scaled 8 theme) fill
+                ]
+                [ text title
+                , if index == config.state.orderByColumnIndex then
+                    el [ Font.color theme.colors.brandPrimary, Font.size (Theme.scaled 4 theme), Font.bold ]
+                        (case config.state.orderDirection of
+                            Desc ->
+                                text " ⇩"
 
-                                _ ->
-                                    text " ⇧"
-                            )
+                            _ ->
+                                text " ⇧"
+                        )
 
-                      else
-                        Element.none
+                  else
+                    Element.none
+                ]
+
+        selectDisplayedColumns : Element msg
+        selectDisplayedColumns =
+            Element.column
+                [ padding <| Theme.mediumPadding theme
+                , spacing <| Theme.smallSpacing theme
+                , height fill
+                , width <| fillPortion 1
+                ]
+                [ el [ Font.bold, Font.size (Theme.scaled 4 theme) ] (text "Show columns")
+                , Element.wrappedRow [ width fill, spacing <| Theme.largeSpacing theme, padding <| Theme.smallPadding theme ] <|
+                    List.indexedMap
+                        (\i c ->
+                            let
+                                ifToggledElse : t -> t -> t
+                                ifToggledElse a b =
+                                    if Set.member i config.state.hiddenColumns then
+                                        a
+
+                                    else
+                                        b
+                            in
+                            Element.row [ Theme.borderRounded theme, Element.Background.color theme.colors.brandPrimaryLight, padding 1, spacing <| Theme.smallSpacing theme ]
+                                [ el [] (text c.columnName)
+                                , el
+                                    [ pointer
+                                    , padding <| Theme.mediumPadding theme
+                                    , Element.Background.color <| ifToggledElse theme.colors.brandPrimaryLight theme.colors.brandPrimary
+                                    , Theme.borderRounded theme
+                                    , Element.Events.onClick (config.onStateChange (update (ToggleDisplayColumn i) config.state))
+                                    ]
+                                    (ifToggledElse (text " ✔ ") (text " ✘ "))
+                                ]
+                        )
+                        columns
+                , Element.Input.button
+                    [ padding 7
+                    , theme |> Theme.borderRounded
+                    , Element.Background.color theme.colors.darkest
+                    , Font.color theme.colors.lightest
+                    , Font.bold
+                    , Font.size theme.fontSize
+                    , Element.alignRight
                     ]
-                , InputComponent.searchInput theme
-                    [ width (Element.px 180) ]
-                    { onChange = \term -> config.onStateChange (update (Search index term) config.state)
-                    , text = Dict.get index config.state.searchTerms |> Maybe.withDefault ""
-                    , placeholder = Just <| Element.Input.placeholder [] (text "search . . .")
-                    , label = Element.Input.labelHidden ""
+                    { onPress = Just <| config.onStateChange <| update ShowAllColumns config.state
+                    , label = text "Show All"
+                    }
+                ]
+
+        searchPanel : Element msg
+        searchPanel =
+            Element.column
+                [ padding <| Theme.mediumPadding theme
+                , spacing <| Theme.smallSpacing theme
+                , width <| fillPortion 1
+                ]
+                [ el [ Font.bold, Font.size (Theme.scaled 4 theme) ] (text "Search")
+                , Element.indexedTable
+                    [ width shrink
+                    , padding (Theme.smallPadding theme)
+                    , spacingXY 0 (Theme.smallSpacing theme)
+                    ]
+                    { columns =
+                        [ { header = Element.none
+                          , width = shrink
+                          , view = \index c -> el [ paddingXY 2 1, Element.alignBottom ] (text c.columnName)
+                          }
+                        , { header = Element.none
+                          , width = shrink
+                          , view =
+                                \index c ->
+                                    InputComponent.searchInput theme
+                                        [ spacingXY 0 (Theme.smallSpacing theme) ]
+                                        { onChange = \term -> config.onStateChange (update (Search index term) config.state)
+                                        , text = Dict.get index config.state.searchTerms |> Maybe.withDefault ""
+                                        , placeholder = Just <| Element.Input.placeholder [] (text "...")
+                                        , label = Element.Input.labelHidden ""
+                                        }
+                          }
+                        ]
+                    , data = columns
+                    }
+                , Element.Input.button
+                    [ padding 7
+                    , theme |> Theme.borderRounded
+                    , Element.Background.color theme.colors.darkest
+                    , Font.color theme.colors.lightest
+                    , Font.bold
+                    , Font.size theme.fontSize
+                    , Element.alignRight
+                    ]
+                    { onPress = Just <| config.onStateChange <| update ClearSearch config.state
+                    , label = text "Clear"
                     }
                 ]
     in
-    Element.table
-        [ width fill
-        , height fill
-        , Element.clipY
-        , scrollbars
-        , padding (Theme.mediumPadding theme)
-        , spacingXY 0 (Theme.mediumSpacing theme)
+    Element.column [ height fill, spacing <| Theme.largeSpacing theme ]
+        [ Element.row
+            [ width fill
+            , Theme.borderRounded theme
+            , Element.Border.color theme.colors.brandPrimary
+            , Element.Background.color theme.colors.brandPrimaryLight
+            ]
+            [ searchPanel, selectDisplayedColumns, el [ width <| fillPortion 3 ] Element.none ]
+        , Element.table
+            [ width fill
+            , height fill
+            , Element.clipY
+            , Element.htmlAttribute (Html.Attributes.class "sticky-headers")
+            , scrollbars
+            , padding (Theme.mediumPadding theme)
+            , spacingXY 0 (Theme.mediumSpacing theme)
+            ]
+            { columns =
+                columns |> List.Extra.removeIfIndex (\i -> Set.member i config.state.hiddenColumns) |> List.indexedMap (\index column -> { header = header column.columnName index column.ordering, width = Element.fillPortion 1, view = column.view })
+            , data = types |> List.sortWith config.state.ordering |> List.filter searchFunction
+            }
         ]
-        { columns =
-            columns |> List.indexedMap (\index column -> { header = header column.columnName index column.ordering, width = Element.fillPortion 1, view = column.view })
-        , data = types |> List.sortWith config.state.ordering |> List.filter searchFunction
-        }

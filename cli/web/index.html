@@ -8,6 +8,15 @@
         padding: 0;
         margin: 0;
       }
+
+      .sticky-headers {
+          position: relative;
+        }
+      .sticky-headers div[class^="gp grid-pos-1-"] {
+              position: sticky;
+              top: 0;
+              z-index: 9999;
+          }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/standalone/umd/vis-network.min.js" integrity="sha512-OwMVEyxgfpnZtZDE4ZH1/SB3Xgvx5CwX+/xJJx7men0Vh6VjWp4uEytx34AHQKbh+Ve4KogeyYqZbujEmAQXLA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   </head>

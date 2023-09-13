@@ -735,13 +735,12 @@ view theme ir valueType updateEditorState editorState =
                             }
                 , options = [ Input.option True (text "yes"), Input.option False (text "no") ]
                 , selected = isChecked
-                , label = Input.labelLeft labelStyle (text "bool")
+                , label = Input.labelHidden "bool"
                 }
 
         RecordEditor fieldEditorStates ->
             row [] <|
-                [ el [ Font.italic, paddingXY 10 5 ] (text "record")
-                , el
+                [ el
                     [ padding <| Theme.largePadding theme
                     , Background.color theme.colors.brandPrimaryLight
                     , Theme.borderRounded theme
@@ -1451,8 +1450,7 @@ viewCustomTypeEditor theme labelStyle ir updateEditorState editorState (( packag
                     )
     in
     row [ width fill, height fill, spacing 5 ]
-        [ el labelStyle (text <| nameToText typeName)
-        , viewConstructor
+        [ viewConstructor
         , row
             [ width fill
             , spacing 5
