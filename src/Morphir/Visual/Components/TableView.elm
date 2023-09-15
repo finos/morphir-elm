@@ -128,8 +128,8 @@ update msg state =
             { state | hiddenColumns = Set.empty }
 
 
-viewTypeTable : Theme -> Config msg -> PackageName -> Package.Definition () va -> Maybe Path -> AllDecorationConfigAndData -> Element msg
-viewTypeTable theme config packageName package moduleName allDecorationsConfigAndData =
+viewTypeTable : Theme -> Config msg -> PackageName -> Package.Definition () va -> Maybe Path -> AllDecorationConfigAndData -> (DecorationID -> DecorationConfigAndData -> NodeID -> Element msg) -> Element msg
+viewTypeTable theme config packageName package moduleName allDecorationsConfigAndData displayDecorationEditor =
     let
         typeDefToString : Type.Definition () -> String
         typeDefToString tpe =
@@ -317,12 +317,8 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                                                     LT
                                   , view =
                                         \row ->
-                                            case Dict.get id row.decorations of
-                                                Just (Just val) ->
-                                                    rowElem <| Theme.ellipseText <| Value.toString val
-
-                                                _ ->
-                                                    rowElem <| text "-"
+                                                el [ Element.alignTop, Element.moveUp <| toFloat <| Theme.mediumPadding theme ] <|
+                                                    displayDecorationEditor id configAndData (TypeID ( packageName, row.morphirModule, row.typeName ) [])
                                   , filtering =
                                         \term row ->
                                             case Dict.get id row.decorations of
@@ -406,8 +402,8 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                 , height fill
                 , width <| fillPortion 1
                 ]
-                [ el [ Font.bold, Font.size (Theme.scaled 4 theme) ] (text "Show columns")
-                , Element.wrappedRow [ width fill, spacing <| Theme.largeSpacing theme, padding <| Theme.smallPadding theme ] <|
+                [ el [ Font.bold, Font.size (Theme.scaled 4 theme) ] (text "Show / hide columns")
+                , Element.wrappedRow [ width fill, spacing <| Theme.smallSpacing theme, padding <| Theme.smallPadding theme, height fill ] <|
                     List.indexedMap
                         (\i c ->
                             let
@@ -420,7 +416,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                                         b
                             in
                             Element.row [ Theme.borderRounded theme, Element.Background.color theme.colors.brandPrimaryLight, padding 1, spacing <| Theme.smallSpacing theme ]
-                                [ el [] (text c.columnName)
+                                [ el [ padding <| Theme.smallPadding theme ] (text c.columnName)
                                 , el
                                     [ pointer
                                     , padding <| Theme.mediumPadding theme
@@ -452,6 +448,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                 [ padding <| Theme.mediumPadding theme
                 , spacing <| Theme.smallSpacing theme
                 , width <| fillPortion 1
+                , height fill
                 ]
                 [ el [ Font.bold, Font.size (Theme.scaled 4 theme) ] (text "Search")
                 , Element.indexedTable
@@ -493,7 +490,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                     }
                 ]
     in
-    Element.column [ height fill, spacing <| Theme.largeSpacing theme ]
+    Element.column [ height fill, spacing <| Theme.largeSpacing theme, width fill ]
         [ Element.row
             [ width fill
             , Theme.borderRounded theme

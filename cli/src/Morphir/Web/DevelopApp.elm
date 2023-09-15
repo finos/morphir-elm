@@ -1382,6 +1382,33 @@ viewDecorationValues model node =
         [ attributeToEditors ]
 
 
+decorationEditor theme editorStates decorationID decorationDetail node = 
+     let
+        irValue : Maybe (Value () ())
+        irValue =
+            decorationDetail.data
+                |> SDKDict.get node
+        nodeDetail : DecorationNodeID
+        nodeDetail =
+            { decorationID = decorationID, nodeID = node }
+        editorState : ValueEditor.EditorState
+        editorState =
+            editorStates
+                |> SDKDict.get nodeDetail
+                |> Maybe.withDefault
+                    (ValueEditor.initEditorState
+                        decorationDetail.iR
+                        (Type.Reference () decorationDetail.entryPoint [])
+                        irValue
+                    )
+    in
+    ValueEditor.view
+        theme
+        decorationDetail.iR
+        (Type.Reference () decorationDetail.entryPoint [])
+        (Decoration << DecorationValueUpdated nodeDetail)
+        editorState
+
 {-| Display the home UI
 -}
 viewHome : Model -> PackageName -> Package.Definition () (Type ()) -> Element Msg
@@ -1521,6 +1548,7 @@ viewHome model packageName packageDef =
                                                           packageDef
                                                           (model.homeState.selectedModule |> Maybe.map Tuple.second)
                                                           model.allDecorationConfigAndData
+                                                          (decorationEditor model.theme model.decorationEditorStates)
                                                       ]
                                             }
                                         ]
