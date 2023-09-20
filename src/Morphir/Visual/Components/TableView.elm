@@ -1,8 +1,8 @@
 module Morphir.Visual.Components.TableView exposing (..)
 
 import Dict exposing (Dict)
-import Element exposing (Element, el, fill, fillPortion, height, padding, paddingXY, pointer, scrollbars, shrink, spacing, spacingXY, text, width)
-import Element.Background
+import Element exposing (Element, alignRight, alignTop, centerX, el, fill, fillPortion, height, padding, paddingXY, pointer, scrollbars, shrink, spacing, spacingXY, text, width)
+import Element.Background as Background
 import Element.Border
 import Element.Events exposing (onClick)
 import Element.Font as Font
@@ -33,6 +33,7 @@ type alias State =
     , orderDirection : OrderDirection
     , searchTerms : SearchTerms
     , hiddenColumns : Set Int
+    , searchAndFilterSectionOpen : Bool
     }
 
 
@@ -69,6 +70,7 @@ type Msg
     | ClearSearch
     | ToggleDisplayColumn Int
     | ShowAllColumns
+    | ToggleSearchAndFilterSection
 
 
 type OrderDirection
@@ -83,6 +85,7 @@ init =
     , orderDirection = Desc
     , searchTerms = Dict.empty
     , hiddenColumns = Set.empty
+    , searchAndFilterSectionOpen = False
     }
 
 
@@ -126,6 +129,9 @@ update msg state =
 
         ShowAllColumns ->
             { state | hiddenColumns = Set.empty }
+
+        ToggleSearchAndFilterSection ->
+            { state | searchAndFilterSectionOpen = not state.searchAndFilterSectionOpen }
 
 
 viewTypeTable : Theme -> Config msg -> PackageName -> Package.Definition () va -> Maybe Path -> AllDecorationConfigAndData -> (DecorationID -> DecorationConfigAndData -> NodeID -> Element msg) -> Element msg
@@ -265,7 +271,22 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                                             --        |> List.foldl (++) []
                                             _ ->
                                                 [ { columnName = configAndData.displayName ++ "." ++ (f.name |> nameToTitleText)
-                                                  , ordering = \a b -> EQ
+                                                  , ordering =
+                                                        \a b ->
+                                                            case ( Dict.get id a.decorations, Dict.get id b.decorations ) of
+                                                                ( Just (Just aVal), Just (Just bVal) ) ->
+                                                                    case ( getField aVal f.name, getField bVal f.name ) of
+                                                                        ( Just aFieldVal, Just bFieldVal ) ->
+                                                                            Basics.compare (Value.toString aFieldVal) (Value.toString bFieldVal)
+
+                                                                        _ ->
+                                                                            LT
+
+                                                                ( Just Nothing, Just (Just _) ) ->
+                                                                    GT
+
+                                                                _ ->
+                                                                    LT
                                                   , view =
                                                         \row ->
                                                             case Dict.get id row.decorations of
@@ -317,8 +338,8 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                                                     LT
                                   , view =
                                         \row ->
-                                                el [ Element.alignTop, Element.moveUp <| toFloat <| Theme.mediumPadding theme ] <|
-                                                    displayDecorationEditor id configAndData (TypeID ( packageName, row.morphirModule, row.typeName ) [])
+                                            el [ alignTop, Element.moveUp <| toFloat <| Theme.mediumPadding theme ] <|
+                                                displayDecorationEditor id configAndData (TypeID ( packageName, row.morphirModule, row.typeName ) [])
                                   , filtering =
                                         \term row ->
                                             case Dict.get id row.decorations of
@@ -342,7 +363,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                             el
                                 [ tooltip Element.below
                                     (el
-                                        [ Element.Background.color theme.colors.lightest
+                                        [ Background.color theme.colors.lightest
                                         , theme |> Theme.borderRounded
                                         , Element.Border.shadow
                                             { offset = ( 0, 3 ), blur = 6, size = 0, color = Element.rgba 0 0 0 0.32 }
@@ -372,7 +393,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                 [ paddingXY 2 (Theme.largePadding theme)
                 , Font.color theme.colors.mediumGray
                 , onClick <| config.onStateChange (update (SetOrdering index ordering) config.state)
-                , Element.Background.color theme.colors.lightest
+                , Background.color theme.colors.lightest
                 , pointer
                 , width (fillPortion 1)
                 , Element.paddingEach { right = Theme.mediumPadding theme, left = 0, bottom = 0, top = 0 }
@@ -400,7 +421,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                 [ padding <| Theme.mediumPadding theme
                 , spacing <| Theme.smallSpacing theme
                 , height fill
-                , width <| fillPortion 1
+                , width <| fillPortion 2
                 ]
                 [ el [ Font.bold, Font.size (Theme.scaled 4 theme) ] (text "Show / hide columns")
                 , Element.wrappedRow [ width fill, spacing <| Theme.smallSpacing theme, padding <| Theme.smallPadding theme, height fill ] <|
@@ -415,12 +436,12 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                                     else
                                         b
                             in
-                            Element.row [ Theme.borderRounded theme, Element.Background.color theme.colors.brandPrimaryLight, padding 1, spacing <| Theme.smallSpacing theme ]
+                            Element.row [ Theme.borderRounded theme, Background.color theme.colors.brandPrimaryLight, padding 1, spacing <| Theme.smallSpacing theme ]
                                 [ el [ padding <| Theme.smallPadding theme ] (text c.columnName)
                                 , el
                                     [ pointer
                                     , padding <| Theme.mediumPadding theme
-                                    , Element.Background.color <| ifToggledElse theme.colors.brandPrimaryLight theme.colors.brandPrimary
+                                    , Background.color <| ifToggledElse theme.colors.brandPrimaryLight theme.colors.brandPrimary
                                     , Theme.borderRounded theme
                                     , Element.Events.onClick (config.onStateChange (update (ToggleDisplayColumn i) config.state))
                                     ]
@@ -431,11 +452,11 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                 , Element.Input.button
                     [ padding 7
                     , theme |> Theme.borderRounded
-                    , Element.Background.color theme.colors.darkest
+                    , Background.color theme.colors.darkest
                     , Font.color theme.colors.lightest
                     , Font.bold
                     , Font.size theme.fontSize
-                    , Element.alignRight
+                    , alignRight
                     ]
                     { onPress = Just <| config.onStateChange <| update ShowAllColumns config.state
                     , label = text "Show All"
@@ -447,7 +468,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
             Element.column
                 [ padding <| Theme.mediumPadding theme
                 , spacing <| Theme.smallSpacing theme
-                , width <| fillPortion 1
+                , width <| fillPortion 3
                 , height fill
                 ]
                 [ el [ Font.bold, Font.size (Theme.scaled 4 theme) ] (text "Search")
@@ -458,7 +479,7 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                     ]
                     { columns =
                         [ { header = Element.none
-                          , width = shrink
+                          , width = fill
                           , view = \index c -> el [ paddingXY 2 1, Element.alignBottom ] (text c.columnName)
                           }
                         , { header = Element.none
@@ -479,28 +500,54 @@ viewTypeTable theme config packageName package moduleName allDecorationsConfigAn
                 , Element.Input.button
                     [ padding 7
                     , theme |> Theme.borderRounded
-                    , Element.Background.color theme.colors.darkest
+                    , Background.color theme.colors.darkest
                     , Font.color theme.colors.lightest
                     , Font.bold
                     , Font.size theme.fontSize
-                    , Element.alignRight
+                    , alignRight
                     ]
                     { onPress = Just <| config.onStateChange <| update ClearSearch config.state
                     , label = text "Clear"
                     }
                 ]
+
+        searchAndFilterSection : Element msg
+        searchAndFilterSection =
+            let
+                openOrCloseSection =
+                    if config.state.searchAndFilterSectionOpen then
+                        el [ Font.size (Theme.scaled 5 theme), alignRight, alignTop, Font.bold, padding <| Theme.largePadding theme, pointer, onClick <| config.onStateChange (update ToggleSearchAndFilterSection config.state) ]
+                            (text "X")
+
+                    else
+                        el [ centerX, Font.bold, padding <| Theme.mediumPadding theme, pointer, onClick <| config.onStateChange (update ToggleSearchAndFilterSection config.state) ]
+                            (text "Open Search & Filter")
+            in
+            Element.row
+                [ width fill
+                , height <|
+                    if config.state.searchAndFilterSectionOpen then
+                        fillPortion 1
+
+                    else
+                        shrink
+                , Theme.borderRounded theme
+                , Element.Border.color theme.colors.brandPrimary
+                , Background.color theme.colors.brandPrimaryLight
+                , spacing <| Theme.largeSpacing theme
+                ]
+                (if config.state.searchAndFilterSectionOpen then
+                    [ searchPanel, selectDisplayedColumns, el [ width <| fillPortion 12 ] Element.none, openOrCloseSection ]
+
+                 else
+                    [ openOrCloseSection ]
+                )
     in
     Element.column [ height fill, spacing <| Theme.largeSpacing theme, width fill ]
-        [ Element.row
-            [ width fill
-            , Theme.borderRounded theme
-            , Element.Border.color theme.colors.brandPrimary
-            , Element.Background.color theme.colors.brandPrimaryLight
-            ]
-            [ searchPanel, selectDisplayedColumns, el [ width <| fillPortion 3 ] Element.none ]
+        [ searchAndFilterSection
         , Element.table
             [ width fill
-            , height fill
+            , height <| fillPortion 5
             , Element.clipY
             , Element.htmlAttribute (Html.Attributes.class "sticky-headers")
             , scrollbars

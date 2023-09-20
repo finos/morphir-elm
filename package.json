@@ -4,6 +4,10 @@
   "description": "Elm bindings for Morphir",
   "types": "lib/dist/main.d.ts",
   "main": "lib/dist/main.js",
+  "engines": {
+    "npm": "8.5.5",
+    "node": "v16.14.0"
+  },
   "scripts": {
     "clean": "gulp clean",
     "test": "gulp test",
