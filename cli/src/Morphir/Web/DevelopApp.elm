@@ -80,6 +80,7 @@ import Morphir.Visual.Components.InputComponent as InputComponent
 import Morphir.Visual.Components.ModalComponent exposing (attachModal)
 import Morphir.Visual.Components.SectionComponent as SectionComponent
 import Morphir.Visual.Components.SelectableElement as SelectableElement
+import Morphir.Visual.Components.TableView as TableView
 import Morphir.Visual.Components.TabsComponent as TabsComponent
 import Morphir.Visual.Components.TreeViewComponent as TreeViewComponent
 import Morphir.Visual.Components.TypeBuilder as TypeBuilder
@@ -146,6 +147,7 @@ type alias Model =
     , modalContent : Element Msg
     , version : String
     , showSaveTestError : Bool
+    , tableViewConfig : TableView.Config Msg
     , unsavedChanges : Bool
     }
 
@@ -238,6 +240,10 @@ init flags url key =
             , modalContent = none
             , version = flags.version
             , showSaveTestError = False
+            , tableViewConfig =
+                { state = TableView.init
+                , onStateChange = TableViewChanged
+                }
             , unsavedChanges = False
             }
     in
@@ -279,6 +285,7 @@ type Msg
     | Insight InsightMsg
     | Testing TestingMsg
     | Decoration DecorationMsg
+    | TableViewChanged TableView.State
     | DoNothing
 
 
@@ -760,6 +767,14 @@ update msg model =
 
         DoNothing ->
             ( model, Cmd.none )
+
+        TableViewChanged newTableViewState ->
+            let
+                tableViewConfig : TableView.Config Msg
+                tableViewConfig =
+                    model.tableViewConfig
+            in
+            ( { model | tableViewConfig = { tableViewConfig | state = newTableViewState } }, Cmd.none )
 
 
 
@@ -1367,6 +1382,33 @@ viewDecorationValues model node =
         [ attributeToEditors ]
 
 
+decorationEditor theme editorStates decorationID decorationDetail node = 
+     let
+        irValue : Maybe (Value () ())
+        irValue =
+            decorationDetail.data
+                |> SDKDict.get node
+        nodeDetail : DecorationNodeID
+        nodeDetail =
+            { decorationID = decorationID, nodeID = node }
+        editorState : ValueEditor.EditorState
+        editorState =
+            editorStates
+                |> SDKDict.get nodeDetail
+                |> Maybe.withDefault
+                    (ValueEditor.initEditorState
+                        decorationDetail.iR
+                        (Type.Reference () decorationDetail.entryPoint [])
+                        irValue
+                    )
+    in
+    ValueEditor.view
+        theme
+        decorationDetail.iR
+        (Type.Reference () decorationDetail.entryPoint [])
+        (Decoration << DecorationValueUpdated nodeDetail)
+        editorState
+
 {-| Display the home UI
 -}
 viewHome : Model -> PackageName -> Package.Definition () (Type ()) -> Element Msg
@@ -1496,6 +1538,19 @@ viewHome model packageName packageDef =
                                                         moduleName
                                                     ]
                                           }
+                                           , { name = "Type Table"
+                                            , content =
+                                                  col
+                                                      [ TableView.viewTypeTable
+                                                          model.theme
+                                                          model.tableViewConfig
+                                                          packageName
+                                                          packageDef
+                                                          (model.homeState.selectedModule |> Maybe.map Tuple.second)
+                                                          model.allDecorationConfigAndData
+                                                          (decorationEditor model.theme model.decorationEditorStates)
+                                                      ]
+                                            }
                                         ]
 
                                     Nothing ->

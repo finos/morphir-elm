@@ -9,7 +9,7 @@ import Element.Events exposing (onClick)
 import Element.Font as Font exposing (center)
 import Morphir.Visual.Theme exposing (Theme)
 import Set exposing (Set)
-
+import Morphir.Visual.Components.TableView
 
 type alias NodePath comparable =
     List comparable
