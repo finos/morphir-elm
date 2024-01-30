@@ -93,6 +93,17 @@ basicRecordMany =
     , record = basicRecordOne
     }
 
+type alias Rec =
+    { foo: Int
+    , bar: String
+    }
+
+calcFoo: Rec -> Int
+calcFoo rec =
+    rec.foo
+
+res = calcFoo { foo = 2, bar = "hello" }
+
 
 basicField : { foo : String } -> String
 basicField rec =
@@ -495,3 +506,8 @@ listFoldr2 list1 list2 =
 listCons : Int -> List Int -> List Int
 listCons value list =
     value :: list
+
+
+plus2: Int -> Int
+plus2 int =
+    (\int1 int2 int3 -> int1 + int2 + int3) 1 2 int

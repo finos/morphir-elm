@@ -77,7 +77,7 @@ fromIR ir visualState eventHandlers =
 
 evaluate : RawValue -> Config msg -> Result String RawValue
 evaluate value config =
-    Interpreter.evaluateValue config.nativeFunctions config.ir config.state.variables [] value
+    Interpreter.evaluateValue Interpreter.complete config.nativeFunctions config.ir config.state.variables [] value
         |> Result.mapError
             (\error ->
                 error

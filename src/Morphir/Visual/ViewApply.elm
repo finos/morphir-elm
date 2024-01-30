@@ -14,7 +14,7 @@ import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (RawValue, Value(..), toRawValue)
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Error exposing (Error(..))
-import Morphir.Value.Interpreter exposing (evaluateFunctionValue, evaluateValue)
+import Morphir.Value.Interpreter exposing (complete, evaluateFunctionValue, evaluateValue)
 import Morphir.Visual.Common exposing (nameToText, tooltip)
 import Morphir.Visual.Components.DecisionTree as DecisionTree
 import Morphir.Visual.Components.DrillDownPanel as DrillDownPanel exposing (Depth)

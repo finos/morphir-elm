@@ -305,7 +305,7 @@ assignTestCasesToBranches ir valueDef testCases =
                                                         rawCriterion =
                                                             cond.criterion |> Value.mapValueAttributes (always ()) (always ())
                                                     in
-                                                    case Interpreter.evaluateValue SDK.nativeFunctions ir variables [] rawCriterion of
+                                                    case Interpreter.evaluateValue Interpreter.complete SDK.nativeFunctions ir variables [] rawCriterion of
                                                         Ok (Value.Literal _ (BoolLiteral actualResult)) ->
                                                             if cond.expectedValue == actualResult then
                                                                 matchesConditions restOfConditions
@@ -324,7 +324,7 @@ assignTestCasesToBranches ir valueDef testCases =
 
                                                         evaluatedSubject : RawValue
                                                         evaluatedSubject =
-                                                            case Interpreter.evaluateValue SDK.nativeFunctions ir variables [] rawSubject of
+                                                            case Interpreter.evaluateValue Interpreter.complete SDK.nativeFunctions ir variables [] rawSubject of
                                                                 Ok result ->
                                                                     result
 

@@ -1,10 +1,14 @@
-module Morphir.Value.Interpreter exposing (evaluate, evaluateValue, evaluateFunctionValue, matchPattern, Variables)
+module Morphir.Value.Interpreter exposing
+    ( evaluate, evaluateValue, evaluateFunctionValue, matchPattern, Variables
+    , Config, complete, partial
+    )
 
 {-| This module contains an interpreter for Morphir expressions. The interpreter takes a piece of logic as input,
 evaluates it and returns the resulting data. In Morphir both logic and data is captured as a `Value` so the interpreter
 takes a `Value` and returns a `Value` (or an error for invalid expressions):
 
 @docs evaluate, evaluateValue, evaluateFunctionValue, matchPattern, Variables
+@docs Config, complete, partial
 
 -}
 
@@ -26,16 +30,43 @@ type alias Variables =
     Dict Name RawValue
 
 
+{-| Configuration for the interpreter
+
+  - allowPartials: When turned on, allows partial evaluation of a Value.
+
+-}
+type alias Config =
+    { allowPartial : Bool
+    }
+
+
+{-| Configuration for complete evaluation
+-}
+complete : Config
+complete =
+    { allowPartial = False
+    }
+
+
+{-| Configuration for partial evaluation
+-}
+partial : Config
+partial =
+    { allowPartial = True
+    }
+
+
 {-| -}
-evaluateFunctionValue : Dict FQName Native.Function -> Distribution -> FQName -> List (Maybe RawValue) -> Result Error RawValue
-evaluateFunctionValue nativeFunctions ir fQName variableValues =
+evaluateFunctionValue : Config -> Dict FQName Native.Function -> Distribution -> FQName -> List (Maybe RawValue) -> Result Error RawValue
+evaluateFunctionValue config nativeFunctions ir fQName variableValues =
     ir
         |> Distribution.lookupValueDefinition fQName
         -- If we cannot find the value in the IR we return an error.
         |> Result.fromMaybe (ReferenceNotFound fQName)
         |> Result.andThen
             (\valueDef ->
-                evaluateValue nativeFunctions
+                evaluateValue config
+                    nativeFunctions
                     ir
                     (List.map2 Tuple.pair
                         (valueDef.inputTypes
@@ -63,14 +94,15 @@ by fully-qualified name that will be used for lookup if the expression contains 
 -}
 evaluate : Dict FQName Native.Function -> Distribution -> RawValue -> Result Error RawValue
 evaluate nativeFunctions ir value =
-    evaluateValue nativeFunctions ir Dict.empty [] value
+    --  do not permit partial evaluation
+    evaluateValue complete nativeFunctions ir Dict.empty [] value
 
 
 {-| Evaluates a value expression recursively in a single pass while keeping track of variables and arguments along the
 evaluation.
 -}
-evaluateValue : Dict FQName Native.Function -> Distribution -> Variables -> List RawValue -> RawValue -> Result Error RawValue
-evaluateValue nativeFunctions ir variables arguments value =
+evaluateValue : Config -> Dict FQName Native.Function -> Distribution -> Variables -> List RawValue -> RawValue -> Result Error RawValue
+evaluateValue ({ allowPartial } as config) nativeFunctions ir variables arguments value =
     case value of
         Value.Literal _ _ ->
             -- Literals cannot be evaluated any further
@@ -78,7 +110,7 @@ evaluateValue nativeFunctions ir variables arguments value =
 
         Value.Constructor _ fQName ->
             arguments
-                |> List.map (evaluateValue nativeFunctions ir variables [])
+                |> List.map (evaluateValue config nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
                 |> ResultList.keepFirstError
                 |> Result.andThen
@@ -112,7 +144,7 @@ evaluateValue nativeFunctions ir variables arguments value =
             -- For a tuple we need to evaluate each element and return them wrapped back into a tuple
             elems
                 -- We evaluate each element separately.
-                |> List.map (evaluateValue nativeFunctions ir variables [])
+                |> List.map (evaluateValue config nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
                 |> ResultList.keepFirstError
                 -- If nothing fails we wrap the result in a tuple.
@@ -122,7 +154,7 @@ evaluateValue nativeFunctions ir variables arguments value =
             -- For a list we need to evaluate each element and return them wrapped back into a list
             items
                 -- We evaluate each element separately.
-                |> List.map (evaluateValue nativeFunctions ir variables [])
+                |> List.map (evaluateValue config nativeFunctions ir variables [])
                 -- If any of those fails we return the first failure.
                 |> ResultList.keepFirstError
                 -- If nothing fails we wrap the result in a list.
@@ -135,7 +167,7 @@ evaluateValue nativeFunctions ir variables arguments value =
                 -- We evaluate each field separately.
                 |> List.map
                     (\( fieldName, fieldValue ) ->
-                        evaluateValue nativeFunctions ir variables [] fieldValue
+                        evaluateValue config nativeFunctions ir variables [] fieldValue
                             |> Result.map (Tuple.pair fieldName)
                     )
                 -- If any of those fails we return the first failure.
@@ -152,29 +184,47 @@ evaluateValue nativeFunctions ir variables arguments value =
                 -- Wrap the error to make it easier to understand where it happened
                 |> Result.mapError (ErrorWhileEvaluatingVariable varName)
 
-        Value.Reference _ (( packageName, moduleName, localName ) as fQName) ->
+        Value.Reference _ fQName ->
             -- We check if there is a native function first
-            case nativeFunctions |> Dict.get ( packageName, moduleName, localName ) of
+            case nativeFunctions |> Dict.get fQName of
                 Just nativeFunction ->
-                    nativeFunction
-                        (evaluateValue
-                            -- This is the state that will be used when native functions call "eval".
-                            -- We need to retain most of the current state but clear out the argument since
-                            -- the native function will evaluate completely new expressions.
-                            nativeFunctions
-                            ir
-                            variables
-                            []
-                        )
-                        -- Pass down the arguments we collected before we got here (if we are inside an apply).
-                        arguments
-                        -- Wrap the error to make it easier to understand where it happened
-                        |> Result.mapError (ErrorWhileEvaluatingReference fQName)
+                    let
+                        result =
+                            nativeFunction
+                                (evaluateValue config
+                                    -- This is the state that will be used when native functions call "eval".
+                                    -- We need to retain most of the current state but clear out the argument since
+                                    -- the native function will evaluate completely new expressions.
+                                    nativeFunctions
+                                    ir
+                                    variables
+                                    []
+                                )
+                                -- Pass down the arguments we collected before we got here (if we are inside an apply).
+                                arguments
+                                -- Wrap the error to make it easier to understand where it happened
+                                |> Result.mapError (ErrorWhileEvaluatingReference fQName)
+                    in
+                    case result of
+                        Ok _ ->
+                            result
+
+                        Err _ ->
+                            -- We wrap the arguments to the native functions in an Apply
+                            -- if the native function failed evaluation
+                            if allowPartial then
+                                arguments
+                                    |> List.map (evaluateValue config nativeFunctions ir variables [])
+                                    |> ResultList.keepFirstError
+                                    |> Result.map (List.foldl (\arg target -> Value.Apply () target arg) value)
+
+                            else
+                                result
 
                 Nothing ->
                     arguments
                         |> List.map
-                            (evaluateValue
+                            (evaluateValue config
                                 nativeFunctions
                                 ir
                                 variables
@@ -183,12 +233,12 @@ evaluateValue nativeFunctions ir variables arguments value =
                         |> ResultList.keepFirstError
                         -- If this is a reference to another Morphir value we need to look it up and evaluate.
                         |> Result.map (\resultList -> List.map (\result -> Just result) resultList)
-                        |> Result.andThen (evaluateFunctionValue nativeFunctions ir fQName)
+                        |> Result.andThen (evaluateFunctionValue config nativeFunctions ir fQName)
 
         Value.Field _ subjectValue fieldName ->
             -- Field selection is evaluated by evaluating the subject first then matching on the resulting record and
             -- getting the field with the specified name.
-            evaluateValue nativeFunctions ir variables [] subjectValue
+            evaluateValue config nativeFunctions ir variables [] subjectValue
                 |> Result.andThen
                     (\evaluatedSubjectValue ->
                         case evaluatedSubjectValue of
@@ -197,8 +247,13 @@ evaluateValue nativeFunctions ir variables arguments value =
                                     |> Dict.get fieldName
                                     |> Result.fromMaybe (FieldNotFound subjectValue fieldName)
 
-                            _ ->
-                                Err (RecordExpected subjectValue evaluatedSubjectValue)
+                            simplified ->
+                                if allowPartial then
+                                    -- if we allow partial evaluation, wrap the field simplified subject with a Field value
+                                    Ok (Value.Field () simplified fieldName)
+
+                                else
+                                    Err (RecordExpected subjectValue evaluatedSubjectValue)
                     )
 
         Value.FieldFunction _ fieldName ->
@@ -206,7 +261,7 @@ evaluateValue nativeFunctions ir variables arguments value =
             -- it behaves exactly like a `Field` expression.
             case arguments of
                 [ subjectValue ] ->
-                    evaluateValue nativeFunctions ir variables [] subjectValue
+                    evaluateValue config nativeFunctions ir variables [] subjectValue
                         |> Result.andThen
                             (\evaluatedSubjectValue ->
                                 case evaluatedSubjectValue of
@@ -216,7 +271,12 @@ evaluateValue nativeFunctions ir variables arguments value =
                                             |> Result.fromMaybe (FieldNotFound subjectValue fieldName)
 
                                     _ ->
-                                        Err (RecordExpected subjectValue evaluatedSubjectValue)
+                                        if allowPartial then
+                                            -- if we allow partial evaluation, wrap the field simplified subject with a Field value
+                                            Ok (Value.FieldFunction () fieldName)
+
+                                        else
+                                            Err (RecordExpected subjectValue evaluatedSubjectValue)
                             )
 
                 other ->
@@ -227,7 +287,7 @@ evaluateValue nativeFunctions ir variables arguments value =
             -- When there are multiple arguments there will be another Apply within the function so arguments will be
             -- repeatedly collected until we hit another node (lambda, reference or variable) where the arguments will
             -- be used to execute the calculation.
-            evaluateValue
+            evaluateValue config
                 nativeFunctions
                 ir
                 variables
@@ -242,21 +302,24 @@ evaluateValue nativeFunctions ir variables arguments value =
                 -- If there are no arguments then our expression was invalid so we return an error.
                 |> Result.fromMaybe NoArgumentToPassToLambda
                 -- If the argument is available we first need to match it against the argument pattern.
-                -- In Morphir (just like in Elm) you can not pattern-match on the argument of a lambda.
+                -- In Morphir (just like in Elm) you can pattern-match on the argument of a lambda.
                 |> Result.andThen
                     (\argumentValue ->
-                        -- To match the pattern we call a helper function that both matches and extracts variables out
-                        -- of the pattern.
-                        matchPattern argumentPattern argumentValue
-                            -- If the pattern does not match we error out. This should never happen with valid
-                            -- expressions as lambda argument patterns should only be used for decomposition not
-                            -- filtering.
-                            |> Result.mapError LambdaArgumentDidNotMatch
+                        evaluateValue config nativeFunctions ir variables [] argumentValue
+                            -- To match the pattern we call a helper function that both matches and extracts variables out
+                            -- of the pattern.
+                            |> Result.andThen
+                                (matchPattern argumentPattern
+                                    -- If the pattern does not match we error out. This should never happen with valid
+                                    -- expressions as lambda argument patterns should only be used for decomposition not
+                                    -- filtering.
+                                    >> Result.mapError LambdaArgumentDidNotMatch
+                                )
                     )
                 -- Finally we evaluate the body of the lambda using the variables extracted by the pattern.
                 |> Result.andThen
                     (\argumentVariables ->
-                        evaluateValue
+                        evaluateValue config
                             nativeFunctions
                             ir
                             (Dict.union argumentVariables variables)
@@ -267,10 +330,10 @@ evaluateValue nativeFunctions ir variables arguments value =
         Value.LetDefinition _ defName def inValue ->
             -- We evaluate a let definition by first evaluating the definition, then assigning it to the variable name
             -- given in `defName`. Finally we evaluate the `inValue` passing in the new variable in the state.
-            evaluateValue nativeFunctions ir variables [] (Value.definitionToValue def)
+            evaluateValue config nativeFunctions ir variables [] (Value.definitionToValue def)
                 |> Result.andThen
                     (\defValue ->
-                        evaluateValue
+                        evaluateValue config
                             nativeFunctions
                             ir
                             (variables |> Dict.insert defName defValue)
@@ -286,7 +349,7 @@ evaluateValue nativeFunctions ir variables arguments value =
                 defVariables =
                     defs |> Dict.map (\_ def -> Value.definitionToValue def)
             in
-            evaluateValue
+            evaluateValue config
                 nativeFunctions
                 ir
                 (Dict.union defVariables variables)
@@ -296,11 +359,11 @@ evaluateValue nativeFunctions ir variables arguments value =
         Value.Destructure _ bindPattern bindValue inValue ->
             -- A destructure can be evaluated by evaluating the bind value, matching it against the bind pattern and
             -- finally evaluating the in value using the variables from the bind pattern.
-            evaluateValue nativeFunctions ir variables [] bindValue
+            evaluateValue config nativeFunctions ir variables [] bindValue
                 |> Result.andThen (matchPattern bindPattern >> Result.mapError (BindPatternDidNotMatch bindValue))
                 |> Result.andThen
                     (\bindVariables ->
-                        evaluateValue
+                        evaluateValue config
                             nativeFunctions
                             ir
                             (Dict.union bindVariables variables)
@@ -308,40 +371,138 @@ evaluateValue nativeFunctions ir variables arguments value =
                             inValue
                     )
 
-        Value.IfThenElse _ condition thenBranch elseBranch ->
-            -- If then else evaluation is trivial: you evaluate the condition and depending on the result you evaluate
-            -- one of the branches
-            evaluateValue nativeFunctions ir variables [] condition
-                |> Result.andThen
-                    (\conditionValue ->
-                        case conditionValue of
-                            Value.Literal _ (BoolLiteral conditionTrue) ->
-                                let
-                                    branchToFollow : RawValue
-                                    branchToFollow =
-                                        if conditionTrue then
-                                            thenBranch
+        (Value.IfThenElse _ condition thenBranch elseBranch) as ifThenElse ->
+            if allowPartial then
+                -- When allow partial is true, we first evaluate all the conditions.
+                -- We need to go through the evaluated conditions, looking for either a True
+                -- or a partially evaluated condition. If we find a True before a partially evaluated condition, we take
+                -- that branch. If we find a condition that was only partially evaluated first, then we evaluate that and
+                -- all other branches and preserve the IfThenElse structure with the evaluated branches and conditions.
+                -- If neither was found, we take the else branch.
+                let
+                    flatten : RawValue -> List ( RawValue, RawValue ) -> ( List ( RawValue, RawValue ), RawValue )
+                    flatten v branchesSoFar =
+                        case v of
+                            Value.IfThenElse _ cond then_ else_ ->
+                                ( cond, then_ )
+                                    :: branchesSoFar
+                                    |> flatten else_
 
-                                        else
-                                            elseBranch
-                                in
-                                evaluateValue nativeFunctions ir variables [] branchToFollow
+                            finalElse ->
+                                ( branchesSoFar, finalElse )
+
+                    ( flattened, finalElseBranch ) =
+                        flatten ifThenElse []
+
+                    chooseBranch : List ( RawValue, RawValue ) -> Result Error RawValue
+                    chooseBranch conditionByBranches =
+                        case conditionByBranches of
+                            [] ->
+                                -- We never encountered a partially evaluated condition or a True
+                                -- evaluate the else branch
+                                evaluateValue config nativeFunctions ir variables [] finalElseBranch
+
+                            ( Value.Literal _ (BoolLiteral True), branch ) :: _ ->
+                                -- We met a True first, evaluate this branch
+                                evaluateValue config nativeFunctions ir variables [] branch
+
+                            ( Value.Literal _ (BoolLiteral False), _ ) :: rest ->
+                                -- Unreachable branch, skip entirely and continue looking
+                                -- for True or a partially evaluated condition
+                                chooseBranch rest
 
                             _ ->
-                                Err (IfThenElseConditionShouldEvaluateToBool condition conditionValue)
-                    )
+                                -- We encountered a partially evaluated condition,
+                                -- evaluate all branches and wrap with an IfThenElse
+                                -- TODO we could remove all the unreachable branches
+                                conditionByBranches
+                                    |> -- starting from the tail, chain the values into an IfThenElse
+                                       List.foldr
+                                        (\( cond, branch ) ->
+                                            Result.map2 (Value.IfThenElse () cond)
+                                                (evaluateValue config nativeFunctions ir variables [] branch)
+                                        )
+                                        (evaluateValue config nativeFunctions ir variables [] finalElseBranch)
+                in
+                flattened
+                    |> List.reverse
+                    |> List.map
+                        (\( cond, branch ) ->
+                            -- evaluate all the conditions
+                            evaluateValue config nativeFunctions ir variables [] cond
+                                |> Result.map (\evaluatedCond -> ( evaluatedCond, branch ))
+                        )
+                    -- If any of those fails we return the first failure.
+                    |> ResultList.keepFirstError
+                    |> Result.andThen chooseBranch
+
+            else
+                -- When allow partial is false, If-then-else evaluation becomes trivial: you evaluate the condition
+                -- and depending on the result you evaluate one of the branches
+                evaluateValue config nativeFunctions ir variables [] condition
+                    |> Result.andThen
+                        (\conditionValue ->
+                            case conditionValue of
+                                Value.Literal _ (BoolLiteral conditionTrue) ->
+                                    let
+                                        branchToFollow : RawValue
+                                        branchToFollow =
+                                            if conditionTrue then
+                                                thenBranch
+
+                                            else
+                                                elseBranch
+                                    in
+                                    evaluateValue config nativeFunctions ir variables [] branchToFollow
+
+                                _ ->
+                                    Err (IfThenElseConditionShouldEvaluateToBool condition conditionValue)
+                        )
 
         Value.PatternMatch _ subjectValue cases ->
-            -- For a pattern match we first need to evaluate the subject value then step through th cases, match
-            -- each pattern until we find a matching case and when we do evaluate the body
+            -- For a pattern match we first need to evaluate the subject value then step through the cases, match
+            -- each pattern until we find a matching case and when we do evaluate the body.
+            -- However, when partial evaluation is turned on and no case match, we evaluate the body of all branches
+            -- and wrap it back into a PatternMatch.
             let
+                evaluatedSubjectResult =
+                    evaluateValue config nativeFunctions ir variables [] subjectValue
+
+                collectNewVars : Pattern () -> Variables
+                collectNewVars pattern =
+                    case pattern of
+                        Value.WildcardPattern _ ->
+                            variables
+
+                        Value.AsPattern _ patt name ->
+                            Dict.insert name (Value.Variable () name) variables
+                                |> Dict.union (collectNewVars patt)
+
+                        Value.TuplePattern _ patterns ->
+                            List.foldl (\pat vars -> collectNewVars pat |> Dict.union vars) variables patterns
+
+                        Value.ConstructorPattern _ _ patterns ->
+                            List.foldl (\pat vars -> collectNewVars pat |> Dict.union vars) variables patterns
+
+                        Value.EmptyListPattern _ ->
+                            variables
+
+                        Value.HeadTailPattern _ patt1 patt2 ->
+                            Dict.union (collectNewVars patt1) variables |> Dict.union (collectNewVars patt2)
+
+                        Value.LiteralPattern _ _ ->
+                            variables
+
+                        Value.UnitPattern _ ->
+                            variables
+
                 findMatch : List ( Pattern (), RawValue ) -> RawValue -> Result Error RawValue
                 findMatch remainingCases evaluatedSubject =
                     case remainingCases of
                         ( nextPattern, nextBody ) :: restOfCases ->
                             case matchPattern nextPattern evaluatedSubject of
                                 Ok patternVariables ->
-                                    evaluateValue
+                                    evaluateValue config
                                         nativeFunctions
                                         ir
                                         (Dict.union patternVariables variables)
@@ -354,13 +515,31 @@ evaluateValue nativeFunctions ir variables arguments value =
                         [] ->
                             Err (NoPatternsMatch evaluatedSubject (cases |> List.map Tuple.first))
             in
-            evaluateValue nativeFunctions ir variables [] subjectValue
-                |> Result.andThen (findMatch cases)
+            evaluatedSubjectResult
+                -- if the subject value was not evaluated further and we allow partial evaluation,
+                -- then we exit with the entire evaluation with the
+                |> Result.andThen
+                    (\evalSubject ->
+                        if allowPartial then
+                            cases
+                                |> List.foldr
+                                    (\( patt, body ) evaluatedBranchesSoFar ->
+                                        Result.map2 (\evaluatedBody lst -> ( patt, evaluatedBody ) :: lst)
+                                            -- evaluate each body with any new variables from it's pattern added to the state
+                                            (evaluateValue config nativeFunctions ir (collectNewVars patt) [] body)
+                                            evaluatedBranchesSoFar
+                                    )
+                                    (Ok [])
+                                |> Result.map (Value.PatternMatch () evalSubject)
+
+                        else
+                            findMatch cases evalSubject
+                    )
 
         Value.UpdateRecord _ subjectValue fieldUpdates ->
             -- To update a record first we need to evaluate the subject value, then extract the record fields and
             -- finally replace all updated fields with the new values
-            evaluateValue nativeFunctions ir variables [] subjectValue
+            evaluateValue config nativeFunctions ir variables [] subjectValue
                 |> Result.andThen
                     (\evaluatedSubjectValue ->
                         case evaluatedSubjectValue of
@@ -383,7 +562,7 @@ evaluateValue nativeFunctions ir variables arguments value =
                                                                 (\_ ->
                                                                     -- Before we replace the field value we need to
                                                                     -- evaluate the updated value.
-                                                                    evaluateValue nativeFunctions ir variables [] newFieldValue
+                                                                    evaluateValue config nativeFunctions ir variables [] newFieldValue
                                                                         |> Result.map
                                                                             (\evaluatedNewFieldValue ->
                                                                                 fieldsSoFar
@@ -398,8 +577,22 @@ evaluateValue nativeFunctions ir variables arguments value =
                                         (Ok fields)
                                     |> Result.map (Value.Record ())
 
-                            _ ->
-                                Err (RecordExpected subjectValue evaluatedSubjectValue)
+                            partiallyEvaluated ->
+                                if allowPartial then
+                                    -- Evaluate all updates and wrap it into an UpdateRecord along with the partially
+                                    -- evaluated record subject
+                                    fieldUpdates
+                                        |> Dict.foldl
+                                            (\k v ->
+                                                Result.map2
+                                                    (Dict.insert k)
+                                                    (evaluateValue config nativeFunctions ir variables [] v)
+                                            )
+                                            (Ok Dict.empty)
+                                        |> Result.map (Value.UpdateRecord () partiallyEvaluated)
+
+                                else
+                                    Err (RecordExpected subjectValue evaluatedSubjectValue)
                     )
 
         Value.Unit _ ->
@@ -409,6 +602,10 @@ evaluateValue nativeFunctions ir variables arguments value =
 
 {-| Matches a value against a pattern recursively. It either returns an error if there is a mismatch or a dictionary of
 variable names to values extracted out of the pattern.
+
+During partial evaluation, we accept the possibility of values that may not match the pattern in which case, we try to
+extract variables regardless of matches.
+
 -}
 matchPattern : Pattern () -> RawValue -> Result PatternMismatch Variables
 matchPattern pattern value =

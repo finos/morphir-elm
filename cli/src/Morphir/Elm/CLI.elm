@@ -37,7 +37,7 @@ import Morphir.IR.Type exposing (Type)
 import Morphir.IR.Value as Value
 import Morphir.SDK.ResultList as ResultList
 import Morphir.Type.Infer as Infer
-import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
+import Morphir.Value.Interpreter exposing (complete, evaluateFunctionValue)
 
 
 port packageDefinitionFromSource : (( Decode.Value, Decode.Value, List SourceFile ) -> msg) -> Sub msg
@@ -217,7 +217,7 @@ update msg model =
                                                         testCaseList
                                                             |> List.map
                                                                 (\testCase ->
-                                                                    case evaluateFunctionValue SDK.nativeFunctions ir functionName testCase.inputs of
+                                                                    case evaluateFunctionValue complete SDK.nativeFunctions ir functionName testCase.inputs of
                                                                         Ok rawValue ->
                                                                             if rawValue == testCase.expectedOutput then
                                                                                 ( "PASS"
