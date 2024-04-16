@@ -2,8 +2,8 @@ module Morphir.Value.Native exposing
     ( Function
     , Eval
     , unaryLazy, unaryStrict, binaryLazy, binaryStrict, boolLiteral, charLiteral, eval0, eval1, eval2, eval3
-    , floatLiteral, intLiteral, oneOf, stringLiteral, decimalLiteral
-    , decodeFun1, decodeList, decodeLiteral, decodeMaybe, decodeLocalDate, decodeRaw, decodeTuple2, encodeList, encodeLiteral, encodeMaybe, encodeLocalDate, encodeMaybeResult, encodeRaw, encodeResultList, encodeTuple2, decodeDict, decodeFun2, encodeDict
+    , floatLiteral, intLiteral, oneOf, stringLiteral, decimalLiteral, uuidLiteral
+    , decodeFun1, decodeList, decodeLiteral, decodeMaybe, decodeLocalDate, decodeRaw, decodeTuple2, encodeList, encodeLiteral, encodeMaybe, encodeLocalDate, encodeMaybeResult, encodeRaw, encodeResultList, encodeTuple2, decodeDict, decodeFun2, encodeDict, encodeUUID
     , trinaryLazy, trinaryStrict
     )
 
@@ -49,8 +49,10 @@ import Morphir.IR.Value as Value exposing (RawValue, Value)
 import Morphir.SDK.Decimal exposing (Decimal)
 import Morphir.SDK.Dict as Dict exposing (Dict)
 import Morphir.SDK.LocalDate as LocalDate exposing (LocalDate)
+import Morphir.SDK.UUID exposing (UUID)
 import Morphir.SDK.ResultList as ListOfResults
 import Morphir.Value.Error exposing (Error(..))
+import Morphir.SDK.UUID as UUID
 
 
 {-| Type that represents a native function. It's a function that takes two arguments:
@@ -384,6 +386,16 @@ decimalLiteral lit =
 
 
 {-| -}
+uuidLiteral : Literal -> Result Error UUID
+uuidLiteral lit =
+    case lit of
+        UUIDLiteral v ->
+            Ok v
+
+        _ ->
+            Err (ExpectedUUIDLiteral (Value.Literal () lit))
+
+{-| -}
 encodeLiteral : (a -> Literal) -> a -> Result Error RawValue
 encodeLiteral toLit a =
     Ok (Value.Literal () (toLit a))
@@ -449,6 +461,15 @@ decodeMaybe decodeItem eval value =
         Err error ->
             Err error
 
+
+encodeUUID : UUID -> Result Error RawValue
+encodeUUID uuid =
+    UUID.toString uuid
+        |> StringLiteral
+        |> Value.Literal ()
+        |> Value.Apply () (Value.Reference () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "uuid" ] ], [ "from", "string" ] ))
+        |> Ok
+    
 
 {-| -}
 encodeLocalDate : LocalDate -> Result Error RawValue

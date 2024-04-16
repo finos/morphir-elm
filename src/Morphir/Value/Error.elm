@@ -21,6 +21,7 @@ type Error
     | ExpectedStringLiteral RawValue
     | ExpectedCharLiteral RawValue
     | ExpectedDecimalLiteral RawValue
+    | ExpectedUUIDLiteral RawValue
     | ExpectedMaybe RawValue
     | ExpectedResult RawValue
     | ExpectedDerivedType FQName RawValue
@@ -93,6 +94,9 @@ toString error =
 
         ExpectedDecimalLiteral val ->
             differentValueExpected "Decimal Literal" val
+
+        ExpectedUUIDLiteral val ->
+            differentValueExpected "UUID Literal" val
 
         ExpectedMaybe val ->
             differentValueExpected "Maybe" val

@@ -29,6 +29,7 @@ module Morphir.IR.Literal exposing (Literal(..), boolLiteral, charLiteral, strin
 
 -}
 import Morphir.SDK.Decimal exposing (Decimal)
+import Morphir.SDK.UUID exposing (UUID)
 
 
 
@@ -41,6 +42,7 @@ type Literal
     | WholeNumberLiteral Int
     | FloatLiteral Float
     | DecimalLiteral Decimal
+    | UUIDLiteral UUID
 
 
 {-| Represents a boolean value. Only possible values are: `True`, `False`

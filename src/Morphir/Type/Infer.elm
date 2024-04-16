@@ -1393,6 +1393,9 @@ constrainLiteral thisTypeVar literalValue =
         DecimalLiteral _ ->
             ConstraintSet.singleton
                 (class (metaVar thisTypeVar) Class.Number)
+        
+        UUIDLiteral _ ->
+            expectExactType MetaType.uuidType
 
 
 solve : Distribution -> ConstraintSet -> Result TypeError ( ConstraintSet, SolutionMap )

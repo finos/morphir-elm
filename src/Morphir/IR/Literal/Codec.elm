@@ -21,6 +21,7 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.SDK.Decimal as Decimal
+import Morphir.SDK.UUID as UUID
 
 
 encodeLiteral : Literal -> Encode.Value
@@ -60,6 +61,12 @@ encodeLiteral l =
             Encode.list identity
                 [ Encode.string "DecimalLiteral"
                 , Encode.string (Decimal.toString v)
+                ]
+
+        UUIDLiteral v ->
+            Encode.list identity
+                [ Encode.string "UUIDLiteral"
+                , Encode.string (UUID.toString v)
                 ]
 
 
@@ -112,6 +119,20 @@ decodeLiteral =
                                                 "Failed to create decimal value from string: "
                                                     ++ str
                                                     |> Decode.fail
+                                    )
+                            )
+                    "UUIDLiteral" ->
+                        Decode.map UUIDLiteral
+                            (Decode.index 1 Decode.string
+                                |> Decode.andThen
+                                    (\str ->
+                                        case UUID.fromString str of
+                                            Ok uuid ->
+                                                Decode.succeed uuid
+                                            Err _ ->
+                                                "Failed to create uuid value from string: "
+                                                ++ str
+                                                |> Decode.fail
                                     )
                             )
 
