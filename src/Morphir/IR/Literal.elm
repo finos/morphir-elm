@@ -42,7 +42,6 @@ type Literal
     | WholeNumberLiteral Int
     | FloatLiteral Float
     | DecimalLiteral Decimal
-    | UUIDLiteral UUID
 
 
 {-| Represents a boolean value. Only possible values are: `True`, `False`

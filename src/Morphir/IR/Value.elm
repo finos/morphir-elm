@@ -128,7 +128,7 @@ import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path as Path
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.SDK.Decimal as Decimal
-import Morphir.SDK.UUID as UUID
+import Morphir.SDK.UUID exposing (UUID)
 import Morphir.SDK.ResultList as ListOfResults
 import Set exposing (Set)
 
@@ -2040,8 +2040,6 @@ toString value =
                 DecimalLiteral decimal ->
                     Decimal.toString decimal
 
-                UUIDLiteral uuid ->
-                    UUID.toString uuid
 
         patternToString : Pattern va -> String
         patternToString pattern =

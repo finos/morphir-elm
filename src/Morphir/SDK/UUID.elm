@@ -1,6 +1,7 @@
 module Morphir.SDK.UUID exposing (
     UUID
     , Error
+    , parse
     , fromString
     , forName
     , toString
@@ -76,9 +77,14 @@ type alias Error =
 
 
 {-| You can attempt to create a UUID from a string. This function can interpret a fairly broad range of formatted (and mis-formatted) UUIDs, including ones with too much whitespace, too many (or not enough) hyphens, or uppercase characters.-}
-fromString : String -> Result Error UUID
-fromString s = 
+parse : String -> Result Error UUID
+parse s = 
     U.fromString s
+
+
+fromString : String -> Maybe UUID
+fromString s = 
+    U.fromString s |> Result.toMaybe
 
 
 {-| Create a version 5 UUID from a String and a namespace, which should be a UUID. The same name and namespace will always produce the same UUID, which can be used to your advantage. Furthermore, the UUID created from this can be used as a namespace for another UUID, creating a hierarchy of sorts.-}

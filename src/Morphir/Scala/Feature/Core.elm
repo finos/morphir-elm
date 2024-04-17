@@ -474,8 +474,6 @@ mapValue inScopeVars value =
                 DecimalLiteral _ ->
                     Debug.todo "branch 'DecimalLiteral _' not implemented"
 
-                UUIDLiteral _ ->
-                    Debug.todo "branch 'UUIDLiteral _' not implemented"
 
         Constructor constructorType fQName ->
             Scala.TypeAscripted
@@ -788,8 +786,6 @@ mapPattern pattern =
                         DecimalLiteral v ->
                             Scala.DecimalLit v
                         
-                        UUIDLiteral v ->
-                            Scala.UUIDLit v
             in
             Scala.LiteralMatch (map literal)
 

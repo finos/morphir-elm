@@ -331,9 +331,6 @@ helperFunctionValue value1 =
                 DecimalLiteral decimal ->
                     "AVL (Decimal) = " ++ Decimal.toString decimal
 
-                UUIDLiteral uuid ->
-                    "AVL (UUID) = " ++ UUID.toString uuid
-
         Variable _ name ->
             "AVL (Variable) -> " ++ Name.toTitleCase name
 

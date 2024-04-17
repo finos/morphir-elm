@@ -8,6 +8,7 @@ import Morphir.IR.Name as Name
 import Morphir.IR.Type exposing (Specification(..), Type(..))
 import Morphir.IR.Literal exposing (Literal(..))
 import Morphir.IR.Documented exposing (Documented)
+import Morphir.IR.Value as Value exposing (Value)
 import Morphir.IR.SDK.Common exposing (vSpec)
 import Morphir.IR.SDK.String exposing (stringType)
 import Morphir.IR.SDK.Common exposing (toFQName)
@@ -16,9 +17,12 @@ import Morphir.IR.SDK.Basics exposing (intType, orderType, boolType)
 import Morphir.Value.Native as Native
 import Morphir.Value.Native exposing (eval1, eval2)
 import Morphir.SDK.UUID as UUID
-import Morphir.Value.Native exposing (decodeLiteral, encodeLiteral, stringLiteral, uuidLiteral, intLiteral)
+import Morphir.Value.Native exposing (decodeLiteral, encodeLiteral, stringLiteral, intLiteral, encodeMaybe)
 import Morphir.Value.Native exposing (eval0)
-import Morphir.Value.Native exposing (encodeUUID)
+import Morphir.Value.Native exposing (encodeUUID, encodeUUID2)
+import Morphir.IR.SDK.Maybe exposing (maybeType)
+import Morphir.Value.Native exposing (decodeUUID)
+import Morphir.Value.Native.Comparable exposing (compareValue)
 
 moduleName : ModuleName
 moduleName =
@@ -32,7 +36,8 @@ moduleSpec =
             ]
     , values =
         Dict.fromList
-            [ vSpec "fromString" [ ("s", stringType () ) ] (resultType () (uuidType ()) (errorType ()))
+            [ vSpec "parse" [ ("s", stringType () ) ] (resultType () (errorType ()) (uuidType ()))
+            , vSpec "fromString" [ ("s", stringType() ) ] (maybeType () (uuidType ()))
             , vSpec "forName" [ ("s", stringType () ), ("uuid", uuidType () ) ] (uuidType ())
             , vSpec "toString" [ ("uuid", uuidType () ) ] (stringType ())
             , vSpec "version" [ ("uuid", uuidType () ) ] (intType ())
@@ -59,29 +64,49 @@ errorType attributes =
 nativeFunctions : List ( String, Native.Function )
 nativeFunctions = 
     [ ( "forName" 
-        , eval2 UUID.forName (decodeLiteral stringLiteral) (decodeLiteral uuidLiteral) (encodeLiteral UUIDLiteral)
-        )
-    , ( "fromString"
-        , eval1 UUID.fromString (decodeLiteral stringLiteral) encodeUUID
-        )
+        , eval2 UUID.forName (decodeLiteral stringLiteral) decodeUUID (encodeUUID))
+    -- , ( "parse"
+    --     , eval1 UUID.parse (decodeLiteral stringLiteral) (encodeUUID2))
+    , ( "fromString" 
+        , eval1 UUID.fromString (decodeLiteral stringLiteral) (encodeMaybe encodeUUID))
     , ( "toString"
-        , eval1 UUID.toString (decodeLiteral uuidLiteral) (encodeLiteral StringLiteral)
-        )
+        , eval1 UUID.toString decodeUUID (encodeLiteral StringLiteral))
     , ( "version"
-        , eval1 UUID.version (decodeLiteral uuidLiteral) (encodeLiteral WholeNumberLiteral))
+        , eval1 UUID.version decodeUUID (encodeLiteral WholeNumberLiteral))
     , ( "nilString"
         , eval0 UUID.nilString (encodeLiteral StringLiteral))
     , ( "isNilString"
         , eval1 UUID.isNilString (decodeLiteral stringLiteral) (encodeLiteral BoolLiteral))
-    -- , ( "compare"
-    --     , eval2 UUID.compare (decodeLiteral uuidLiteral) (decodeLiteral uuidLiteral) (encodeLiteral OrderLiteral)
-    -- )
+    , ( "compare"
+      , Native.binaryStrict -- is this correct?
+            (\arg1 arg2 ->
+                compareValue arg1 arg2
+                    |> Result.map encodeOrder
+            )
+      )
     , ( "dnsNamespace"
-        , eval0 UUID.dnsNamespace (encodeLiteral UUIDLiteral))
+        , eval0 UUID.dnsNamespace (encodeUUID))
     , ( "urlNamespace"
-        , eval0 UUID.urlNamespace (encodeLiteral UUIDLiteral))
+        , eval0 UUID.urlNamespace (encodeUUID))
     , ( "oidNamespace"
-        , eval0 UUID.oidNamespace (encodeLiteral UUIDLiteral))
+        , eval0 UUID.oidNamespace (encodeUUID))
     , ( "x500Namespace"
-        , eval0 UUID.x500Namespace (encodeLiteral UUIDLiteral))
+        , eval0 UUID.x500Namespace (encodeUUID))
     ]
+
+encodeOrder : Order -> Value () ()
+encodeOrder =
+    \order ->
+        let
+            val =
+                case order of
+                    GT ->
+                        "GT"
+
+                    LT ->
+                        "LT"
+
+                    EQ ->
+                        "EQ"
+        in
+        Value.Constructor () (toFQName moduleName val)

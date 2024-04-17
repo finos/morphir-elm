@@ -63,12 +63,6 @@ encodeLiteral l =
                 , Encode.string (Decimal.toString v)
                 ]
 
-        UUIDLiteral v ->
-            Encode.list identity
-                [ Encode.string "UUIDLiteral"
-                , Encode.string (UUID.toString v)
-                ]
-
 
 decodeLiteral : Decode.Decoder Literal
 decodeLiteral =
@@ -119,20 +113,6 @@ decodeLiteral =
                                                 "Failed to create decimal value from string: "
                                                     ++ str
                                                     |> Decode.fail
-                                    )
-                            )
-                    "UUIDLiteral" ->
-                        Decode.map UUIDLiteral
-                            (Decode.index 1 Decode.string
-                                |> Decode.andThen
-                                    (\str ->
-                                        case UUID.fromString str of
-                                            Ok uuid ->
-                                                Decode.succeed uuid
-                                            Err _ ->
-                                                "Failed to create uuid value from string: "
-                                                ++ str
-                                                |> Decode.fail
                                     )
                             )
 

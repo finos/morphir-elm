@@ -4,6 +4,7 @@ import UUID exposing (UUID)
 import Morphir.SDK.UUID as U
 import Test exposing (..)
 import Expect
+import UUID exposing (Error(..))
 
 namespaceTests : Test
 namespaceTests = 
@@ -39,16 +40,30 @@ fromStringTests =
     describe "fromString tests"
         [ test "from string basic uuid" <|
             \_ ->
-                Expect.equal (U.fromString "6ba7b810-9dad-11d1-80b4-00c04fd430c8") (Ok UUID.dnsNamespace)
+                Expect.equal (U.fromString "6ba7b810-9dad-11d1-80b4-00c04fd430c8") (UUID.fromString "6ba7b810-9dad-11d1-80b4-00c04fd430c8" |> Result.toMaybe)
         , test "from string invalid uuid" <|
             \_ ->
-                Expect.equal(U.fromString "c72c207b-0847-386d-bdbc-2e5def81cg81") (Err UUID.WrongFormat)
+                Expect.equal(U.fromString "c72c207b-0847-386d-bdbc-2e5def81cg81") (Maybe.Nothing)
         , test "fromString incorrect length" <|
             \_ ->
-                Expect.equal(U.fromString "6ba7b811-9dad-11d1-80b4-00c04fd430d80") (Err UUID.WrongLength)
-        , test "fromName uuid version mapping" <|
+                Expect.equal(U.fromString "6ba7b811-9dad-11d1-80b4-00c04fd430d80") (Maybe.Nothing)
+        ]
+
+parseTests : Test
+parseTests =
+    describe "parse tests"
+        [ test "parse basic uuid" <|
             \_ ->
-                Expect.equal(U.fromString "c72c207b-0847-386d-bdbc-2e5def81cf81" |> Result.map U.version) (Ok 3)
+                Expect.equal (U.parse "6ba7b810-9dad-11d1-80b4-00c04fd430c8") ( Ok UUID.dnsNamespace )
+        , test "parse invalid uuid" <|
+            \_ ->
+                Expect.equal (U.parse "c72c207b-0847-386d-bdbc-2e5def81cg81") (Err WrongFormat)
+        , test "parse incorrect length" <|
+            \_ ->
+                Expect.equal (U.parse "6ba7b811-9dad-11d1-80b4-00c04fd430d80") (Err WrongLength)
+        , test "parse uuid version mapping" <|
+            \_ ->
+                Expect.equal (U.parse "c72c207b-0847-386d-bdbc-2e5def81cf81" |> Result.map U.version) (Ok 3)
         ]
 
 forNameTests : Test
