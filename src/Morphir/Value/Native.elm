@@ -53,6 +53,8 @@ import Morphir.SDK.UUID exposing (UUID)
 import Morphir.SDK.ResultList as ListOfResults
 import Morphir.Value.Error exposing (Error(..))
 import Morphir.SDK.UUID as UUID
+import UUID as U
+import Json.Encode exposing (encode)
 
 
 {-| Type that represents a native function. It's a function that takes two arguments:
