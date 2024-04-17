@@ -24,4 +24,4 @@ tests-integration/reference-model/Dockerfile
 
 .scala-build/
 
-.github/wo*/** */
+.github/workflows
