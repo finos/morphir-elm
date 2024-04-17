@@ -60,7 +60,6 @@ errorType: a -> Type a
 errorType attributes =
     Reference attributes (toFQName moduleName "Error") []
 
--- use string literal then pipe into fromString method to get a UUID
 nativeFunctions : List ( String, Native.Function )
 nativeFunctions = 
     [ ( "forName" 
@@ -78,7 +77,7 @@ nativeFunctions =
     , ( "isNilString"
         , eval1 UUID.isNilString (decodeLiteral stringLiteral) (encodeLiteral BoolLiteral))
     , ( "compare"
-      , Native.binaryStrict -- is this correct?
+      , Native.binaryStrict
             (\arg1 arg2 ->
                 compareValue arg1 arg2
                     |> Result.map encodeOrder

@@ -22,6 +22,7 @@ module Morphir.SDK.UUID exposing (
 
     # Convert from a known UUID String
 
+    @docs parse
     @docs fromString
 
 
@@ -81,7 +82,7 @@ parse : String -> Result Error UUID
 parse s = 
     U.fromString s
 
-
+{-| Includes all the functionality as `parse`, however only returns a `Maybe` on failures instead of an `Error`.-}
 fromString : String -> Maybe UUID
 fromString s = 
     U.fromString s |> Result.toMaybe

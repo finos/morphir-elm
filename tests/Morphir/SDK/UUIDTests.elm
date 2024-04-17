@@ -82,9 +82,3 @@ forNameTests =
             \_ ->
                 Expect.equal (U.forName "foo" U.x500Namespace) (UUID.forName "foo" UUID.x500Namespace)
         ]
-
-
--- running integration tests, this validates that the morphir compiler will work w/ the new module main other piece
--- tests-integration | these are more one off integration tests.  We can maybe do something similar
--- tests-integration -> src -> Issues -> Add issue # here, and then combine w/ a basic test scenario
--- This is also a good place to make a full indepth test of the UUID module
