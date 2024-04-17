@@ -23,3 +23,5 @@ docs.json
 tests-integration/reference-model/Dockerfile
 
 .scala-build/
+
+.github/wo*/** */
