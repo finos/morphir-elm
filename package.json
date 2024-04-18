@@ -1,6 +1,6 @@
 {
   "name": "morphir-elm",
-  "version": "2.69.0",
+  "version": "2.69.1-modified-drilldown",
   "description": "Elm bindings for Morphir",
   "types": "lib/dist/main.d.ts",
   "main": "lib/dist/main.js",
@@ -100,5 +100,7 @@
     "prettier": "^2.4.1",
     "vis-network": "^9.1.2"
   },
-  "engines": {"node": "*"}
+  "engines": {
+    "node": "*"
+  }
 }
