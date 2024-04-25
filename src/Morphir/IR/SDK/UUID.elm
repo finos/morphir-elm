@@ -64,7 +64,7 @@ nativeFunctions : List ( String, Native.Function )
 nativeFunctions = 
     [ ( "forName" 
         , eval2 UUID.forName (decodeLiteral stringLiteral) decodeUUID (encodeUUID))
-    , ( "parse"
+    , ( "parse" 
         , eval1 UUID.parse (decodeLiteral stringLiteral) (encodeUUID2))
     , ( "fromString" 
         , eval1 UUID.fromString (decodeLiteral stringLiteral) (encodeMaybe encodeUUID))
