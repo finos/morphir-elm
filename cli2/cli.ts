@@ -17,6 +17,7 @@ const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
 interface MorphirJson {
   name: string;
   sourceDirectory: string;
+  dependencies?: string[];
   localDependencies?: string[];
   exposedModules: string[];
 }
@@ -36,9 +37,9 @@ async function make(
   );
 
   //load List Of Dependency IR
-  const dependencies = await Dependencies.getDependecies(
-    morphirJson.localDependencies ?? []
-  );
+  const dependencies = await Dependencies.getDependencies({
+    localDependencies: morphirJson.localDependencies
+  });
 
   // check the status of the build incremental flag
   if (options.buildIncrementally == false) {
