@@ -4,9 +4,35 @@ import {z} from "zod";
 import parseDataUrl from "data-urls";
 import {getUri} from "get-uri";
 import {labelToName, decode} from "whatwg-encoding";
+import {Readable} from "stream";
 import {de} from "vis-network/declarations/network/locales";
 
 const fsReadFile = util.promisify(fs.readFile);
+
+const DataUrl = z.string().trim().transform((val, ctx) => {
+  const parsed = parseDataUrl(val)
+  if(parsed == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Not a valid data url"
+    })
+    return z.NEVER;
+  }
+  return parsed;
+});
+
+const FileUrl = z.string().trim().url().transform((val,ctx) => {
+  if(!val.startsWith("file:")){
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Not a valid file url"
+    })
+    return z.NEVER;
+  }
+  return new URL(val);
+}).brand<"FileUrl">();
+
+const PathOrUrl = z.union([FileUrl, z.string().trim().min(1)]);
 
 const UnclassifiedDependency = z.object({
   kind: z.literal("unclassified"),
@@ -14,23 +40,13 @@ const UnclassifiedDependency = z.object({
 });
 
 const FileDependency = z.object({
-  kind: z.literal("path"),
-  path: z.string()
+  kind: z.literal("file"),
+  pathOrUrl: PathOrUrl
 });
 
 const DataUrlDependency = z.object({
   kind: z.literal("dataUrl"),
-  url: z.string().transform((val, ctx) => {
-    const parsed = parseDataUrl(val)
-    if(parsed == null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Not a valid data url"
-      })
-      return z.NEVER;
-    }
-    return parsed;
-  })
+  url: DataUrl
 })
 
 const LocalDependency = z.discriminatedUnion("kind",[
@@ -76,10 +92,14 @@ const ClassifiedDependency = z.discriminatedUnion("kind",[
   GithubDependency
 ]);
 
+
+const DependencySettings = z.union([DataUrl, FileUrl, z.string().trim()])
+const Dependencies = z.array(DependencySettings).default([]);
+
 const DependencyConfig = z.object({
-  dependencies: z.array(z.string()).optional(),
-  localDependencies: z.array(z.string()).optional(),
-  includes: z.array(z.string()).optional(),
+  dependencies: Dependencies,
+  localDependencies: z.array(z.string()).default([]),
+  includes: z.array(z.string()).default([]),
 });
 
 const MorphirDistribution = z.tuple([z.string()]).rest(z.unknown());
@@ -88,8 +108,10 @@ const MorphirIRFile = z.object({
   distribution: MorphirDistribution
 }).passthrough();
 
+type DataUrl = z.infer<typeof DataUrl>;
 type LocalDependency = z.infer<typeof LocalDependency>;
 type PathDependency = z.infer<typeof FileDependency>;
+type PathOrUrl = z.infer<typeof PathOrUrl>;
 type DataUrlDependency = z.infer<typeof DataUrlDependency>;
 type UnclassifiedDependency = z.infer<typeof UnclassifiedDependency>;
 type ClassifiedDependency = z.infer<typeof ClassifiedDependency>;
@@ -106,7 +128,7 @@ export type DependencyConfig = z.infer<typeof DependencyConfig>;
 function toLocalDependency(dependency:string): LocalDependency {
   const dataUrl = parseDataUrl(dependency);
   if(dataUrl == null){
-    return {kind: "path", path: dependency};
+    return {kind: "file", pathOrUrl: dependency};
   } else {
     return {kind:"dataUrl", url: dataUrl};
   }
@@ -120,23 +142,50 @@ export async function loadDependencies(dependencyConfig:DependencyConfig) {
     const includes = dependencyConfig.includes.map(toLocalDependency);
     localDependencies.push(...includes);
   }
+  if(dependencyConfig.dependencies) {
+    const deps = dependencyConfig.dependencies.map(async (input) => {
+      let parseResult = DataUrl.safeParse(input);
+      if (parseResult.success) {
+        localDependencies.push( {kind: "dataUrl", url: parseResult.data} );
+      } else {
+        let parseResult = FileUrl.safeParse(input);
+        if(parseResult.success) {
+          localDependencies.push({kind: "file", pathOrUrl: parseResult.data});
+        }
+      }
+    })
+  }
   return await loadLocalDependencies(localDependencies);
 }
 
 async function loadLocalDependencies(dependencies:LocalDependency[]): Promise<any[]> {
   const promises = dependencies.map(async dependency => {
     switch (dependency.kind) {
-      case 'path':
-        if (fs.existsSync(dependency.path)) {
-          const irJsonStr = (await fsReadFile(dependency.path)).toString();
-          return JSON.parse(irJsonStr);
+      case 'file':
+        if(FileUrl instanceof URL) {
+          try {
+            const stream = await getUri(dependency.pathOrUrl);
+            const jsonBuffer = await toBuffer(stream);
+            return JSON.parse(jsonBuffer.toString());
+          } catch (err:any) {
+            if(err.code === 'ENOTFOUND') {
+              throw new LocalDependencyNotFound(`Local dependency at path "${dependency.pathOrUrl}" does not exist`, dependency.pathOrUrl, err);
+            } else {
+              throw err;
+            }
+          }
         } else {
-          throw new Error(`Local dependency at path "${dependency.path}" does not exist`);
+          if (fs.existsSync(dependency.pathOrUrl)) {
+            const irJsonStr = (await fsReadFile(dependency.pathOrUrl)).toString();
+            return JSON.parse(irJsonStr);
+          } else {
+            throw new LocalDependencyNotFound(`Local dependency at path "${dependency.pathOrUrl}" does not exist`, dependency.pathOrUrl);
+          }
         }
+        break;
       case 'dataUrl':
         const encodingName = labelToName(dependency.url.mimeType.parameters.get("charset") || "utf-8") || "UTF-8";
         const bodyDecoded = decode(dependency.url.body, encodingName);
-        console.error("Dataurl body decoded", bodyDecoded);
         return JSON.parse(bodyDecoded);
     }
   })
@@ -153,7 +202,7 @@ async function loadHttpDependencies(dependencies:HttpDependency[]): Promise<any[
 function isRemoteDependency(dependency:DependencyInfo): undefined | boolean {
   switch (dependency.kind) {
     case 'dataUrl':
-    case 'path':
+    case 'file':
       return false;
     case 'http':
       return true;
@@ -162,4 +211,29 @@ function isRemoteDependency(dependency:DependencyInfo): undefined | boolean {
     default:
       return undefined;
   }
+}
+
+async function toBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+class LocalDependencyNotFound extends Error {
+  constructor(message:string, pathOrUrl?:PathOrUrl, cause?:Error) {
+    super(message);
+    this.name = "LocalDependencyNotFound";
+    if(cause){
+      this.cause = cause;
+    }
+    if(pathOrUrl) {
+      this.pathOrUrl = pathOrUrl;
+    }
+  }
+
+  cause?:Error;
+  pathOrUrl?:PathOrUrl;
+
 }
