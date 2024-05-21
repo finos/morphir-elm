@@ -1,15 +1,15 @@
 import * as util from "util";
 import * as fs from "fs";
-import {z} from "zod";
-import {getUri} from "get-uri";
-import {labelToName, decode} from "whatwg-encoding";
-import {Readable} from "stream";
+import { z } from "zod";
+import { getUri } from "get-uri";
+import { labelToName, decode } from "whatwg-encoding";
+import { Readable } from "stream";
 const parseDataUrl = require("data-urls");
 const fsReadFile = util.promisify(fs.readFile);
 
 const DataUrl = z.string().trim().transform((val, ctx) => {
   const parsed = parseDataUrl(val)
-  if(parsed == null) {
+  if (parsed == null) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Not a valid data url"
@@ -19,8 +19,8 @@ const DataUrl = z.string().trim().transform((val, ctx) => {
   return parsed;
 });
 
-const FileUrl = z.string().trim().url().transform((val,ctx) => {
-  if(!val.startsWith("file:")){
+const FileUrl = z.string().trim().url().transform((val, ctx) => {
+  if (!val.startsWith("file:")) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Not a valid file url"
@@ -29,6 +29,8 @@ const FileUrl = z.string().trim().url().transform((val,ctx) => {
   }
   return new URL(val);
 });
+
+const Url = z.string().url().transform((url) => new URL(url));
 
 const PathOrUrl = z.union([FileUrl, z.string().trim().min(1)]);
 
@@ -52,14 +54,14 @@ const DataUrlDependency = DependencyBase.extend({
   url: DataUrl
 })
 
-const LocalDependency = z.discriminatedUnion("kind",[
-    FileDependency,
-    DataUrlDependency
+const LocalDependency = z.discriminatedUnion("kind", [
+  FileDependency,
+  DataUrlDependency
 ]);
 
 const HttpDependency = DependencyBase.extend({
   kind: z.literal("http"),
-  url: z.string().url()
+  url: Url
 });
 
 const GithubData = z.object({
@@ -88,7 +90,7 @@ const DependencyInfo = z.discriminatedUnion("kind", [
   UnclassifiedDependency
 ]);
 
-const ClassifiedDependency = z.discriminatedUnion("kind",[
+const ClassifiedDependency = z.discriminatedUnion("kind", [
   FileDependency,
   DataUrlDependency,
   HttpDependency,
@@ -113,6 +115,7 @@ const MorphirIRFile = z.object({
 
 type DataUrl = z.infer<typeof DataUrl>;
 type FileUrl = z.infer<typeof FileUrl>;
+type Url = z.infer<typeof Url>;
 type LocalDependency = z.infer<typeof LocalDependency>;
 type PathDependency = z.infer<typeof FileDependency>;
 type PathOrUrl = z.infer<typeof PathOrUrl>;
@@ -129,52 +132,68 @@ type MorphirDistribution = z.infer<typeof MorphirDistribution>;
 type MorphirIRFile = z.infer<typeof MorphirIRFile>;
 export type DependencyConfig = z.infer<typeof DependencyConfig>;
 
-function instanceOfFileUrl(object:any): object is FileUrl {
+function instanceOfFileUrl(object: any): object is FileUrl {
   return 'protocol' in object.members;
 }
 
 function toLocalDependency(dependency: string): LocalDependency {
   const dataUrl = parseDataUrl(dependency);
-  if(dataUrl == null){
-    return {kind: "file", pathOrUrl: PathOrUrl.parse(dependency)};
+  if (dataUrl == null) {
+    return { kind: "file", pathOrUrl: PathOrUrl.parse(dependency) };
   } else {
-    return {kind:"dataUrl", url: dataUrl};
+    return { kind: "dataUrl", url: dataUrl };
   }
 }
 
-export async function loadDependencies(dependencyConfig:DependencyConfig) {
-  let localDependencies:LocalDependency[] = (dependencyConfig.localDependencies ?? []).map(toLocalDependency).map((d) => {
+export async function loadDependencies(dependencyConfig: DependencyConfig) {
+  let remoteDependencies: RemoteDependency[] = [];
+  let localDependencies: LocalDependency[] = (dependencyConfig.localDependencies ?? []).map(toLocalDependency).map((d) => {
     d.source = "localDependencies";
     return d;
   });
-  if(dependencyConfig.includes) {
+  if (dependencyConfig.includes) {
     const includes = dependencyConfig.includes.map(toLocalDependency).map((d) => {
       d.source = "includes";
       return d;
     });
     localDependencies.push(...includes);
   }
-  if(dependencyConfig.dependencies) {
-    const deps = dependencyConfig.dependencies.map(async (input) => {
+  if (dependencyConfig.dependencies) {
+    dependencyConfig.dependencies.forEach((input) => {
       let parseResult = DataUrl.safeParse(input);
-      if (parseResult.success) {
-        localDependencies.push( {kind: "dataUrl", url: parseResult.data, source: "dependencies"} );
-      } else {
+      let parseSuccess = parseResult.success;
+      if (parseSuccess) {
+        localDependencies.push({ kind: "dataUrl", url: parseResult.data, source: "dependencies" });
+      }
+      if (!parseSuccess) {
         let parseResult = FileUrl.safeParse(input);
-        if(parseResult.success) {
-          localDependencies.push({kind: "file", pathOrUrl: parseResult.data, source:"dependencies"});
+        parseSuccess = parseResult.success;
+        if (parseResult.success) {
+          localDependencies.push({ kind: "file", pathOrUrl: parseResult.data, source: "dependencies" });
         }
       }
+      if (!parseSuccess) {
+        let parseResult = HttpDependency.safeParse({ kind: "http", url: input, source: "dependencies" });
+        parseSuccess = parseResult.success;
+        if (parseResult.success) {
+          let httpDependency: HttpDependency = parseResult.data;
+          remoteDependencies.push(httpDependency);
+        }
+      }
+
     })
   }
-  return await loadLocalDependencies(localDependencies);
+  const localWorkItems = loadLocalDependencies(localDependencies);
+  const remoteWorkItems = loadRemoteDependencies(remoteDependencies);
+  const allResults = await Promise.all([localWorkItems, remoteWorkItems]);
+  return allResults.flat();
 }
 
-async function loadLocalDependencies(dependencies:LocalDependency[]): Promise<any[]> {
+async function loadLocalDependencies(dependencies: LocalDependency[]): Promise<any[]> {
   const promises = dependencies.map(async dependency => {
     switch (dependency.kind) {
       case 'file':
-        if(typeof dependency.pathOrUrl === "string") {
+        if (typeof dependency.pathOrUrl === "string") {
           console.error("Handling path: ", dependency.pathOrUrl);
           if (fs.existsSync(dependency.pathOrUrl)) {
             const irJsonStr = (await fsReadFile(dependency.pathOrUrl)).toString();
@@ -188,8 +207,8 @@ async function loadLocalDependencies(dependencies:LocalDependency[]): Promise<an
             const stream = await getUri(dependency.pathOrUrl);
             const jsonBuffer = await toBuffer(stream);
             return JSON.parse(jsonBuffer.toString());
-          } catch (err:any) {
-            if(err.code === 'ENOTFOUND') {
+          } catch (err: any) {
+            if (err.code === 'ENOTFOUND') {
               throw new LocalDependencyNotFound(`Local dependency at url "${dependency.pathOrUrl}" does not exist`, dependency.pathOrUrl, err);
             } else {
               throw err;
@@ -206,14 +225,26 @@ async function loadLocalDependencies(dependencies:LocalDependency[]): Promise<an
   return Promise.all(promises);
 }
 
-async function loadHttpDependencies(dependencies:HttpDependency[]): Promise<any[]> {
+async function loadRemoteDependencies(dependencies: RemoteDependency[]): Promise<any[]> {
   const promises = dependencies.map(async dependency => {
-
+    switch (dependency.kind) {
+      case 'http':
+        if (dependency.url.protocol.startsWith("http")) {
+          const stream = await getUri(dependency.url.toString());
+          const buffer = await toBuffer(stream);
+          const jsonString = buffer.toString();
+          console.error(`JSON String from URL: [${dependency.url}]: `, jsonString);
+          const jsonResult = JSON.parse(jsonString);
+          console.error(`JSON object from URL: [${dependency.url}]: `, jsonString);
+          return jsonResult;
+        }
+        break;
+    }
   });
   return Promise.all(promises);
 }
 
-function isRemoteDependency(dependency:DependencyInfo): undefined | boolean {
+function isRemoteDependency(dependency: DependencyInfo): undefined | boolean {
   switch (dependency.kind) {
     case 'dataUrl':
     case 'file':
@@ -236,18 +267,18 @@ async function toBuffer(stream: Readable): Promise<Buffer> {
 }
 
 class LocalDependencyNotFound extends Error {
-  constructor(message:string, pathOrUrl?:PathOrUrl, cause?:Error) {
+  constructor(message: string, pathOrUrl?: PathOrUrl, cause?: Error) {
     super(message);
     this.name = "LocalDependencyNotFound";
-    if(cause){
+    if (cause) {
       this.cause = cause;
     }
-    if(pathOrUrl) {
+    if (pathOrUrl) {
       this.pathOrUrl = pathOrUrl;
     }
   }
 
-  cause?:Error;
-  pathOrUrl?:PathOrUrl;
+  cause?: Error;
+  pathOrUrl?: PathOrUrl;
 
 }
