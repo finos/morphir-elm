@@ -5,6 +5,7 @@ import * as util from "util";
 import * as path from "path";
 import * as FileChanges from "./FileChanges";
 import * as Dependencies from "./dependencies";
+import {DependencyConfig} from "./dependencies";
 import {z} from "zod";
 
 const fsExists = util.promisify(fs.exists);
@@ -42,13 +43,14 @@ async function make(
   );
 
   const includes = Includes.parse(options.include);
-
-  //load List Of Dependency IR
-  const dependencies = await Dependencies.loadDependencies({
+  const dependencyConfig = DependencyConfig.parse({
     dependencies: morphirJson.dependencies,
     localDependencies: morphirJson.localDependencies,
     includes: includes
-  });
+  })
+
+  //load List Of Dependency IR
+  const dependencies = await Dependencies.loadDependencies(dependencyConfig);
 
   // check the status of the build incremental flag
   if (options.buildIncrementally == false) {

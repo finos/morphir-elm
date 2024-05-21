@@ -1,12 +1,10 @@
 import * as util from "util";
 import * as fs from "fs";
 import {z} from "zod";
-import parseDataUrl from "data-urls";
 import {getUri} from "get-uri";
 import {labelToName, decode} from "whatwg-encoding";
 import {Readable} from "stream";
-import {de} from "vis-network/declarations/network/locales";
-
+const parseDataUrl = require("data-urls");
 const fsReadFile = util.promisify(fs.readFile);
 
 const DataUrl = z.string().trim().transform((val, ctx) => {
@@ -30,21 +28,26 @@ const FileUrl = z.string().trim().url().transform((val,ctx) => {
     return z.NEVER;
   }
   return new URL(val);
-}).brand<"FileUrl">();
+});
 
 const PathOrUrl = z.union([FileUrl, z.string().trim().min(1)]);
 
-const UnclassifiedDependency = z.object({
+const DependencyBase = z.object({
+  source: z.enum(["dependencies", "localDependencies", "includes"]).optional()
+});
+
+const UnclassifiedDependency = DependencyBase.extend({
   kind: z.literal("unclassified"),
   path: z.string()
 });
 
-const FileDependency = z.object({
+
+const FileDependency = DependencyBase.extend({
   kind: z.literal("file"),
-  pathOrUrl: PathOrUrl
+  pathOrUrl: PathOrUrl,
 });
 
-const DataUrlDependency = z.object({
+const DataUrlDependency = DependencyBase.extend({
   kind: z.literal("dataUrl"),
   url: DataUrl
 })
@@ -54,7 +57,7 @@ const LocalDependency = z.discriminatedUnion("kind",[
     DataUrlDependency
 ]);
 
-const HttpDependency = z.object({
+const HttpDependency = DependencyBase.extend({
   kind: z.literal("http"),
   url: z.string().url()
 });
@@ -67,7 +70,7 @@ const GithubData = z.object({
 
 const GithubConfig = z.union([GithubData, z.string()]);
 
-const GithubDependency = z.object({
+const GithubDependency = DependencyBase.extend({
   kind: z.literal("github"),
   config: GithubConfig,
 });
@@ -96,7 +99,7 @@ const ClassifiedDependency = z.discriminatedUnion("kind",[
 const DependencySettings = z.union([DataUrl, FileUrl, z.string().trim()])
 const Dependencies = z.array(DependencySettings).default([]);
 
-const DependencyConfig = z.object({
+export const DependencyConfig = z.object({
   dependencies: Dependencies,
   localDependencies: z.array(z.string()).default([]),
   includes: z.array(z.string()).default([]),
@@ -109,6 +112,7 @@ const MorphirIRFile = z.object({
 }).passthrough();
 
 type DataUrl = z.infer<typeof DataUrl>;
+type FileUrl = z.infer<typeof FileUrl>;
 type LocalDependency = z.infer<typeof LocalDependency>;
 type PathDependency = z.infer<typeof FileDependency>;
 type PathOrUrl = z.infer<typeof PathOrUrl>;
@@ -125,32 +129,40 @@ type MorphirDistribution = z.infer<typeof MorphirDistribution>;
 type MorphirIRFile = z.infer<typeof MorphirIRFile>;
 export type DependencyConfig = z.infer<typeof DependencyConfig>;
 
-function toLocalDependency(dependency:string): LocalDependency {
+function instanceOfFileUrl(object:any): object is FileUrl {
+  return 'protocol' in object.members;
+}
+
+function toLocalDependency(dependency: string): LocalDependency {
   const dataUrl = parseDataUrl(dependency);
   if(dataUrl == null){
-    return {kind: "file", pathOrUrl: dependency};
+    return {kind: "file", pathOrUrl: PathOrUrl.parse(dependency)};
   } else {
     return {kind:"dataUrl", url: dataUrl};
   }
 }
 
 export async function loadDependencies(dependencyConfig:DependencyConfig) {
-  console.error("Dependencies to load", dependencyConfig);
-
-  let localDependencies:LocalDependency[] = (dependencyConfig.localDependencies ?? []).map(toLocalDependency);
+  let localDependencies:LocalDependency[] = (dependencyConfig.localDependencies ?? []).map(toLocalDependency).map((d) => {
+    d.source = "localDependencies";
+    return d;
+  });
   if(dependencyConfig.includes) {
-    const includes = dependencyConfig.includes.map(toLocalDependency);
+    const includes = dependencyConfig.includes.map(toLocalDependency).map((d) => {
+      d.source = "includes";
+      return d;
+    });
     localDependencies.push(...includes);
   }
   if(dependencyConfig.dependencies) {
     const deps = dependencyConfig.dependencies.map(async (input) => {
       let parseResult = DataUrl.safeParse(input);
       if (parseResult.success) {
-        localDependencies.push( {kind: "dataUrl", url: parseResult.data} );
+        localDependencies.push( {kind: "dataUrl", url: parseResult.data, source: "dependencies"} );
       } else {
         let parseResult = FileUrl.safeParse(input);
         if(parseResult.success) {
-          localDependencies.push({kind: "file", pathOrUrl: parseResult.data});
+          localDependencies.push({kind: "file", pathOrUrl: parseResult.data, source:"dependencies"});
         }
       }
     })
@@ -162,24 +174,26 @@ async function loadLocalDependencies(dependencies:LocalDependency[]): Promise<an
   const promises = dependencies.map(async dependency => {
     switch (dependency.kind) {
       case 'file':
-        if(FileUrl instanceof URL) {
+        if(typeof dependency.pathOrUrl === "string") {
+          console.error("Handling path: ", dependency.pathOrUrl);
+          if (fs.existsSync(dependency.pathOrUrl)) {
+            const irJsonStr = (await fsReadFile(dependency.pathOrUrl)).toString();
+            return JSON.parse(irJsonStr);
+          } else {
+            throw new LocalDependencyNotFound(`Local dependency at path "${dependency.pathOrUrl}" does not exist`, dependency.pathOrUrl);
+          }
+        } else {
+          console.error("Handling url: ", dependency.pathOrUrl);
           try {
             const stream = await getUri(dependency.pathOrUrl);
             const jsonBuffer = await toBuffer(stream);
             return JSON.parse(jsonBuffer.toString());
           } catch (err:any) {
             if(err.code === 'ENOTFOUND') {
-              throw new LocalDependencyNotFound(`Local dependency at path "${dependency.pathOrUrl}" does not exist`, dependency.pathOrUrl, err);
+              throw new LocalDependencyNotFound(`Local dependency at url "${dependency.pathOrUrl}" does not exist`, dependency.pathOrUrl, err);
             } else {
               throw err;
             }
-          }
-        } else {
-          if (fs.existsSync(dependency.pathOrUrl)) {
-            const irJsonStr = (await fsReadFile(dependency.pathOrUrl)).toString();
-            return JSON.parse(irJsonStr);
-          } else {
-            throw new LocalDependencyNotFound(`Local dependency at path "${dependency.pathOrUrl}" does not exist`, dependency.pathOrUrl);
           }
         }
         break;
