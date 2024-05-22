@@ -6,7 +6,8 @@
   "main": "lib/dist/main.js",
   "workspaces":[
     "cli",
-    "cli2"
+    "cli2",
+    "morphir-decoration-extension"
   ],
   "scripts": {
     "clean": "gulp clean",
