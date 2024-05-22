@@ -5,9 +5,12 @@
   "types": "lib/dist/main.d.ts",
   "main": "lib/dist/main.js",
   "workspaces":[
-    "cli",
-    "cli2",
-    "morphir-decoration-extension"
+    "packages/cadl-Frontend",
+    "packages/cli",
+    "packages/cli2",
+    "packages/morphir-decoration-extension",
+    "packages/server",
+    "packages/tests-integration"
   ],
   "scripts": {
     "clean": "gulp clean",

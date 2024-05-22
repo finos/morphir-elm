@@ -14,12 +14,12 @@ packages/cli/web/insightapp.js
 packages/cli/treeStuff.js
 packages/cli/index.html
 packages/incremental-compiler/lib/
+packages/tests-integration/reference-model/Dockerfile
+packages/cadl-Frontend/cadl-output
 lib/geneated
-cadl-Frontend/cadl-output
 Morphir.Elm.CLI.js
 Morphir.Elm.Generator.js
 docs.json
 /.coverage/
-tests-integration/reference-model/Dockerfile
 
 .scala-build/
