@@ -5,8 +5,8 @@ import * as util from "util";
 import * as path from "path";
 import * as FileChanges from "./FileChanges";
 import * as Dependencies from "./dependencies";
-import {DependencyConfig} from "./dependencies";
-import {z} from "zod";
+import { DependencyConfig } from "./dependencies";
+import { z } from "zod";
 
 const fsExists = util.promisify(fs.exists);
 const fsWriteFile = util.promisify(fs.writeFile);
@@ -50,7 +50,7 @@ async function make(
   })
 
   //load List Of Dependency IR
-  const dependencies = await Dependencies.loadDependencies(dependencyConfig);
+  const dependencies = await Dependencies.loadAllDependencies(dependencyConfig);
 
   // check the status of the build incremental flag
   if (options.buildIncrementally == false) {
