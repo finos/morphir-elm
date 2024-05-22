@@ -10,9 +10,9 @@ morphir-test-coverage.json
 generated/
 out/
 redistributable/Scala
-cli/web/insightapp.js
-cli/treeStuff.js
-cli/index.html
+packages/cli/web/insightapp.js
+packages/cli/treeStuff.js
+packages/cli/index.html
 cli2/lib/
 lib/geneated
 cadl-Frontend/cadl-output
