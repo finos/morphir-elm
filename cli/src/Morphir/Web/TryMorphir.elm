@@ -7,15 +7,18 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import FontAwesome.Styles as Icon
 import Html exposing (Html)
 import Morphir.Compiler as Compiler
 import Morphir.Elm.Frontend as Frontend exposing (SourceFile)
 import Morphir.IR.Distribution exposing (Distribution(..))
 import Morphir.IR.FQName exposing (FQName)
 import Morphir.IR.Module as Module exposing (ModuleName)
+import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Package as Package exposing (PackageName)
+import Morphir.IR.SDK as SDK
 import Morphir.IR.Type as Type exposing (Type)
-import Morphir.IR.Value as Value
+import Morphir.IR.Value as Value exposing (Value)
 import Morphir.Type.Count as Count
 import Morphir.Type.Infer as Infer
 import Morphir.Type.Solve as Solve exposing (SolutionMap)
@@ -41,7 +44,12 @@ type alias Flags =
 
 
 main =
-    Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
+    Browser.document
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
 
 
 
@@ -49,7 +57,8 @@ main =
 
 
 type alias Model =
-    { source : String
+    { theme : Theme
+    , source : String
     , maybePackageDef : Maybe (Package.Definition () (Type ()))
     , errors : List Compiler.Error
     , irView : IRView
@@ -58,7 +67,7 @@ type alias Model =
 
 
 type IRView
-    = InsightView
+    = InsightView InsightArgumentState Morphir.Visual.Config.VisualState
     | IRView
 
 
@@ -74,13 +83,29 @@ theme =
 
 init : Flags -> ( Model, Cmd Msg )
 init _ =
-    update (ChangeSource sampleSource) { source = "", maybePackageDef = Nothing, errors = [], irView = InsightView, valueStates = Dict.empty }
+    update (ChangeSource sampleSource)
+        { theme = Theme.fromConfig Nothing
+        , source = ""
+        , maybePackageDef = Nothing
+        , errors = []
+        , irView = InsightView Dict.empty emptyVisualState
+        , valueStates = Dict.empty
+        }
 
 
-moduleSource : String -> SourceFile
-moduleSource sourceValue =
-    { path = "Test.elm"
-    , content = sourceValue
+emptyVisualState : Morphir.Visual.Config.VisualState
+emptyVisualState =
+    { theme = Theme.fromConfig Nothing
+    , variables = Dict.empty
+    , nonEvaluatedVariables = Dict.empty
+    , highlightState = Nothing
+    , popupVariables =
+        { variableIndex = 0
+        , variableValue = Nothing
+        , nodePath = []
+        }
+    , drillDownFunctions = DrillDownFunctions Dict.empty
+    , zIndex = 9999
     }
 
 
@@ -92,7 +117,12 @@ type Msg
     = ChangeSource String
     | ChangeIRView IRView
     | UpdateInferStep FQName Int
+    | ArgValueUpdated Name ValueEditor.EditorState
     | DoNothing
+
+
+type alias InsightArgumentState =
+    Dict Name ValueEditor.EditorState
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -150,6 +180,34 @@ update msg model =
             , Cmd.none
             )
 
+        ArgValueUpdated argName editorState ->
+            case model.irView of
+                InsightView argStates insightViewState ->
+                    let
+                        variables : InsightArgumentState -> Dict Name (Value () ())
+                        variables argState =
+                            argState
+                                |> Dict.map (\_ arg -> arg.lastValidValue |> Maybe.withDefault (Value.Unit ()))
+
+                        newArgState : InsightArgumentState
+                        newArgState =
+                            argStates |> Dict.insert argName editorState
+
+                        newInsightViewState : Morphir.Visual.Config.VisualState
+                        newInsightViewState =
+                            { insightViewState
+                                | variables = variables newArgState
+                            }
+                    in
+                    ( { model
+                        | irView = InsightView newArgState newInsightViewState
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
         DoNothing ->
             ( model, Cmd.none )
 
@@ -175,26 +233,31 @@ update msg model =
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-    layout
-        [ width fill
-        , height fill
-        , Font.family
-            [ Font.external
-                { name = "Source Code Pro"
-                , url = "https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap"
-                }
-            , Font.monospace
-            ]
-        , Font.size 16
-        ]
-        (el
+    { title = "Morphir - Home"
+    , body =
+        [ Icon.css
+        , layout
             [ width fill
             , height fill
+            , Font.family
+                [ Font.external
+                    { name = "Source Code Pro"
+                    , url = "https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap"
+                    }
+                , Font.monospace
+                ]
+            , Font.size model.theme.fontSize
             ]
-            (viewPackageResult model ChangeSource)
-        )
+            (el
+                [ width fill
+                , height fill
+                ]
+                (viewPackageResult model ChangeSource)
+            )
+        ]
+    }
 
 
 viewPackageResult : Model -> (String -> Msg) -> Element Msg
@@ -387,25 +450,13 @@ viewModuleDefinition model ir packageName moduleName _ moduleDef =
 viewValue : ValueState -> Distribution -> FQName -> IRView -> Value.Definition () (Type ()) -> Element Msg
 viewValue valueState ir fullyQualifiedName irView valueDef =
     case irView of
-        InsightView ->
+        InsightView argStates insightVisualState ->
             let
                 config : Config Msg
                 config =
                     { ir = ir
-                    , nativeFunctions = Dict.empty
-                    , state =
-                        { drillDownFunctions = DrillDownFunctions Dict.empty
-                        , variables = Dict.empty
-                        , nonEvaluatedVariables = Dict.empty
-                        , popupVariables =
-                            { variableIndex = -1
-                            , variableValue = Nothing
-                            , nodePath = []
-                            }
-                        , theme = Theme.fromConfig Nothing
-                        , highlightState = Nothing
-                        , zIndex = 9999
-                        }
+                    , nativeFunctions = SDK.nativeFunctions
+                    , state = insightVisualState
                     , handlers =
                         { onReferenceClicked = \_ _ _ -> DoNothing
                         , onReferenceClose = \_ _ _ -> DoNothing
@@ -423,8 +474,8 @@ viewValue valueState ir fullyQualifiedName irView valueDef =
                                 , ValueEditor.view theme
                                     ir
                                     argType
-                                    (always DoNothing)
-                                    (ValueEditor.initEditorState ir argType Nothing)
+                                    (ArgValueUpdated argName)
+                                    (argStates |> Dict.get argName |> Maybe.withDefault (ValueEditor.initEditorState ir argType Nothing))
                                 )
                             )
                         |> FieldList.view theme
@@ -435,18 +486,18 @@ viewValue valueState ir fullyQualifiedName irView valueDef =
                 ]
 
         IRView ->
-            viewValueAsIR valueState ir fullyQualifiedName irView valueDef
+            viewValueAsIR valueState ir fullyQualifiedName valueDef
 
 
-viewValueAsIR : ValueState -> Distribution -> FQName -> IRView -> Value.Definition () (Type ()) -> Element Msg
-viewValueAsIR valueState ir fullyQualifiedName irView valueDef =
+viewValueAsIR : ValueState -> Distribution -> FQName -> Value.Definition () (Type ()) -> Element Msg
+viewValueAsIR valueState ir fullyQualifiedName valueDef =
     let
         untypedValueDef : Value.Definition () ()
         untypedValueDef =
             valueDef
                 |> Value.mapDefinitionAttributes identity (always ())
 
-        ( index, ( defVar, annotatedValueDef, ( valueDefConstraints, typeVariablesByIndex ) ) ) =
+        ( _, ( defVar, annotatedValueDef, ( valueDefConstraints, typeVariablesByIndex ) ) ) =
             Infer.constrainDefinition ir Dict.empty untypedValueDef
                 |> Count.apply 0
 
@@ -518,34 +569,6 @@ viewValueAsIR valueState ir fullyQualifiedName irView valueDef =
         ]
 
 
-viewFields : List ( Element msg, Element msg ) -> Element msg
-viewFields fields =
-    fields
-        |> List.map
-            (\( key, value ) ->
-                column []
-                    [ key
-                    , el [ paddingXY 10 5 ] value
-                    ]
-            )
-        |> column []
-
-
-viewDict : (comparable -> Element msg) -> (v -> Element msg) -> Dict comparable v -> Element msg
-viewDict viewKey viewVal dict =
-    dict
-        |> Dict.toList
-        |> List.map
-            (\( key, value ) ->
-                column []
-                    [ viewKey key
-                    , el [ paddingXY 10 5 ]
-                        (viewVal value)
-                    ]
-            )
-        |> column []
-
-
 viewIRViewTabs : IRView -> Element Msg
 viewIRViewTabs irView =
     let
@@ -570,7 +593,7 @@ viewIRViewTabs irView =
         , paddingXY 10 0
         , spacing 10
         ]
-        [ button InsightView "Insight"
+        [ button (InsightView Dict.empty emptyVisualState) "Insight"
         , button IRView "IR"
         ]
 
