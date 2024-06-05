@@ -76,8 +76,8 @@ type alias ValueState =
     }
 
 
-theme : Theme
-theme =
+initialTheme : Theme
+initialTheme =
     Theme.fromConfig Nothing
 
 
@@ -364,7 +364,7 @@ viewModuleDefinition model ir packageName moduleName _ moduleDef =
                 |> Dict.toList
                 |> List.map
                     (\( typeName, accessControlledDocumentedTypeDef ) ->
-                        ViewType.viewType theme typeName accessControlledDocumentedTypeDef.value.value accessControlledDocumentedTypeDef.value.doc
+                        ViewType.viewType initialTheme typeName accessControlledDocumentedTypeDef.value.value accessControlledDocumentedTypeDef.value.doc
                     )
 
         valueViews : List (Element Msg)
@@ -381,7 +381,7 @@ viewModuleDefinition model ir packageName moduleName _ moduleDef =
                                         { typeInferenceStep = 0
                                         }
                         in
-                        Card.viewAsCard theme
+                        Card.viewAsCard initialTheme
                             (text (nameToText valueName))
                             "value"
                             valueDef.value.doc
@@ -404,51 +404,24 @@ viewModuleDefinition model ir packageName moduleName _ moduleDef =
                                             ]
                                         ]
                                     )
-                                , if List.isEmpty valueDef.value.value.inputTypes then
-                                    none
-
-                                  else
-                                    el
-                                        [ padding 5
-                                        , Border.rounded 5
-                                        , Background.color (rgb 0.95 0.95 0.95)
-                                        , width fill
-                                        ]
-                                        (valueDef.value.value.inputTypes
-                                            |> List.map
-                                                (\( argName, _, argType ) ->
-                                                    row []
-                                                        [ el [ paddingXY 10 5 ] (text (nameToText argName))
-                                                        , row
-                                                            [ paddingXY 10 5
-                                                            , spacing 5
-                                                            , Background.color (rgb 1 0.9 0.8)
-                                                            ]
-                                                            [ text ":"
-                                                            , XRayView.viewType pathToUrl argType
-                                                            ]
-                                                        ]
-                                                )
-                                            |> column [ spacing 5 ]
-                                        )
                                 , el
                                     [ padding 5
                                     , Border.rounded 5
                                     , Background.color (rgb 1 1 1)
                                     , width fill
                                     ]
-                                    (viewValue valueState ir ( packageName, moduleName, valueName ) model.irView valueDef.value.value)
+                                    (viewValue model.theme valueState ir ( packageName, moduleName, valueName ) model.irView valueDef.value.value)
                                 ]
                             )
                     )
     in
-    (typeViews ++ valueViews)
-        |> List.intersperse (el [ width fill, height (px (Theme.smallSpacing theme)), Background.color theme.colors.gray ] none)
+    valueViews
+        |> List.intersperse (el [ width fill, height (px (Theme.smallSpacing initialTheme)), Background.color initialTheme.colors.gray ] none)
         |> column [ spacing 20 ]
 
 
-viewValue : ValueState -> Distribution -> FQName -> IRView -> Value.Definition () (Type ()) -> Element Msg
-viewValue valueState ir fullyQualifiedName irView valueDef =
+viewValue : Theme -> ValueState -> Distribution -> FQName -> IRView -> Value.Definition () (Type ()) -> Element Msg
+viewValue theme valueState ir fullyQualifiedName irView valueDef =
     case irView of
         InsightView argStates insightVisualState ->
             let
@@ -480,7 +453,7 @@ viewValue valueState ir fullyQualifiedName irView valueDef =
                             )
                         |> FieldList.view theme
             in
-            column []
+            column [ spacing (theme |> Theme.mediumSpacing) ]
                 [ editors
                 , ViewValue.viewDefinition config fullyQualifiedName valueDef
                 ]
@@ -619,6 +592,12 @@ sampleSourcePrefix =
 sampleSource : String
 sampleSource =
     """
+-- Surfboard Rental
+
+type Response
+    = Rejected
+    | Reserved Int
+
 request : Bool -> Int -> Int -> Response
 request allowPartial availableSurfboards requestedSurfboards =
     if availableSurfboards < requestedSurfboards then
@@ -632,7 +611,48 @@ request allowPartial availableSurfboards requestedSurfboards =
         Reserved requestedSurfboards
 
 
-type Response
-    = Rejected
-    | Reserved Int
+-- BMI Calculation
+
+type ObesityClassification
+    = Underweight
+    | NormalWeight
+    | Overweight
+    | Obesity
+
+{-| Calculate the obesity description based on the BMI value.
+-}
+obesityDescription : Float -> ObesityClassification
+obesityDescription bmi =
+    if bmi < 18.5 then
+        Underweight
+    else if bmi < 24.9 then
+        NormalWeight
+    else if bmi < 29.9 then
+        Overweight
+    else
+        Obesity
+
+{-| Calculate the BMI range based on the obesity classification.
+-}
+bmiRange : ObesityClassification -> (Float, Float)
+bmiRange classification =
+    case classification of
+        Underweight ->
+            (0.0, 18.4)
+        NormalWeight ->
+            (18.5, 24.9)
+        Overweight ->
+            (25.0, 29.9)
+        Obesity ->
+            (30.0, 1/0)
+
+
+-- Recursion
+
+factorial : Int -> Int
+factorial n =
+    if n <= 0 then
+        1
+    else
+        n * factorial (n - 1)
         """
