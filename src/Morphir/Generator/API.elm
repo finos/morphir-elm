@@ -1,4 +1,4 @@
-module Morphir.Elm.Generator.API exposing
+module Morphir.Generator.API exposing
     ( Generator
     , Seed
     , alphaChar
