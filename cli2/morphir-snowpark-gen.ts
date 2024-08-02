@@ -11,7 +11,7 @@ const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
 
-const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
+const worker = require("./Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
 
 interface CommandOptions {
   /**
