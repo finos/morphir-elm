@@ -14,7 +14,7 @@ const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
 const readdir = util.promisify(fs.readdir);
 
-const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
+const worker = require("./Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
 
 const Includes = z.array(z.string()).optional();
 type Includes = z.infer<typeof Includes>;
