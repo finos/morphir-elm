@@ -42,6 +42,7 @@ async function clean() {
 }
 
 async function cloneMorphirJVM() {
+    console.log("inside cloneMorphir JVM");
     return await git.clone({
         fs,
         http,
@@ -53,6 +54,7 @@ async function cloneMorphirJVM() {
 }
 
 function copyMorphirJVMAssets() {
+    console.log("INside copy Morphig JVM Assets");
     const sdkFiles = path.join(config.morphirJvmCloneDir.name, 'morphir/sdk/**')
     return src(sdkFiles).pipe(dest('redistributable/Scala/sdk'))
 }
@@ -76,7 +78,11 @@ function makeCLI() {
 function makeCLI2() {
     return make('cli2', 'src/Morphir/Elm/CLI.elm', 'Morphir.Elm.CLI.js')
 }
+makeCLI2Generator
 
+function makeCLI2Generator() {
+    return make('cli2', 'src/Morphir/Elm/Generator.elm', 'Morphir.Elm.Generator.js')
+}
 function makeDevCLI() {
     return make('cli', 'src/Morphir/Elm/DevCLI.elm', 'Morphir.Elm.DevCLI.js')
 }
@@ -104,7 +110,8 @@ async function makeComponents() {
 const buildCLI2 =
     parallel(
         compileCli2Ts,
-        makeCLI2
+        makeCLI2, 
+        makeCLI2Generator
     )
 
 const buildMorphirAPI2 = async ()=>{

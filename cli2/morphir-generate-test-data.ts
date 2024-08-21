@@ -13,7 +13,7 @@ const fsMakeDir = util.promisify(fs.mkdir)
 const fsReadFile = util.promisify(fs.readFile)
 const readdir = util.promisify(fs.readdir)
 
-const worker = require('./../Morphir.Elm.Generator').Elm.Morphir.Elm.Generator.init()
+const worker = require('./../Morphir/Elm/Generator').Elm.Morphir.Elm.Generator.init()
 
 // logging
 require('log-timestamp')
