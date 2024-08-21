@@ -466,7 +466,8 @@ valueTests =
         , checkIR "foo (::)" <| Apply () (ref "foo") (List.construct ())
         , checkIR
             (String.join "\n"
-                [ "  let"
+                [ " "
+                , "  let"
                 , "    ( a, b ) = c"
                 , "  in"
                 , "  d"
