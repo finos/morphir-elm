@@ -82,10 +82,10 @@
     "@typespec/compiler": "^0.42.0",
     "@vercel/ncc": "^0.38.1",
     "del-cli": "3.0.1",
-    "elm": "^0.19.1-5",
+    "elm": "^0.19.1-6",
     "elm-doc-preview": "^5.0.5",
     "elm-format": "^0.8.5",
-    "elm-test": "^0.19.1-revision6",
+    "elm-test": "^0.19.1-revision12",
     "elm-tooling": "^1.15.0",
     "execa": "^5.1.1",
     "gulp": "^4.0.2",
@@ -101,7 +101,7 @@
     "shelljs": "^0.8.5",
     "tmp": "^0.2.1",
     "ts-jest": "^27.1.3",
-    "ts-node": "^10.3.0",
+    "ts-node": "^10.9.2",
     "typescript": "^4.4.3"
   },
   "dependencies": {
