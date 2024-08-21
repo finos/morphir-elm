@@ -437,7 +437,7 @@ testMorphirIR = series(
 
 
 const test =
-    parallel(
+    series(
         testUnit,
         testIntegration,
         // testMorphirIR,
