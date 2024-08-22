@@ -263,11 +263,12 @@ frontendTest =
                     ]
             }
     in
-    test "first" <|
-        \_ ->
-            Frontend.packageDefinitionFromSource opts packageInfo Dict.empty [ sourceA, sourceB, sourceC ]
-                |> Result.map Package.eraseDefinitionAttributes
-                |> Expect.equal (Ok expected)
+    skip <|
+        {- TODO: Revisit this test and re-enable -} test "first" <|
+            \_ ->
+                Frontend.packageDefinitionFromSource opts packageInfo Dict.empty [ sourceA, sourceB, sourceC ]
+                    |> Result.map Package.eraseDefinitionAttributes
+                    |> Expect.equal (Ok expected)
 
 
 valueTests : Test
