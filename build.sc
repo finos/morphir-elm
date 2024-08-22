@@ -1,6 +1,8 @@
-import mill.define.ExternalModule
-import mill.main.RootModule
 import $meta._
+import $ivy.`io.github.alexarchambault.mill::mill-native-image::0.1.26`
+import io.github.alexarchambault.millnativeimage.NativeImage
+
+import mill.main.RootModule
 import mill._, mill.scalalib._
 
 object root extends RootModule {    
@@ -28,6 +30,12 @@ object root extends RootModule {
         npmInstall()
     }
 
+    object morphir extends Module {
+        object lang extends Module {
+            object elm extends ScalaProject{}
+        }
+    }
+
     object ci extends RootModule {
     
     }
@@ -46,5 +54,3 @@ object V {
         val defaultScalaVersion = scala3x
     }
 }
-
-object CI extends ExternalModule
