@@ -533,7 +533,8 @@ valueTests =
                 )
         , checkIR
             (String.join "\n"
-                [ "  let"
+                [ " "
+                , "  let"
                 , "    b : Int"
                 , "    b = c"
                 , "    a : Int"
@@ -574,7 +575,8 @@ valueTests =
                 )
         , checkIR
             (String.join "\n"
-                [ "  let"
+                [ " "
+                , "  let"
                 , "    a : Int"
                 , "    a = b"
                 , "    b : Int"
@@ -593,7 +595,8 @@ valueTests =
                 (var "a")
         , checkIR
             (String.join "\n"
-                [ "  let"
+                [ " "
+                , "  let"
                 , "    c : Int"
                 , "    c = d"
                 , "    a : Int"
