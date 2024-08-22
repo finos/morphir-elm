@@ -22,4 +22,7 @@ Morphir.Elm.Generator.js
 docs.json
 /.coverage/
 
+# Scala Related
 .scala-build/
+.bsp/
+.bloop/
