@@ -1,7 +1,4 @@
-Morphir.*.js
-web/main.js
-web/index.js
-web/insight.js
-web/valueEditor.js
-web/editor-custom-element.js
-web/try-morphir.html
+node_modules
+morphir-elm.ts
+package-lock.json
+package.json

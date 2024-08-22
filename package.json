@@ -5,9 +5,13 @@
   "types": "lib/dist/main.d.ts",
   "main": "lib/dist/main.js",
   "workspaces":[
+    "packages/cli",
+    "packages/legacy-cli"
+  ],
+  "#workspaces":[
     "packages/cadl-Frontend",
     "packages/cli",
-    "packages/cli2",
+    "packages/legacy-cli",
     "packages/morphir-decoration-extension",
     "packages/server",
     "packages/tests-integration"
