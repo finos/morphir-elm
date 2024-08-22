@@ -454,6 +454,7 @@ exports.buildCLI2 = buildCLI2;
 exports.compileMain2Ts = compileMain2Ts;
 exports.build = build;
 exports.test = test;
+exports.testUnit = testUnit;
 exports.csvfiles = csvfiles;
 exports.testIntegration = testIntegration;
 exports.testIntegrationSpark = testIntegrationSpark;

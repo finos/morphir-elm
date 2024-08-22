@@ -3,7 +3,7 @@
 # If no version is given, it falls back to the value of DEFAULT_MILL_VERSION
 #
 # Project page: https://github.com/lefou/millw
-# Script Version: 0.4.11
+# Script Version: 0.4.12
 #
 # If you want to improve this script, please also contribute your changes back!
 #
@@ -50,6 +50,10 @@ if ($null -eq $MILL_VERSION) {
 $MILL_USER_CACHE_DIR = Join-Path -Path $Env:LOCALAPPDATA -ChildPath 'mill'
 
 $MILL_DOWNLOAD_PATH = $Env:MILL_DOWNLOAD_PATH ?? @(Join-Path -Path ${MILL_USER_CACHE_DIR} -ChildPath 'download')
+
+if (-not (Test-Path -Path $MILL_DOWNLOAD_PATH)) {
+    New-Item -Path $MILL_DOWNLOAD_PATH -ItemType Directory | Out-Null
+}
 
 if ($null -eq $MILL_VERSION) {
     Write-Warning -Message 'No mill version specified.'
