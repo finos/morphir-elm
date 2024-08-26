@@ -248,7 +248,7 @@ frontendTest =
                                 Dict.fromList
                                     [ ( [ "bee" ]
                                       , public
-                                            (Documented " It's a bee "
+                                            (Documented ""
                                                 (Type.CustomTypeDefinition []
                                                     (public (Dict.fromList [ ( [ "bee" ], [] ) ]))
                                                 )
@@ -257,7 +257,7 @@ frontendTest =
                                     ]
                             , values =
                                 Dict.empty
-                            , doc = Nothing
+                            , doc = Just " It's a bee"
                             }
                       )
                     ]
