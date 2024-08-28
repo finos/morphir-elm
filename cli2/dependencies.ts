@@ -1,5 +1,7 @@
 import * as util from "util";
 import * as fs from "fs";
+import * as path from "path";
+
 import { z } from "zod";
 import { getUri } from "get-uri";
 import { decode, labelToName } from "whatwg-encoding";
@@ -9,7 +11,7 @@ import { ResultAsync } from "neverthrow";
 const parseDataUrl = require("data-urls");
 const fsReadFile = util.promisify(fs.readFile);
 
-const DataUrl = z.string().trim().transform((val, ctx) => {
+export const DataUrl = z.string().trim().transform((val, ctx) => {
   const parsed = parseDataUrl(val)
   if (parsed == null) {
     ctx.addIssue({
@@ -21,7 +23,7 @@ const DataUrl = z.string().trim().transform((val, ctx) => {
   return parsed;
 });
 
-const FileUrl = z.string().trim().url().transform((val, ctx) => {
+export const FileUrl = z.string().trim().url().transform((val, ctx) => {
   if (!val.startsWith("file:")) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -32,11 +34,25 @@ const FileUrl = z.string().trim().url().transform((val, ctx) => {
   return new URL(val);
 });
 
-const Url = z.string().url().transform((url) => new URL(url));
+export const LocalFile = z.string().trim().transform((val, ctx)=> {
+  let fullPath = path.resolve(val);
+  if (fs.existsSync( fullPath )){
+
+    return new URL(`file://${fullPath}`);
+  }
+  console.error(`${fullPath} does not exist`);
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: `File not found ${val}`
+  })
+  return z.NEVER;
+})
+
+export const Url = z.string().url().transform((url) => new URL(url));
 
 const PathOrUrl = z.union([FileUrl, z.string().trim().min(1)]);
 
-const GithubData = z.object({
+export const GithubData = z.object({
   owner: z.string(),
   repo: z.string(),
   baseUrl: z.string().optional()
@@ -44,7 +60,8 @@ const GithubData = z.object({
 
 const GithubConfig = z.union([GithubData, z.string()]);
 
-const DependencySettings = z.union([DataUrl, FileUrl, z.string().trim()])
+// const DependencySettings = z.union([DataUrl, FileUrl, z.string().trim()])
+const DependencySettings =  z.string().trim();
 const Dependencies = z.array(DependencySettings).default([]);
 
 export const DependencyConfig = z.object({
@@ -112,7 +129,7 @@ export async function loadAllDependencies(config: DependencyConfig) {
   const finalResults = await Promise.all(results);
   return finalResults.flatMap((result) => {
     if (result.isOk()) {
-      console.error("Successfully loaded dependency", result.value.dependency)
+      console.info("Successfully loaded dependency", result.value.dependency)
       return result.value.dependency;
     } else {
       console.error("Error loading dependency", result.error);
@@ -122,7 +139,7 @@ export async function loadAllDependencies(config: DependencyConfig) {
 }
 
 function load(event: DependencyEvent) {
-  console.error("Loading event", event);
+
   let source: "dependencies" | "localDependencies" | "includes";
   let payload = event.payload;
   switch (event.eventKind) {
@@ -151,15 +168,15 @@ function loadDependenciesFromString(input: string, source: string) {
     let sanitized = input.trim();
     let { success, data } = DataUrl.safeParse(sanitized);
     if (success) {
-      console.error("Loading Data url", data);
+      console.info("Loading Data url", data);
       const encodingName = labelToName(data.mimeType.parameters.get("charset") || "utf-8") || "UTF-8";
       const bodyDecoded = decode(data.body, encodingName);
-      console.error("Data from data url", bodyDecoded);
+      console.info("Data from data url", bodyDecoded);
       return JSON.parse(bodyDecoded);
     }
     let { success: fileSuccess, data: fileData } = FileUrl.safeParse(sanitized);
     if (fileSuccess && fileData !== undefined) {
-      console.error("Loading file url", fileData);
+      console.info("Loading file url", fileData);
       const data = await getUri(fileData);
       const buffer = await toBuffer(data);
       const jsonString = buffer.toString();
@@ -167,15 +184,24 @@ function loadDependenciesFromString(input: string, source: string) {
     }
     let { success: urlSuccess, data: urlData } = Url.safeParse(sanitized);
     if (urlSuccess && urlData !== undefined) {
-      console.error("Loading url", urlData);
+      console.info("Loading url", urlData);
       if (urlData.protocol.startsWith("http") || urlData.protocol.startsWith("ftp")) {
-        console.error("Loading http or ftp url", urlData);
+        console.info("Loading http or ftp url", urlData);
         const data = await getUri(urlData);
         const buffer = await toBuffer(data);
         const jsonString = buffer.toString();
         return JSON.parse(jsonString);
       }
     }
+    let { success: localFileSuccess, data: localUrlData } = LocalFile.safeParse(sanitized);
+    if (localFileSuccess && localUrlData !== undefined) {
+      console.info("Loading local file url", localUrlData);
+      const data = await getUri(localUrlData);
+      const buffer = await toBuffer(data);
+      const jsonString = buffer.toString();
+      return JSON.parse(jsonString);
+    }
+
     throw new DependencyError("Invalid dependency string", input);
   }
   return ResultAsync.fromPromise(doWork(), (err) => new DependencyError("Error loading dependency", source, input, err));
