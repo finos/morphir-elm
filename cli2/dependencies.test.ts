@@ -18,13 +18,13 @@ describe('the dependencies module', () => {
     describe("The LocalFile configuration type", () => {
         test("should fail if can't find the file .", () => {
             try {
-                dep.LocalFile.parse("./shouldFail.ts");
+                dep.LocalFile.parse("./shouldFail.ir");
             } catch (error) {
                 expect(error instanceof ZodError).toBeTruthy;
                 let issues = (error as ZodError).issues;
                 let expectedIssue = {
                     "code": "custom",
-                    "message": "File not found ./shouldFail.ts",
+                    "message": "File not found ./shouldFail.ir",
                 };
                 expect(issues[0].message).toBe(expectedIssue.message);
                 expect(issues[0].code).toBe(expectedIssue.code);

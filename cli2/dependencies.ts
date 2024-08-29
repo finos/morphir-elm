@@ -1,11 +1,9 @@
 import * as util from "util";
 import * as fs from "fs";
 import * as path from "path";
-
+import {fetchUriToJson} from "./get-uri-wrapper";
 import { z } from "zod";
-import { getUri } from "get-uri";
 import { decode, labelToName } from "whatwg-encoding";
-import { Readable } from "stream";
 import { ResultAsync } from "neverthrow";
 
 const parseDataUrl = require("data-urls");
@@ -177,29 +175,35 @@ function loadDependenciesFromString(input: string, source: string) {
     let { success: fileSuccess, data: fileData } = FileUrl.safeParse(sanitized);
     if (fileSuccess && fileData !== undefined) {
       console.info("Loading file url", fileData);
-      const data = await getUri(fileData);
-      const buffer = await toBuffer(data);
-      const jsonString = buffer.toString();
-      return JSON.parse(jsonString);
+      return fetchUriToJson(fileData)
+      // const data = await getUri(fileData);
+      // const buffer = await toBuffer(data);
+      // const jsonString = buffer.toString();
+      // return JSON.parse(jsonString);
     }
     let { success: urlSuccess, data: urlData } = Url.safeParse(sanitized);
     if (urlSuccess && urlData !== undefined) {
       console.info("Loading url", urlData);
       if (urlData.protocol.startsWith("http") || urlData.protocol.startsWith("ftp")) {
-        console.info("Loading http or ftp url", urlData);
-        const data = await getUri(urlData);
-        const buffer = await toBuffer(data);
-        const jsonString = buffer.toString();
-        return JSON.parse(jsonString);
+
+        return fetchUriToJson(urlData);
+
+        // console.info("Loading http or ftp url", urlData);
+        // const data = await getUri(urlData);
+        // const buffer = await toBuffer(data);
+        // const jsonString = buffer.toString();
+        // return JSON.parse(jsonString);
       }
     }
     let { success: localFileSuccess, data: localUrlData } = LocalFile.safeParse(sanitized);
     if (localFileSuccess && localUrlData !== undefined) {
+
       console.info("Loading local file url", localUrlData);
-      const data = await getUri(localUrlData);
-      const buffer = await toBuffer(data);
-      const jsonString = buffer.toString();
-      return JSON.parse(jsonString);
+      return fetchUriToJson(localUrlData);
+      // const data = await getUri(localUrlData);
+      // const buffer = await toBuffer(data);
+      // const jsonString = buffer.toString();
+      // return JSON.parse(jsonString);
     }
 
     throw new DependencyError("Invalid dependency string", input);
@@ -209,20 +213,14 @@ function loadDependenciesFromString(input: string, source: string) {
 
 function loadDependenciesFromURL(url: URL | Url, source: string) {
   const doWork = async () => {
-    const data = await getUri(url);
-    const buffer = await toBuffer(data);
-    const jsonString = buffer.toString();
-    return JSON.parse(jsonString);
+    return fetchUriToJson(url);
+
+    // const data = await getUri(url);
+    // const buffer = await toBuffer(data);
+    // const jsonString = buffer.toString();
+    // return JSON.parse(jsonString);
   }
   return ResultAsync.fromPromise(doWork(), (err) => new DependencyError("Error loading dependency", source, url, err));
-}
-
-async function toBuffer(stream: Readable): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
 }
 
 class DependencyError extends Error {
