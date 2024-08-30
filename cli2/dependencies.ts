@@ -6,6 +6,10 @@ import { z } from "zod";
 import { decode, labelToName } from "whatwg-encoding";
 import { ResultAsync } from "neverthrow";
 
+import { getUri } from "get-uri";
+import { Readable } from "stream";
+
+
 const parseDataUrl = require("data-urls");
 const fsReadFile = util.promisify(fs.readFile);
 
@@ -198,12 +202,13 @@ function loadDependenciesFromString(input: string, source: string) {
     let { success: localFileSuccess, data: localUrlData } = LocalFile.safeParse(sanitized);
     if (localFileSuccess && localUrlData !== undefined) {
 
-      console.info("Loading local file url", localUrlData);
-      return fetchUriToJson(localUrlData);
-      // const data = await getUri(localUrlData);
-      // const buffer = await toBuffer(data);
-      // const jsonString = buffer.toString();
-      // return JSON.parse(jsonString);
+      // console.info("Loading local file url", localUrlData);
+      // return fetchUriToJson(localUrlData);
+      const data = await getUri(localUrlData);
+      const buffer = await toBuffer(data);
+
+      const jsonString = buffer.toString();
+      return JSON.parse(jsonString);
     }
 
     throw new DependencyError("Invalid dependency string", input);
@@ -261,4 +266,13 @@ class LocalDependencyNotFound extends Error {
   pathOrUrl?: PathOrUrl;
   source?: string;
 
+}
+
+
+async function toBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 }
