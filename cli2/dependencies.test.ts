@@ -15,11 +15,14 @@ describe('the dependencies module', () => {
         expect(dep.GithubData).toBeDefined
         expect(dep.LocalFile).toBeDefined
     })
-    
+
     describe("The LocalFile configuration type", () => {
         test("should fail if can't find the file.", () => {
             try {
-                dep.LocalFile.parse("./shouldFail.ir");
+                dep.LocalFile.parse({
+                    projectDir: __dirname,
+                    sanitized: "./shouldFail.ir"
+                });
             } catch (error) {
                 expect(error instanceof ZodError).toBeTruthy;
                 let issues = (error as ZodError).issues;
@@ -38,7 +41,10 @@ describe('the dependencies module', () => {
 
             let expectedUrl = new URL(`file://${expectedFile}`);
 
-            let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse(`./cli2/${fileName}`);
+            let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
+                projectDir: __dirname,
+                sanitized: `./${fileName}`
+            });
             expect({ success: urlSuccess, data: urlData }).toStrictEqual({ success: true, data: expectedUrl });
         });
         test("should support local file different folder", () => {
@@ -46,40 +52,46 @@ describe('the dependencies module', () => {
             let expectedFile = path.join(__dirname, '..', fileName);
 
             let expectedUrl = new URL(`file://${expectedFile}`);
-            let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse(`./cli2/../${fileName}`);
+            let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
+                projectDir: __dirname, 
+                sanitized: `../${fileName}`
+            });
             expect({ success: urlSuccess, data: urlData }).toStrictEqual({ success: true, data: expectedUrl });
         });
-        test("should support local file different sub folder", () => {
+        test("should support local file different folder", () => {
             let fileName = 'morphir.js'
-            let expectedFile = path.join(__dirname, '..', "cli", fileName);
+            let expectedFile = path.resolve(__dirname, "..",  "cli", fileName);
 
             let expectedUrl = new URL(`file://${expectedFile}`);
-            let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse(`./cli2/../cli/${fileName}`);
+            let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
+                projectDir: __dirname, 
+                sanitized: `../cli/${fileName}`
+            });
             expect({ success: urlSuccess, data: urlData }).toStrictEqual({ success: true, data: expectedUrl });
         });
     });
     describe("The Url configuration type", () => {
         test("should support http.", () => {
             let url = "http://www.google.com/"
-            let { success, data: fileData }  = dep.Url.safeParse(url);
+            let { success, data: fileData } = dep.Url.safeParse(url);
             expect(success).toBeTruthy()
             expect(fileData).toStrictEqual(new URL(url));
         });
         test("should support https.", () => {
             let url = "https://www.google.com/"
-            let { success, data: fileData }  = dep.Url.safeParse(url);
+            let { success, data: fileData } = dep.Url.safeParse(url);
             expect(success).toBeTruthy()
             expect(fileData).toStrictEqual(new URL(url));
         });
         test("should support ftp.", () => {
             let url = "ftp://www.google.com/"
-            let { success, data: fileData }  = dep.Url.safeParse(url);
+            let { success, data: fileData } = dep.Url.safeParse(url);
             expect(success).toBeTruthy()
             expect(fileData).toStrictEqual(new URL(url));
         });
         test("should NOT support S3.", () => {
             let url = "s3://www.aws.com/mybucket"
-            let { success, data: fileData }  = dep.Url.safeParse(url);
+            let { success, data: fileData } = dep.Url.safeParse(url);
             expect(success).toBeFalsy()
             expect(fileData).toBeUndefined
         });
