@@ -139,11 +139,8 @@ describe('morphir dependencies', () => {
 			let localInclude = path.join(PATH_TO_DEPENDENCY_PROJECT, 'morphir-ir.json');
 			let morphirIr = await loadFile(localInclude);
 
-			
-			getUriWrapper.fetchUriToJson =  jest.fn(url => {
-				console.log("Fetching mock", url);
-				return morphirIr
-			});
+			//setting up mock 
+			getUriWrapper.fetchUriToJson =  jest.fn(url =>  morphirIr );
 	
 			let newMorphir = { ...morphirJSON, dependencies: [ "http://somewhere/morphir-ir"] };
 			await makeMorphirJson(newMorphir);
