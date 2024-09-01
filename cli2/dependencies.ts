@@ -1,12 +1,10 @@
-import * as util from "util";
 import * as fs from "fs";
-import * as path from "path";
-import {fetchUriToJson} from "./get-uri-wrapper";
-import { z } from "zod";
-import { decode, labelToName } from "whatwg-encoding";
 import { ResultAsync } from "neverthrow";
-
-import { getUri } from "get-uri";
+import * as path from "path";
+import * as util from "util";
+import { decode, labelToName } from "whatwg-encoding";
+import { z } from "zod";
+import { fetchUriToJson } from "./get-uri-wrapper";
 import { Readable } from "stream";
 
 
@@ -36,21 +34,25 @@ export const FileUrl = z.string().trim().url().transform((val, ctx) => {
   return new URL(val);
 });
 
-export const LocalFile = z.string().trim().transform((val, ctx)=> {
-  let fullPath = path.resolve(val);
-  if (fs.existsSync( fullPath )){
+type LocalFileRef = {
+  original: string,
+  fullPath: string,
+  url?: URL,
 
-    return new URL(`file://${fullPath}`);
-  }
-  console.error(`${fullPath} does not exist`);
-  ctx.addIssue({
-    code: z.ZodIssueCode.custom,
-    message: `File not found ${val}`
-  })
-  return z.NEVER;
-})
+}
 
-export const Url = z.string().url().transform((url) => new URL(url));
+export const LocalFile = z.string().trim()
+  .transform(val => <LocalFileRef>{ original: val, fullPath: path.resolve(val) })
+  .transform(ref => <LocalFileRef>({ ...ref, url: new URL(`file://${ref.fullPath}`) }))
+  .refine((ref: LocalFileRef) => fs.existsSync(ref.fullPath),
+    (ref: LocalFileRef) => ({ message: `File not found ${ref.original}` })
+  )
+  .transform(ref => ref.url! );
+
+const SUPPORTED_PROTOCOLS = new Set(["http:", "https:", "ftp:"]);
+
+export const Url = z.string().url().transform((url) => new URL(url))
+  .refine((url) => SUPPORTED_PROTOCOLS.has(url.protocol));
 
 const PathOrUrl = z.union([FileUrl, z.string().trim().min(1)]);
 
@@ -62,8 +64,8 @@ export const GithubData = z.object({
 
 const GithubConfig = z.union([GithubData, z.string()]);
 
-// const DependencySettings = z.union([DataUrl, FileUrl, z.string().trim()])
-const DependencySettings =  z.string().trim();
+
+const DependencySettings = z.string().trim();
 const Dependencies = z.array(DependencySettings).default([]);
 
 export const DependencyConfig = z.object({
@@ -164,7 +166,6 @@ function load(event: DependencyEvent) {
       }
   }
 }
-
 function loadDependenciesFromString(input: string, source: string) {
   const doWork = async () => {
     let sanitized = input.trim();
@@ -180,35 +181,19 @@ function loadDependenciesFromString(input: string, source: string) {
     if (fileSuccess && fileData !== undefined) {
       console.info("Loading file url", fileData);
       return fetchUriToJson(fileData)
-      // const data = await getUri(fileData);
-      // const buffer = await toBuffer(data);
-      // const jsonString = buffer.toString();
-      // return JSON.parse(jsonString);
+
     }
     let { success: urlSuccess, data: urlData } = Url.safeParse(sanitized);
     if (urlSuccess && urlData !== undefined) {
       console.info("Loading url", urlData);
-      if (urlData.protocol.startsWith("http") || urlData.protocol.startsWith("ftp")) {
-
-        return fetchUriToJson(urlData);
-
-        // console.info("Loading http or ftp url", urlData);
-        // const data = await getUri(urlData);
-        // const buffer = await toBuffer(data);
-        // const jsonString = buffer.toString();
-        // return JSON.parse(jsonString);
-      }
+      return fetchUriToJson(urlData);
     }
     let { success: localFileSuccess, data: localUrlData } = LocalFile.safeParse(sanitized);
     if (localFileSuccess && localUrlData !== undefined) {
 
-      // console.info("Loading local file url", localUrlData);
-      // return fetchUriToJson(localUrlData);
-      const data = await getUri(localUrlData);
-      const buffer = await toBuffer(data);
+      console.info("Loading local file url", localUrlData);
+      return fetchUriToJson(localUrlData);
 
-      const jsonString = buffer.toString();
-      return JSON.parse(jsonString);
     }
 
     throw new DependencyError("Invalid dependency string", input);
@@ -219,11 +204,6 @@ function loadDependenciesFromString(input: string, source: string) {
 function loadDependenciesFromURL(url: URL | Url, source: string) {
   const doWork = async () => {
     return fetchUriToJson(url);
-
-    // const data = await getUri(url);
-    // const buffer = await toBuffer(data);
-    // const jsonString = buffer.toString();
-    // return JSON.parse(jsonString);
   }
   return ResultAsync.fromPromise(doWork(), (err) => new DependencyError("Error loading dependency", source, url, err));
 }
