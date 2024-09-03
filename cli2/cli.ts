@@ -46,7 +46,8 @@ async function make(
   const dependencyConfig = DependencyConfig.parse({
     dependencies: morphirJson.dependencies,
     localDependencies: morphirJson.localDependencies,
-    includes: includes
+    includes: includes, 
+    projectDir: projectDir
   })
 
   //load List Of Dependency IR

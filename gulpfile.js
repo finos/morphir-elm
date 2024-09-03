@@ -214,7 +214,7 @@ async function testUnit(cb) {
 }
 
 async function compileCli2Ts() {
-    src('./cli2/*.ts').pipe(cliTsProject()).pipe(dest('./cli2/lib/'))
+    src(['./cli2/*.ts', '!./cli2/*.test.ts' ]).pipe(cliTsProject()).pipe(dest('./cli2/lib/'))
 }
 
 
