@@ -33,7 +33,7 @@ const morphirJSON = {
 
 
 describe('morphir dependencies', () => {
-	describe('Should supports local file dependencies ', () => {
+	describe('Should support local file dependencies ', () => {
 		const assertMorphirHashesIsMisssing = () => expect(fs.existsSync(MORPHIR_HASHES)).toBe(false);
 		const assertMorphirHashesExists = () => expect(fs.existsSync(MORPHIR_HASHES)).toBe(true);
 
@@ -101,6 +101,62 @@ describe('morphir dependencies', () => {
 		});
 	})
 
+	describe('Should support data URL dependencies ', () => {
+		const assertMorphirHashesIsMisssing = () => expect(fs.existsSync(MORPHIR_HASHES)).toBe(false);
+		const assertMorphirHashesExists = () => expect(fs.existsSync(MORPHIR_HASHES)).toBe(true);
+
+		const WORK_TEMP = path.join(__dirname, 'temp-data-dependencies');
+		const PATH_TO_PROJECT: string = path.join(WORK_TEMP, 'project')
+		const PATH_TO_DEPENDENCY_PROJECT: string = path.join(WORK_TEMP, 'dependency-project')
+		const DEPENDENCY_PROJECT_SOURCE: string = path.join(__dirname, 'test-data', 'business-terms')
+		const PROJECT_SOURCE: string = path.join(__dirname, 'test-data', 'rentals-decomposed')
+		const MORPHIR_HASHES = path.join(PATH_TO_PROJECT, "morphir-hashes.json");
+
+		async function makeMorphirJson(newMorphir) {
+
+			await writeFile(
+				path.join(PATH_TO_PROJECT, 'morphir.json'),
+				JSON.stringify(newMorphir, null, 2)
+			)
+
+		}
+
+		beforeAll(async () => {
+			// create the folders to house test data
+			await mkdir(PATH_TO_PROJECT, { recursive: true })
+			await copyRecursive(DEPENDENCY_PROJECT_SOURCE, PATH_TO_DEPENDENCY_PROJECT, { recursive: true })
+			await copyRecursive(PROJECT_SOURCE, PATH_TO_PROJECT, { recursive: true })
+
+
+		})
+
+		afterAll(async () => {
+			await rmdir(WORK_TEMP, { recursive: true })
+		})
+
+		afterEach(async () => {
+			await rmFile(MORPHIR_HASHES);
+		});
+
+		test("should support data url dependency ", async()=>{
+			let localInclude = path.join(PATH_TO_DEPENDENCY_PROJECT, 'morphir-ir.json');
+			 
+			let morphirIr = await loadFile(localInclude);
+
+			let dataUrl = `data:text/html,${encodeURIComponent(JSON.stringify(morphirIr))}`
+
+			let newMorphir = { ...morphirJSON, dependencies: [dataUrl] };
+			await makeMorphirJson(newMorphir);
+
+
+
+			assertMorphirHashesIsMisssing();
+			const resultIR = await cli2.make(PATH_TO_PROJECT, CLI_OPTIONS)
+			expect(resultIR).not.toBeNull();
+
+			assertMorphirHashesExists();
+		});
+	})
 
 	describe("Should support http dependency", () => {
 		const assertMorphirHashesIsMisssing = () => expect(fs.existsSync(MORPHIR_HASHES)).toBe(false);

@@ -2,6 +2,7 @@
 import * as dep from './dependencies';
 import { z, ZodError } from "zod";
 import * as path from 'path'
+import { decode, labelToName } from "whatwg-encoding";
 
 describe('the dependencies module', () => {
 
@@ -12,7 +13,6 @@ describe('the dependencies module', () => {
     test("should declare configuration types", async () => {
         expect(dep.DataUrl).toBeDefined
         expect(dep.FileUrl).toBeDefined
-        expect(dep.GithubData).toBeDefined
         expect(dep.LocalFile).toBeDefined
     })
 
@@ -96,6 +96,25 @@ describe('the dependencies module', () => {
             expect(fileData).toBeUndefined
         });
     });
+
+    describe("The DataURL type", ()=>{
+        
+        test("should support encoded json.", () => {
+             
+            let obj = {hello: "world"}
+            let content = encodeURIComponent(JSON.stringify(obj))
+            let { success, data: parseResult } = dep.DataUrl.safeParse("data:text/html,"+content);
+            expect(success).toBeTruthy()
+
+            const encodingName = labelToName(parseResult.mimeType.parameters.get("charset") || "utf-8") || "UTF-8";
+            const bodyDecoded = decode(parseResult.body, encodingName);
+
+            
+             expect(bodyDecoded).toStrictEqual(JSON.stringify(obj));
+
+        });
+
+    })
 
 
 
