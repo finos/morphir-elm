@@ -47,7 +47,7 @@ describe('the dependencies module', () => {
             });
             expect({ success: urlSuccess, data: urlData }).toStrictEqual({ success: true, data: expectedUrl });
         });
-        test("should support local file different folder", () => {
+        test("should support local files on an above folder", () => {
             let fileName = 'gulpfile.js'
             let expectedFile = path.join(__dirname, '..', fileName);
 
@@ -58,7 +58,7 @@ describe('the dependencies module', () => {
             });
             expect({ success: urlSuccess, data: urlData }).toStrictEqual({ success: true, data: expectedUrl });
         });
-        test("should support local file different folder", () => {
+        test("should support local files on a sibling folder", () => {
             let fileName = 'morphir.js'
             let expectedFile = path.resolve(__dirname, "..",  "cli", fileName);
 
