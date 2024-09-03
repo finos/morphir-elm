@@ -61,7 +61,7 @@ export const Url = z.string().url().transform((url) => new URL(url))
 
 const PathOrUrl = z.union([FileUrl, z.string().trim().min(1)]);
 
-export const GithubData = z.object({
+const GithubData = z.object({
   owner: z.string(),
   repo: z.string(),
   baseUrl: z.string().optional()
