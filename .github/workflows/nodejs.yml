@@ -58,14 +58,14 @@ jobs:
         node-version: [18.x]
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
       - uses: jorelali/setup-elm@v6
         name: Setup Elm
         with:
           elm-version: 0.19.1
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
       - run: npm ci
       - run: npx --yes auditjs ossi --whitelist allow-list.json
 
