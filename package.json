@@ -1,7 +1,7 @@
 {
   "name": "morphir-elm",
   "version": "2.89.0",
-  "description": "Elm bindings for Morphir",  
+  "description": "Elm bindings for Morphir",
   "type": "module",
   "types": "lib/dist/main.d.ts",
   "main": "lib/dist/main.js",
@@ -77,7 +77,6 @@
     "@typespec/compiler": "^0.59.1",
     "@vercel/ncc": "^0.38.1",
     "del-cli": "^5.1.0",
-    "elm": "^0.19.1-5",
     "elm-format": "^0.8.5",
     "elm-test": "^0.19.1-revision6",
     "elm-tooling": "^1.15.0",
