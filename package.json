@@ -23,7 +23,8 @@
     "build-cli2": "gulp buildCLI2",
     "test-coverage": "elm-coverage src/ --open",
     "build-value-editor": "elm make cli/src/Morphir/Web/Editor.elm --output=cli/web/valueEditor.js",
-    "setup-elm-tooling": "elm-tooling install"
+    "setup-elm-tooling": "elm-tooling install",
+    "postinstall": "elm-tooling install"
   },
   "repository": {
     "type": "git",
@@ -77,7 +78,6 @@
     "@typespec/compiler": "^0.59.1",
     "@vercel/ncc": "^0.38.1",
     "del-cli": "^5.1.0",
-    "elm-format": "^0.8.7",
     "elm-test": "^0.19.1-revision6",
     "elm-tooling": "^1.15.0",
     "execa": "^5.1.1",
