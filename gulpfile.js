@@ -1,4 +1,4 @@
-const { series, parallel, src, dest } = require('gulp');
+import { series, parallel, src, dest } from 'gulp';
 const concat = require('gulp-concat');
 const os = require('os')
 const path = require('path')
@@ -12,7 +12,7 @@ const del = require('del')
 const elmMake = require('node-elm-compiler').compile
 const execa = require('execa');
 const shell = require('shelljs')
-const mocha = require('gulp-mocha');
+import * as mocha from 'gulp-mocha';
 const ts = require('gulp-typescript');
 const { isExpressionWithTypeArguments } = require('typescript');
 const mainTsProject = ts.createProject('./tsconfig.json')
