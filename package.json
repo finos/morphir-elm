@@ -1,10 +1,11 @@
 {
   "name": "morphir-elm",
   "version": "2.89.0",
-  "description": "Elm bindings for Morphir",
+  "description": "Elm bindings for Morphir",  
   "type": "module",
   "types": "lib/dist/main.d.ts",
   "main": "lib/dist/main.js",
+  "module": "es6",
   "scripts": {
     "clean": "gulp clean",
     "test": "gulp test",
@@ -112,7 +113,6 @@
     "inquirer": "^8.0.0",
     "log-timestamp": "^0.3.0",
     "neverthrow": "^6.2.1",
-    "nvm": "^0.0.4",
     "packageurl-js": "^1.2.1",
     "prettier": "^2.4.1",
     "vis-network": "^9.1.2",
@@ -121,7 +121,6 @@
   },
   "overrides": {
     "glob": "^11.0.0",
-    "package-json": "^8.1.1",
-    "rimraf": "^6.0.1"
+    "package-json": "^8.1.1"
   }
 }
