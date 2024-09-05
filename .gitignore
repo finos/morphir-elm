@@ -25,3 +25,7 @@ tests-integration/reference-model/Dockerfile
 *Debug.log*
 tests-integration/cli2-qa-test/test-data/.DS_Store
 tests-integration/cli2-qa-test/test-data/business-terms/.DS_Store
+tests-integration/typespec/model/morphir-ir.json
+tests-integration/json-schema/model/morphir-ir.json
+tests-integration/reference-model/morphir-ir.json
+/morphir-ir.json

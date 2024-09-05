@@ -72,6 +72,8 @@ root directory with the following structure:
 {
     "name": "My.Package",
     "sourceDirectory": "src",
+    "dependencies" : ["a", "b"]
+    "localDependencies" : ["a", "b"]
     "exposedModules": [
         "Foo",
         "Bar"
@@ -82,7 +84,12 @@ root directory with the following structure:
 * **name** - The name of the package. The package name should be a valid Elm module name and it should be used as a 
 module prefix in your Elm models. If your package name is `My.Package` all your module files should either be directly 
 under that or in submodules.
+
 * **sourceDirectory** - The directory where your Elm sources are located.
+* **dependencies** - List of URI references to other IR files. Supports 
+`file://`|`http://`|`https://`|`data://` protocols.
+* **localDependencies** - List of relative paths to depending IRs. (for backwards compatibility) 
+`file://`|`http://`|`https://`|`data://` protocols. 
 * **exposedModules** - The list of modules in the public interface of the package. Module names should exclude the 
 common package prefix. In the above example `Foo` refers to the Elm module `My.Package.Foo`. 
   
