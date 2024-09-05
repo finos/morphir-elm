@@ -117,7 +117,7 @@ const buildCLI2 =
         makeCLI2
     )
 
-const buildMorphirAPI2 = async () => {
+export const buildMorphirAPI2 = async () => {
     try {
         await morphirElmMakeRunOldCli('.', './morphir-ir.json', { typesOnly: true })
         await morphirElmGen('./morphir-ir.json', './lib/generated', 'TypeScript')
@@ -147,7 +147,7 @@ const build =
 
 
 function morphirElmMake(projectDir, outputPath, options = {}) {
-    args = ['./cli/morphir-elm.js', 'make', '-p', projectDir, '-o', outputPath]
+    let args = ['./cli/morphir-elm.js', 'make', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {
         args.push('--types-only')
     }
@@ -156,7 +156,7 @@ function morphirElmMake(projectDir, outputPath, options = {}) {
 }
 
 function morphirElmMakeRunOldCli(projectDir, outputPath, options = {}) {
-    args = ['./cli/morphir-elm.js', 'make', '-f', '-p', projectDir, '-o', outputPath]
+    let args = ['./cli/morphir-elm.js', 'make', '-f', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {
         args.push('--types-only')
     }
@@ -165,7 +165,7 @@ function morphirElmMakeRunOldCli(projectDir, outputPath, options = {}) {
 }
 
 function morphirElmMake2(projectDir, outputPath, options = {}) {
-    args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
+    let args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {
         args.push('--types-only')
     }
@@ -175,7 +175,7 @@ function morphirElmMake2(projectDir, outputPath, options = {}) {
 
 // Generate the IR for the Json Schema mdel
 function morphirElmMakeJsonSchema(projectDir, outputPath, options = {}) {
-    args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
+    let args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {
         args.push('--types-only')
     }
@@ -184,14 +184,14 @@ function morphirElmMakeJsonSchema(projectDir, outputPath, options = {}) {
 }
 
 function morphirElmGen(inputPath, outputDir, target) {
-    args = ['./cli/morphir-elm.js', 'gen', '-i', inputPath, '-o', outputDir, '-t', target]
+    let args = ['./cli/morphir-elm.js', 'gen', '-i', inputPath, '-o', outputDir, '-t', target]
     console.log("Running: " + args.join(' '));
     return execa('node', args, { stdio })
 }
 
 // Test the json-schema-gen command.
 async function morphirJsonSchemaGen(inputPath, outputDir, target) {
-    args = ['./cli2/lib/morphir-json-schema-gen.js', 'json-schema-gen', '-i', inputPath, '-o', outputDir, '-t', target]
+    let args = ['./cli2/lib/morphir-json-schema-gen.js', 'json-schema-gen', '-i', inputPath, '-o', outputDir, '-t', target]
     console.log("Running: " + args.join(' '));
     try {
         await execa('node', args, { stdio })
@@ -208,7 +208,7 @@ function morphirDockerize(projectDir, options = {}) {
     let projectDirFlag = '-p'
     let overwriteDockerfileFlag = '-f'
     let projectDirArgs = [projectDirFlag, projectDir]
-    args = [
+    let args = [
         funcLocation,
         command,
         projectDirArgs.join(' '),
@@ -224,7 +224,7 @@ async function testUnit(cb) {
 }
 
 async function compileCli2Ts() {
-    src(['./cli2/*.ts', '!./cli2/*.test.ts']).pipe(cliTsProject()).pipe(dest('./cli2/lib/'))
+    src(['./cli2/*.ts','./cli2/package.json', '!./cli2/*.test.ts']).pipe(cliTsProject()).pipe(dest('./cli2/lib/'))
 }
 
 
