@@ -4,7 +4,6 @@ dist
 .vscode
 .idea
 .metals/
-morphir-ir.json
 morphir-hashes.json
 morphir-test-coverage.json
 generated/
