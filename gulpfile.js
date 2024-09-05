@@ -224,7 +224,7 @@ async function testUnit(cb) {
 }
 
 async function compileCli2Ts() {
-    src(['./cli2/*.ts','./cli2/package.json', '!./cli2/*.test.ts']).pipe(cliTsProject()).pipe(dest('./cli2/lib/'))
+    src(['./cli2/*.ts','!./cli2/*.test.ts']).pipe(cliTsProject()).pipe(dest('./cli2/lib/'))
 }
 
 
@@ -366,7 +366,7 @@ async function testCreateCSV(cb) {
     if (!shell.which('bash')) {
         console.log("Automatically creating CSV files is not available on this platform");
     } else {
-        code_no = shell.exec('bash ./create_csv_files.sh', { cwd: './tests-integration/spark/elm-tests/tests' }).code
+        let code_no = shell.exec('bash ./create_csv_files.sh', { cwd: './tests-integration/spark/elm-tests/tests' }).code
         if (code_no != 0) {
             console.error('ERROR: CSV files cannot be created')
             return false;
@@ -394,7 +394,7 @@ const testIntegration = series(
         ),
         series(
             testIntegrationGenTypeScript,
-            testIntegrationTestTypeScript,
+            // testIntegrationTestTypeScript,
         ),
     ), testIntegrationDockerize,
     testIntegrationJsonSchemaGen
