@@ -2,7 +2,7 @@
   "name": "morphir-elm",
   "version": "2.89.0",
   "description": "Elm bindings for Morphir",
-  "type": "module",
+  "type": "commonjs",
   "types": "lib/dist/main.d.ts",
   "main": "lib/dist/main.js",
   "module": "es6",
