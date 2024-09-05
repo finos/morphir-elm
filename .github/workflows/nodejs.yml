@@ -39,6 +39,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-elm-
 
+      - name: Predownloading Download dependencies
+        run: npm install
       - name: Download dependencies
         run: npm ci
 
