@@ -88,8 +88,8 @@ under that or in submodules.
 * **sourceDirectory** - The directory where your Elm sources are located.
 * **dependencies** - List of URI references to other IR files. Supports 
 `file://`|`http://`|`https://`|`data://` protocols.
-* **localDependencies** - List of relative paths to depending IRs. (for backwards compatibility) 
-`file://`|`http://`|`https://`|`data://` protocols. 
+* **localDependencies** - List of relative paths to depending IRs. (for backwards compatibility), ex: `"../sibling-folder/morphir-ir.json"`
+
 * **exposedModules** - The list of modules in the public interface of the package. Module names should exclude the 
 common package prefix. In the above example `Foo` refers to the Elm module `My.Package.Foo`. 
   
