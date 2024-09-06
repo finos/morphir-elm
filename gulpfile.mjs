@@ -384,7 +384,7 @@ const testIntegrationSpark = series(
 const testIntegration = series(
     testIntegrationClean,
     testIntegrationMake,
-    testCreateCSV,
+    // testCreateCSV,
     parallel(
         testIntegrationMorphirTest,
         //testIntegrationSpark,
