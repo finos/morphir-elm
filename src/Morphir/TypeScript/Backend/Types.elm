@@ -261,7 +261,7 @@ mapTypeExp tpe =
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
             TS.Number
-        
+
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "decimal" ] ], [ "decimal" ] ) [] ->
             TS.Number
 
@@ -362,6 +362,9 @@ decoderExpression customTypeVars typeExp inputArg =
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "char" ] ], [ "char" ] ) [] ->
             { function = codecsModule "decodeChar", arguments = [ inputArg ] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "decimal" ] ], [ "decimal" ] ) [] ->
+            { function = codecsModule "decodeDecimal", arguments = [ inputArg ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
             { function = codecsModule "decodeString", arguments = [ inputArg ] }
@@ -686,6 +689,9 @@ encoderExpression customTypeVars typeExp valueArg =
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "char" ] ], [ "char" ] ) [] ->
             { function = codecsModule "encodeChar", arguments = [ valueArg ] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "decimal" ] ], [ "decimal" ] ) [] ->
+            { function = codecsModule "encodeDecimal", arguments = [ valueArg ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
             { function = codecsModule "encodeString", arguments = [ valueArg ] }
