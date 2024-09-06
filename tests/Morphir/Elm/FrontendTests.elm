@@ -433,7 +433,7 @@ valueTests =
         , checkIR "\\42 -> foo " <| Lambda () (LiteralPattern () (WholeNumberLiteral 42)) (ref "foo")
         , checkIR "\\0x20 -> foo " <| Lambda () (LiteralPattern () (WholeNumberLiteral 32)) (ref "foo")
         , checkIR "\\( 1, 2 ) -> foo " <| Lambda () (TuplePattern () [ LiteralPattern () (WholeNumberLiteral 1), LiteralPattern () (WholeNumberLiteral 2) ]) (ref "foo")
-        , checkIR "\\1 :: 2 -> foo " <| Lambda () (HeadTailPattern () (LiteralPattern () (WholeNumberLiteral 1)) (LiteralPattern () (WholeNumberLiteral 2))) (ref "foo")
+        , checkIR "\\(1 :: 2) -> foo " <| Lambda () (HeadTailPattern () (LiteralPattern () (WholeNumberLiteral 1)) (LiteralPattern () (WholeNumberLiteral 2))) (ref "foo")
         , checkIR "\\[] -> foo " <| Lambda () (EmptyListPattern ()) (ref "foo")
         , checkIR "\\[ 1 ] -> foo " <| Lambda () (HeadTailPattern () (LiteralPattern () (WholeNumberLiteral 1)) (EmptyListPattern ())) (ref "foo")
         , checkIR "\\([] as bar) -> foo " <| Lambda () (AsPattern () (EmptyListPattern ()) (Name.fromString "bar")) (ref "foo")
