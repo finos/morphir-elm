@@ -1,6 +1,6 @@
 {
   "name": "morphir-elm",
-  "version": "2.89.0",
+  "version": "2.90.0",
   "description": "Elm bindings for Morphir",
   "type": "commonjs",
   "types": "lib/dist/main.d.ts",
