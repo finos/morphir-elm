@@ -7,6 +7,7 @@
   "main": "lib/dist/main.js",
   "module": "es6",
   "scripts": {
+    "prepare": "npm run setup-elm-tooling",
     "clean": "gulp clean",
     "test": "gulp test",
     "test-morphir-ir-typescript": "gulp testMorphirIRTypeScript",
@@ -23,8 +24,7 @@
     "build-cli2": "gulp buildCLI2",
     "test-coverage": "elm-coverage src/ --open",
     "build-value-editor": "elm make cli/src/Morphir/Web/Editor.elm --output=cli/web/valueEditor.js",
-    "setup-elm-tooling": "elm-tooling install",
-    "postinstall": "elm-tooling install"
+    "setup-elm-tooling": "elm-tooling install"
   },
   "repository": {
     "type": "git",
