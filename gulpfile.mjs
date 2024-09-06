@@ -366,7 +366,7 @@ async function testCreateCSV(cb) {
     if (!shell.which('bash')) {
         console.log("Automatically creating CSV files is not available on this platform");
     } else {
-        code_no = shell.exec('bash ./create_csv_files.sh', { cwd: './tests-integration/spark/elm-tests/tests' }).code
+        let code_no = shell.exec('bash ./create_csv_files.sh', { cwd: './tests-integration/spark/elm-tests/tests' }).code
         if (code_no != 0) {
             console.error('ERROR: CSV files cannot be created')
             return false;
