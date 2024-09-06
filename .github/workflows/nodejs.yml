@@ -24,7 +24,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Cache NPM
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -32,7 +32,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Cache Elm
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.elm
           key: ${{ runner.os }}-elm-${{ hashFiles('**/elm.json') }}
