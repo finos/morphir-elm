@@ -39,6 +39,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-elm-
 
+      - name: New NPM version
+        run: |
+          majorVersion=$(node -v | cut -d. -f1 | cut -d'v' -f2)
+          npm i -g npm --prefix=/usr/local/opt/node@$majorVersion
+
       - name: Download dependencies
         run: npm ci
 
