@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-class DecodeError extends Error { }
+class DecodeError extends Error {}
 
 Object.defineProperty(DecodeError.prototype, "name", {
   value: "DecodeError",
@@ -24,6 +24,7 @@ type CodecFunction = (input: any) => any;
 
 type CodecList = Array<CodecFunction>;
 type CodecMap = Map<string, CodecFunction>;
+type Decimal = number;
 
 // Construct a codec map, avoiding spurious type errors.
 //
@@ -62,6 +63,13 @@ export function decodeChar(input: any): string {
   return input;
 }
 
+export function decodeDecimal(input: any): Decimal {
+  if (typeof input != "number") {
+    throw new DecodeError(`Expected Decimal, got ${typeof input}`);
+  }
+  return input;
+}
+
 export function decodeString(input: any): string {
   if (typeof input != "string") {
     throw new DecodeError(`Expected string, got ${typeof input}`);
@@ -83,11 +91,14 @@ export function decodeFloat(input: any): number {
   return input;
 }
 
-export function decodeMaybe<T>(decodeElement: (any) => T, input: any): T | null {
+export function decodeMaybe<T>(
+  decodeElement: (any) => T,
+  input: any
+): T | null {
   if (input == null) {
-    return null
+    return null;
   } else {
-    return decodeElement(input)
+    return decodeElement(input);
   }
 }
 export function decodeDict<K, V>(
@@ -100,7 +111,6 @@ export function decodeDict<K, V>(
   }
 
   const inputArray: Array<any> = input;
-
 
   return new Map(
     inputArray.map((item: any) => {
@@ -135,13 +145,14 @@ export function decodeRecord<recordType>(
 
   const fieldNames: Array<string> = Array.from(fieldDecoders.keys());
   for (var field of fieldNames) {
-    if (!(Object.keys(input).includes(field))) {
+    if (!Object.keys(input).includes(field)) {
       throw new DecodeError(`Expected field ${field} was not found`);
     }
   }
   if (Object.keys(inputObject).length > fieldNames.length) {
     throw new DecodeError(
-      `Input object has extra fields, expected ${fieldNames.length}, got ${input.keys().length
+      `Input object has extra fields, expected ${fieldNames.length}, got ${
+        input.keys().length
       }`
     );
   }
@@ -210,6 +221,10 @@ export function encodeChar(value: string): string {
   return value;
 }
 
+export function encodeDecimal(value: Decimal): Decimal {
+  return value;
+}
+
 export function encodeString(value: string): string {
   return value;
 }
@@ -224,9 +239,9 @@ export function encodeFloat(value: number): number {
 
 export function encodeMaybe<T>(encodeElement: (any) => T, value: T | null) {
   if (value == null) {
-    return null
+    return null;
   } else {
-    return encodeElement(value)
+    return encodeElement(value);
   }
 }
 export function encodeDict<K, V>(
@@ -303,6 +318,6 @@ export function raiseDecodeErrorFromCustomType(
 ): void {
   throw new DecodeError(
     `Error while attempting to decode an instance of ${customTypeName}.` +
-    ` "${kind}" is not a valid 'kind' field for ${customTypeName}.`
+      ` "${kind}" is not a valid 'kind' field for ${customTypeName}.`
   );
 }

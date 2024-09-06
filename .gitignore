@@ -5,6 +5,8 @@ dist
 .idea
 .metals/
 morphir-ir.json
+!tests-integration/cli2-qa-test/test-data/business-terms/morphir-ir.json
+
 morphir-hashes.json
 morphir-test-coverage.json
 generated/
