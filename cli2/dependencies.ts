@@ -35,7 +35,7 @@ export const FileUrl = z.string().trim().url().transform((val, ctx) => {
 });
 
 type LocalFileRef = {
-  projectDir: string, 
+  baseDir: string, 
   original: string,
   fullPath: string,
   url?: URL,
@@ -43,9 +43,9 @@ type LocalFileRef = {
 }
 
 export const LocalFile = z.object({
-  projectDir: z.string(),
+  baseDir: z.string(),
   sanitized: z.string(),
-}).transform(val => <LocalFileRef>{projectDir:val.projectDir, original: val.sanitized, fullPath: path.resolve(val.projectDir, val.sanitized ) })
+}).transform(val => <LocalFileRef>{baseDir:val.baseDir, original: val.sanitized, fullPath: path.resolve(val.baseDir, val.sanitized ) })
   .transform(ref => <LocalFileRef>({ ...ref, url: new URL(`file://${ref.fullPath}`) }))
   .refine((ref: LocalFileRef) => fs.existsSync(ref.fullPath),
     (ref: LocalFileRef) => {
@@ -53,19 +53,6 @@ export const LocalFile = z.object({
       return { message: `File not found ${ref.original}` };
     })
   .transform(ref => ref.url!);
-
-
-  export const CurrrentWorkDirectorReferenceFile = z.object({
-    projectDir: z.string(),
-    sanitized: z.string(),
-  }).transform(val => <LocalFileRef>{projectDir:val.projectDir, original: val.sanitized, fullPath: path.resolve(process.cwd(), val.sanitized ) })
-    .transform(ref => <LocalFileRef>({ ...ref, url: new URL(`file://${ref.fullPath}`) }))
-    .refine((ref: LocalFileRef) => fs.existsSync(ref.fullPath),
-      (ref: LocalFileRef) => {
-        console.error(`File not found from current directory ${ref.original}: ${ref.fullPath}`)
-        return { message: `File not found ${ref.original}` };
-      })
-    .transform(ref => ref.url!);
 
   const SUPPORTED_PROTOCOLS = new Set(["http:", "https:", "ftp:"]);
 
@@ -208,18 +195,19 @@ const loadDependenciesFromString = (config: DependencyConfig) => function(input:
       console.info("Loading url", urlData);
       return fetchUriToJson(urlData);
     }
-    let { success: localFileSuccess, data: localUrlData } = LocalFile.safeParse({projectDir : config.projectDir, sanitized});
+
+    let { success: localFileSuccess, data: localUrlData } = LocalFile.safeParse({baseDir : config.projectDir, sanitized});
     if (localFileSuccess && localUrlData !== undefined) {
 
-      console.info("Loading local file url", localUrlData);
+      console.info("Loading local file url from morphir.json directory", localUrlData);
       return fetchUriToJson(localUrlData);
 
     }
     
-    let { success: localFileCWDSuccess, data: localUrlCWDData } = CurrrentWorkDirectorReferenceFile.safeParse({projectDir : config.projectDir, sanitized});
+    let { success: localFileCWDSuccess, data: localUrlCWDData } = LocalFile.safeParse({baseDir : process.cwd(), sanitized});
     if (localFileCWDSuccess && localUrlCWDData !== undefined) {
 
-      console.info("Loading local file url", localUrlCWDData);
+      console.info("Loading local file url from current working directory ", localUrlCWDData);
       return fetchUriToJson(localUrlCWDData);
 
     }

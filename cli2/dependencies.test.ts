@@ -18,7 +18,7 @@ describe("the dependencies module", () => {
     test("should fail if can't find the file.", () => {
       try {
         dep.LocalFile.parse({
-          projectDir: __dirname,
+          baseDir: __dirname,
           sanitized: "./shouldFail.ir",
         });
       } catch (error) {
@@ -39,7 +39,7 @@ describe("the dependencies module", () => {
       let expectedUrl = new URL(`file://${expectedFile}`);
 
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
-        projectDir: __dirname,
+        baseDir: __dirname,
         sanitized: `./${fileName}`,
       });
       expect({ success: urlSuccess, data: urlData }).toStrictEqual({
@@ -53,7 +53,7 @@ describe("the dependencies module", () => {
 
       let expectedUrl = new URL(`file://${expectedFile}`);
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
-        projectDir: __dirname,
+        baseDir: __dirname,
         sanitized: `../${fileName}`,
       });
       expect({ success: urlSuccess, data: urlData }).toStrictEqual({
@@ -67,7 +67,7 @@ describe("the dependencies module", () => {
 
       let expectedUrl = new URL(`file://${expectedFile}`);
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
-        projectDir: __dirname,
+        baseDir: __dirname,
         sanitized: `../cli/${fileName}`,
       });
       expect({ success: urlSuccess, data: urlData }).toStrictEqual({
