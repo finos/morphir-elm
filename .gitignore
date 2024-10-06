@@ -28,3 +28,4 @@ tests-integration/reference-model/Dockerfile
 *Debug.log*
 tests-integration/cli2-qa-test/test-data/.DS_Store
 tests-integration/cli2-qa-test/test-data/business-terms/.DS_Store
+*.DS_Store*
