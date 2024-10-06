@@ -54,7 +54,20 @@ export const LocalFile = z.object({
     })
   .transform(ref => ref.url!);
 
-const SUPPORTED_PROTOCOLS = new Set(["http:", "https:", "ftp:"]);
+
+  export const CurrrentWorkDirectorReferenceFile = z.object({
+    projectDir: z.string(),
+    sanitized: z.string(),
+  }).transform(val => <LocalFileRef>{projectDir:val.projectDir, original: val.sanitized, fullPath: path.resolve(process.cwd(), val.sanitized ) })
+    .transform(ref => <LocalFileRef>({ ...ref, url: new URL(`file://${ref.fullPath}`) }))
+    .refine((ref: LocalFileRef) => fs.existsSync(ref.fullPath),
+      (ref: LocalFileRef) => {
+        console.error(`File not found from current directory ${ref.original}: ${ref.fullPath}`)
+        return { message: `File not found ${ref.original}` };
+      })
+    .transform(ref => ref.url!);
+
+  const SUPPORTED_PROTOCOLS = new Set(["http:", "https:", "ftp:"]);
 
 export const Url = z.string().url().transform((url) => new URL(url))
   .refine((url) => SUPPORTED_PROTOCOLS.has(url.protocol));
@@ -200,6 +213,14 @@ const loadDependenciesFromString = (config: DependencyConfig) => function(input:
 
       console.info("Loading local file url", localUrlData);
       return fetchUriToJson(localUrlData);
+
+    }
+    
+    let { success: localFileCWDSuccess, data: localUrlCWDData } = CurrrentWorkDirectorReferenceFile.safeParse({projectDir : config.projectDir, sanitized});
+    if (localFileCWDSuccess && localUrlCWDData !== undefined) {
+
+      console.info("Loading local file url", localUrlCWDData);
+      return fetchUriToJson(localUrlCWDData);
 
     }
 

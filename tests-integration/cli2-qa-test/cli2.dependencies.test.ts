@@ -99,6 +99,19 @@ describe('morphir dependencies', () => {
 
 			assertMorphirHashesExists();
 		});
+		test("should support local dependency from current working directory ", async () => {
+			let localInclude =   'tests-integration/cli2-qa-test/temp-local-dependencies/dependency-project/morphir-ir.json';
+			let newMorphir = { ...morphirJSON, localDependencies: [localInclude] };
+			await makeMorphirJson(newMorphir);
+
+
+
+			assertMorphirHashesIsMisssing();
+			const resultIR = await cli2.make(PATH_TO_PROJECT, CLI_OPTIONS)
+			expect(resultIR).not.toBeNull();
+
+			assertMorphirHashesExists();
+		});		
 	})
 
 	describe('Should support data URL dependencies ', () => {
