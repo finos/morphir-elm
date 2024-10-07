@@ -105,7 +105,7 @@
     "commander": "^9.0.0",
     "cookie-parser": "^1.4.6",
     "data-urls": "^5.0.0",
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "fs-extra": "^9.1.0",
     "get-stdin": "^8.0.0",
     "get-uri": "^6.0.3",
