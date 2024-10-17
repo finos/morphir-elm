@@ -1,13 +1,13 @@
 module Morphir.SDK.Json.EncodeTests exposing (..)
 
+import Dict exposing (Dict)
+import Expect
 import Json.Encode as JE exposing (..)
 import Json.Encode.Extra as JEE
 import Morphir.SDK.Json.Encode as J
-import Test exposing (..)
-import Expect
-import Set exposing (Set)
-import Dict exposing (Dict)
 import Morphir.SDK.LocalTime exposing (LocalTime, fromMilliseconds)
+import Set exposing (Set)
+import Test exposing (..)
 import Time exposing (millisToPosix)
 
 
@@ -70,7 +70,7 @@ nullTests =
     describe "null to json"
         [ test "true to json" <|
             \_ ->
-                Expect.equal (J.null) (JE.null)
+                Expect.equal J.null JE.null
         ]
 
 
@@ -79,14 +79,14 @@ listTests =
     describe "list to json"
         [ test "int list to json" <|
             \_ ->
-                Expect.equal (J.list J.int [1,3,4]) (JE.list J.int [1,3,4])
-         , test "bool list to json" <|
+                Expect.equal (J.list J.int [ 1, 3, 4 ]) (JE.list J.int [ 1, 3, 4 ])
+        , test "bool list to json" <|
             \_ ->
-                Expect.equal (J.list J.bool [True, False]) (JE.list J.bool [True, False])
-         , test "string list to json" <|
+                Expect.equal (J.list J.bool [ True, False ]) (JE.list J.bool [ True, False ])
+        , test "string list to json" <|
             \_ ->
-                Expect.equal (J.list J.string ["a","b"]) (JE.list J.string ["a", "b"])
-         , test "empty list to json" <|
+                Expect.equal (J.list J.string [ "a", "b" ]) (JE.list J.string [ "a", "b" ])
+        , test "empty list to json" <|
             \_ ->
                 Expect.equal (J.list J.string []) (JE.list J.string [])
         ]
@@ -98,13 +98,13 @@ setTests =
         [ test "int set to json" <|
             \_ ->
                 Expect.equal (J.set J.int (Set.singleton 1)) (JE.set J.int (Set.singleton 1))
-         , test "string set to json" <|
+        , test "string set to json" <|
             \_ ->
                 Expect.equal (J.set J.string (Set.singleton "a")) (JE.set J.string (Set.singleton "a"))
-         , test "multiple string set to json" <|
+        , test "multiple string set to json" <|
             \_ ->
-                Expect.equal (J.set J.string (Set.fromList ["a", "b"])) (JE.set J.string (Set.fromList ["a", "b"]))
-         , test "empty set to json" <|
+                Expect.equal (J.set J.string (Set.fromList [ "a", "b" ])) (JE.set J.string (Set.fromList [ "a", "b" ]))
+        , test "empty set to json" <|
             \_ ->
                 Expect.equal (J.set J.string Set.empty) (JE.set J.string Set.empty)
         ]
@@ -115,12 +115,18 @@ objectTests =
     describe "object to json"
         [ test "test object to json" <|
             \_ ->
-                Expect.equal (J.object [ ( "name", J.string "Tom" )
-                                                   , ( "age", J.int 42 )
-                                                   ]) (JE.object [ ( "name", J.string "Tom" )
-                                                                                                         , ( "age", J.int 42 )
-                                                                                                         ])
-         , test "empty object to json" <|
+                Expect.equal
+                    (J.object
+                        [ ( "name", J.string "Tom" )
+                        , ( "age", J.int 42 )
+                        ]
+                    )
+                    (JE.object
+                        [ ( "name", J.string "Tom" )
+                        , ( "age", J.int 42 )
+                        ]
+                    )
+        , test "empty object to json" <|
             \_ ->
                 Expect.equal (J.object []) (JE.object [])
         ]
@@ -129,16 +135,17 @@ objectTests =
 dictTests : Test
 dictTests =
     let
-        people = Dict.fromList [ ( "Tom", 42 ), ( "Sue", 38 ) ]
+        people =
+            Dict.fromList [ ( "Tom", 42 ), ( "Sue", 38 ) ]
     in
-        describe "dict to json"
-            [ test "test dict to json" <|
-                \_ ->
-                    Expect.equal (J.dict identity J.int people) (JE.dict identity J.int people)
-             , test "empty dict to json" <|
-                \_ ->
-                    Expect.equal (J.dict identity J.int Dict.empty) (JE.dict identity J.int Dict.empty)
-            ]
+    describe "dict to json"
+        [ test "test dict to json" <|
+            \_ ->
+                Expect.equal (J.dict identity J.int people) (JE.dict identity J.int people)
+        , test "empty dict to json" <|
+            \_ ->
+                Expect.equal (J.dict identity J.int Dict.empty) (JE.dict identity J.int Dict.empty)
+        ]
 
 
 localTimeTests : Test
@@ -150,14 +157,13 @@ localTimeTests =
         ]
 
 
-
 maybeTests : Test
 maybeTests =
     describe "maybe to json"
         [ test "Nothing to json" <|
             \_ ->
                 Expect.equal (J.maybe J.int Nothing) (JEE.maybe J.int Nothing)
-         , test "Just to json" <|
+        , test "Just to json" <|
             \_ ->
                 Expect.equal (J.maybe J.int (Just 1)) (JEE.maybe J.int (Just 1))
         ]
