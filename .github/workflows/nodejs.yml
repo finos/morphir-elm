@@ -48,28 +48,57 @@ jobs:
       - name: Running Test
         run: npm test
 
-  # CVE scanning
-  cvescan:
-    name: CVE Scanning
-    runs-on: ubuntu-latest
-    needs: [build]
-    strategy:
-      matrix:
-        node-version: [18.x]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      ###########################
+      ## Sonatype SCA Scanning ##
+      ###########################
+      - name: Sonatype Lifecycle SCA Scan
+        id: evaluate
+        uses: sonatype/actions/evaluate@v1
         with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm ci
-      - run: npx --yes auditjs ossi --whitelist allow-list.json
+          iq-server-url: https://finos.sonatype.app/platform/
+          username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
+          password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
+          application-id: morphir-elm
+          stage: "build"
+          scan-targets: "."
+          module-exclude: "**/docs/ **/.*'"
+
+      - name: Save Sonatype SBOM
+        uses: sonatype/actions/fetch-sbom@v1
+        if: ( success() || failure() ) && steps.evaluate.outputs.scan-id
+        with:
+          iq-server-url: https://finos.sonatype.app/platform/
+          username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
+          password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
+          application-id: morphir-elm
+          scan-id: ${{ steps.evaluate.outputs.scan-id }}
+          sbom-standard: spdx
+          sbom-version: 2.3
+          artifact-name: morphir-elm-bom
+
+  # CVE scanning
+  # cvescan:
+  #   name: CVE Scanning
+  #   runs-on: ubuntu-latest
+  #   needs: [build]
+  #   strategy:
+  #     matrix:
+  #       node-version: [18.x]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Use Node.js ${{ matrix.node-version }}
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ matrix.node-version }}
+  #     - run: npm ci
+  #     - run: npx --yes auditjs ossi --whitelist allow-list.json
 
   # Semgrep static code analysis
   semgrep:
     name: Semgrep
     runs-on: ubuntu-latest
-    needs: [cvescan]
+    # needs: [cvescan]
+    needs: [build]
     container:
       # A Docker image with Semgrep installed. Don't change this.
       image: returntocorp/semgrep
