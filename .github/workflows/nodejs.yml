@@ -6,6 +6,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
+env:
+  SonatypeUrl: "https://finos.sonatype.app/platform/"
+  SonatypeAppId: "morphir-elm"
+  SonatypeScanTarget: "."
+  ExcludeDirectory: "**/docs/ **/.*'"
+      
 jobs:
   # building project
   build:
@@ -55,26 +62,26 @@ jobs:
         id: evaluate
         uses: sonatype/actions/evaluate@v1
         with:
-          iq-server-url: https://finos.sonatype.app/platform/
+          iq-server-url: ${{ env.SonatypeUrl }}
           username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
           password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
-          application-id: morphir-elm
+          application-id: ${{ env.SonatypeAppId }}
           stage: "build"
-          scan-targets: "."
-          module-exclude: "**/docs/ **/.*'"
+          scan-targets: ${{ env.SonatypeScanTarget }}
+          module-exclude: ${{ env.ExcludeDirectory }}
 
       - name: Save Sonatype SBOM
         uses: sonatype/actions/fetch-sbom@v1
-        if: ( success() || failure() ) && steps.evaluate.outputs.scan-id
+        if: always() && steps.evaluate.outputs.scan-id
         with:
-          iq-server-url: https://finos.sonatype.app/platform/
+          iq-server-url: ${{ env.SonatypeUrl }}
           username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
           password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
-          application-id: morphir-elm
+          application-id: ${{ env.SonatypeAppId }}
           scan-id: ${{ steps.evaluate.outputs.scan-id }}
           sbom-standard: spdx
           sbom-version: 2.3
-          artifact-name: morphir-elm-bom
+          artifact-name: ${{ env.SonatypeAppId }}-bom
 
   # CVE scanning
   # cvescan:
