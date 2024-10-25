@@ -6,7 +6,7 @@ module Morphir.SDK.Json.Decode exposing
     , decodeString, decodeValue, Value, Error, errorToString
     , map, map2, map3, map4, map5, map6, map7, map8
     , lazy, value, null, succeed, fail, andThen
-    , date, localTime, nothing
+    , localTime, nothing
     )
 
 {-| Turn JSON values into Elm values. Definitely check out this [intro to
@@ -58,7 +58,7 @@ errors.
 
 # Extra
 
-@docs date, localTime, nothing
+@docs localTime, nothing
 
 -}
 
@@ -673,7 +673,7 @@ nothing =
 into a `LocalTime`.
 
     import Json.Decode exposing (..)
-    import Time
+    import LocalTime
 
     decodeString (field "created_at" localTime)
         "{ \"created_at\": 1574447205.394}"
@@ -683,34 +683,3 @@ into a `LocalTime`.
 localTime : Decoder LocalTime
 localTime =
     DEE.posix
-
-
-{-| Decode an ISO8601 JSON string into a `Posix`.
-
-    import Json.Decode exposing (..)
-    import Time
-
-    decodeString (field "created_at" date) "{ \"created_at\": \"2019-11-22\"}"
-        --> Ok (2019, Time.Nov, 22)
-
--}
-date : Decoder ( Int, Month, Int )
-date =
-    string
-        |> andThen
-            (\val ->
-                case String.split "-" val of
-                    [ y_, m_, d_ ] ->
-                        Maybe.map3
-                            (\a b c -> succeed ( a, b, c ))
-                            (String.right 4 y_ |> String.toInt)
-                            (String.right 2 m_
-                                |> String.toInt
-                                |> Maybe.andThen intToMonth
-                            )
-                            (String.right 2 d_ |> String.toInt)
-                            |> Maybe.withDefault (fail ("Unknown dat value: " ++ val))
-
-                    _ ->
-                        fail ("Unknown date value: " ++ val)
-            )
