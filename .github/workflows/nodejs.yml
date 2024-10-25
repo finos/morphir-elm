@@ -59,6 +59,7 @@ jobs:
       ## Sonatype SCA Scanning ##
       ###########################
       - name: Sonatype Lifecycle SCA Scan
+        if: github.repository_owner == 'finos'
         id: evaluate
         uses: sonatype/actions/evaluate@v1
         with:
