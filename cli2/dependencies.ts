@@ -35,7 +35,7 @@ export const FileUrl = z.string().trim().url().transform((val, ctx) => {
 });
 
 type LocalFileRef = {
-  projectDir: string, 
+  baseDir: string,
   original: string,
   fullPath: string,
   url?: URL,
@@ -43,9 +43,9 @@ type LocalFileRef = {
 }
 
 export const LocalFile = z.object({
-  projectDir: z.string(),
+  baseDir: z.string(),
   sanitized: z.string(),
-}).transform(val => <LocalFileRef>{projectDir:val.projectDir, original: val.sanitized, fullPath: path.resolve(val.projectDir, val.sanitized ) })
+}).transform(val => <LocalFileRef>{ baseDir: val.baseDir, original: val.sanitized, fullPath: path.resolve(val.baseDir, val.sanitized) })
   .transform(ref => <LocalFileRef>({ ...ref, url: new URL(`file://${ref.fullPath}`) }))
   .refine((ref: LocalFileRef) => fs.existsSync(ref.fullPath),
     (ref: LocalFileRef) => {
@@ -87,7 +87,7 @@ const IncludeProvided = z.object({
 
 const LocalDependencyProvided = z.object({
   eventKind: z.literal('LocalDependencyProvided'),
-  payload: z.string() 
+  payload: z.string()
 })
 
 const DependencyProvided = z.object({
@@ -148,7 +148,7 @@ export async function loadAllDependencies(config: DependencyConfig) {
   });
 }
 
-const load = (config: DependencyConfig) => function(event: DependencyEvent) {
+const load = (config: DependencyConfig) => function (event: DependencyEvent) {
 
   //TODO: Clear this up
   let source: "dependencies" | "localDependencies" | "includes";
@@ -173,7 +173,7 @@ const load = (config: DependencyConfig) => function(event: DependencyEvent) {
       }
   }
 }
-const loadDependenciesFromString = (config: DependencyConfig) => function(input: string, source: string) {
+const loadDependenciesFromString = (config: DependencyConfig) => function (input: string, source: string) {
   const doWork = async () => {
     let sanitized = input.trim();
     let { success, data } = DataUrl.safeParse(sanitized);
@@ -195,10 +195,19 @@ const loadDependenciesFromString = (config: DependencyConfig) => function(input:
       console.info("Loading url", urlData);
       return fetchUriToJson(urlData);
     }
-    let { success: localFileSuccess, data: localUrlData } = LocalFile.safeParse({projectDir : config.projectDir, sanitized});
+
+    let { success: localFileCWDSuccess, data: localUrlCWDData } = LocalFile.safeParse({ baseDir: process.cwd(), sanitized });
+    if (localFileCWDSuccess && localUrlCWDData !== undefined) {
+
+      console.info("Loading local file url from current working directory ", localUrlCWDData);
+      return fetchUriToJson(localUrlCWDData);
+
+    }
+
+    let { success: localFileSuccess, data: localUrlData } = LocalFile.safeParse({ baseDir: config.projectDir, sanitized });
     if (localFileSuccess && localUrlData !== undefined) {
 
-      console.info("Loading local file url", localUrlData);
+      console.info("Loading local file url from morphir.json directory", localUrlData);
       return fetchUriToJson(localUrlData);
 
     }
