@@ -60,6 +60,7 @@ import Json.Encode as Encode
 import Morphir.Compiler as Compiler
 import Morphir.Elm.Frontend.Resolve as Resolve exposing (ModuleResolver)
 import Morphir.Elm.IncrementalFrontend as IncrementalFrontend
+import Morphir.Elm.ModuleName as ModuleName
 import Morphir.Elm.WellKnownOperators as WellKnownOperators
 import Morphir.Graph
 import Morphir.IR.AccessControlled exposing (AccessControlled, private, public)
@@ -160,6 +161,7 @@ type Error
     | MissingTypeSignature SourceLocation
     | RecordPatternNotSupported SourceLocation
     | TypeInferenceError SourceLocation Infer.TypeError
+    | ExposedModuleNotFound Path
 
 
 type alias Imports =
@@ -435,6 +437,9 @@ mapSource opts packageInfo dependencies sourceFiles =
                                                 ("Type inference error: " ++ Encode.encode 0 (encodeTypeError typeError))
                                                 sourceLocation
                                                 []
+
+                                        ExposedModuleNotFound _ ->
+                                            []
                                 )
                             |> List.foldl
                                 (\( filePath, fileError ) soFar ->
@@ -471,6 +476,18 @@ mapSource opts packageInfo dependencies sourceFiles =
                                                             |> Morphir.Graph.nodeLabels
                                                             |> Set.toList
                                                             |> List.map (String.join "/")
+                                                    }
+                                                )
+
+                                        ExposedModuleNotFound modulePath ->
+                                            Just
+                                                (Compiler.ErrorAcrossSourceFiles
+                                                    { errorMessage =
+                                                        String.concat
+                                                            [ "Exposed module name not found: "
+                                                            , Path.toString Name.toTitleCase "." modulePath
+                                                            ]
+                                                    , files = []
                                                     }
                                                 )
 
@@ -557,9 +574,28 @@ packageDefinitionFromSource opts packageInfo dependencies sourceFiles =
     case packageInfo.exposedModules of
         Just exposedModules ->
             let
-                exposedModuleNames : Set ModuleName
-                exposedModuleNames =
-                    exposedModules
+                validateExposedModules : Set Path -> List ModuleName -> Result Errors (Set Path)
+                validateExposedModules userSpecifiedExposedModules availableModules =
+                    let
+                        missingModuleNames : Set Path
+                        missingModuleNames =
+                            availableModules
+                                |> List.map (List.map Name.fromString)
+                                |> Set.fromList
+                                |> Set.diff userSpecifiedExposedModules
+                    in
+                    if Set.isEmpty missingModuleNames then
+                        Ok userSpecifiedExposedModules
+
+                    else
+                        missingModuleNames
+                            |> Set.toList
+                            |> List.map ExposedModuleNotFound
+                            |> Err
+
+                exposedModuleNames : Set Path -> Set ModuleName
+                exposedModuleNames validExposedModules =
+                    validExposedModules
                         |> Set.map
                             (\modulePath ->
                                 (packageInfo.name |> Path.toList)
@@ -574,14 +610,19 @@ packageDefinitionFromSource opts packageInfo dependencies sourceFiles =
                             --_ =
                             --    Debug.log "Parsed sources" (parsedFiles |> List.length)
                             --
+                            parsedFilesByModuleName : Dict ModuleName ParsedFile
                             parsedFilesByModuleName =
                                 parsedFiles
                                     |> Dict.fromList
                         in
-                        parsedFiles
-                            |> treeShakeModules exposedModuleNames
-                            |> sortModules
-                            |> Result.andThen (mapParsedFiles opts dependencies packageInfo.name parsedFilesByModuleName)
+                        validateExposedModules exposedModules (Dict.keys parsedFilesByModuleName)
+                            |> Result.andThen
+                                (\validExposedModules ->
+                                    parsedFiles
+                                        |> treeShakeModules (exposedModuleNames validExposedModules)
+                                        |> sortModules
+                                        |> Result.andThen (mapParsedFiles opts dependencies packageInfo.name parsedFilesByModuleName)
+                                )
                     )
                 |> Result.map
                     (\moduleDefs ->
