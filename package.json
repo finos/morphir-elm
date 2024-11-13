@@ -7,6 +7,7 @@
   "main": "lib/dist/main.js",
   "module": "es6",
   "scripts": {
+    "prepare": "npm run setup-elm-tooling",
     "clean": "gulp clean",
     "test": "gulp test",
     "test-morphir-ir-typescript": "gulp testMorphirIRTypeScript",
