@@ -577,12 +577,21 @@ packageDefinitionFromSource opts packageInfo dependencies sourceFiles =
                 validateExposedModules : Set Path -> List ModuleName -> Result Errors (Set Path)
                 validateExposedModules userSpecifiedExposedModules availableModules =
                     let
+                        userSpecifiedExposedModuleNames : Set Path
+                        userSpecifiedExposedModuleNames =
+                            userSpecifiedExposedModules
+                                |> Set.map
+                                    (\modulePath ->
+                                        (packageInfo.name |> Path.toList)
+                                            ++ (modulePath |> Path.toList)
+                                    )
+
                         missingModuleNames : Set Path
                         missingModuleNames =
                             availableModules
                                 |> List.map (List.map Name.fromString)
                                 |> Set.fromList
-                                |> Set.diff userSpecifiedExposedModules
+                                |> Set.diff userSpecifiedExposedModuleNames
                     in
                     if Set.isEmpty missingModuleNames then
                         Ok userSpecifiedExposedModules
