@@ -1,0 +1,31 @@
+{
+	"compilerOptions": {
+		"rootDir": "./src",
+		"outDir": "./dist/", 
+		
+		"module": "ES6",
+		"target": "ES6",
+
+		"jsx": "react",
+      	"allowJs": true,
+
+		"lib": [
+			"es6","DOM"
+		],
+
+		"moduleResolution": "node",
+
+		"sourceMap": true,
+
+		"skipLibCheck": true,
+		"strict": true  /* enable all strict type-checking options */},
+	
+	"include": ["./src"],
+
+	"exclude": [
+		"node_modules",
+		".vscode-test",
+		"webviews",
+		"lib"
+	]
+}
