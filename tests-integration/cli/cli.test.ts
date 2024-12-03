@@ -34,9 +34,8 @@ describe('Testing Morphir-elm make command', () => {
 		await writeFile(path.join(PATH_TO_PROJECT, 'morphir.json'), JSON.stringify(morphirJSON))
 	})
 
-	test('should create an IR with no modules when no elm files are found', async () => {
-		const IR = await cli.make(PATH_TO_PROJECT, CLI_OPTIONS)
-		expect(IR.distribution[3].modules).toMatchObject([])
+	test('should fail with missing exposed module when no elm files are found', async () => {
+		await expect(cli.make(PATH_TO_PROJECT, CLI_OPTIONS)).rejects.toBeInstanceOf(Array)
 	})
 
 	test('should create an IR with no types when no types are found in elm file', async () => {

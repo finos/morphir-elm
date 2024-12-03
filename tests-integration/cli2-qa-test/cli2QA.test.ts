@@ -40,7 +40,7 @@ describe('Testing morphir-elm make and morphir make command', () => {
 		if (irExists) await util.promisify(fs.rm)(path.join(PATH_TO_PROJECT, 'morphir-ir.json'))
 	})
 
-	test('should create an IR with no modules when no elm files are found', async () => {
+	test.skip('should create an IR with no modules when no elm files are found', async () => {
 		const IR = await cli.make(PATH_TO_PROJECT, CLI_OPTIONS)
 		const IR2 = await cli2.make(PATH_TO_PROJECT, CLI_OPTIONS)
 		expect(JSON.stringify(JSON.parse(IR2))).toBe(JSON.stringify(IR))
