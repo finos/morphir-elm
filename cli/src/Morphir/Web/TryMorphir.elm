@@ -592,12 +592,6 @@ sampleSourcePrefix =
 sampleSource : String
 sampleSource =
     """
--- Surfboard Rental
-
-type Response
-    = Rejected
-    | Reserved Int
-
 request : Bool -> Int -> Int -> Response
 request allowPartial availableSurfboards requestedSurfboards =
     if availableSurfboards < requestedSurfboards then
@@ -611,48 +605,7 @@ request allowPartial availableSurfboards requestedSurfboards =
         Reserved requestedSurfboards
 
 
--- BMI Calculation
-
-type ObesityClassification
-    = Underweight
-    | NormalWeight
-    | Overweight
-    | Obesity
-
-{-| Calculate the obesity description based on the BMI value.
--}
-obesityDescription : Float -> ObesityClassification
-obesityDescription bmi =
-    if bmi < 18.5 then
-        Underweight
-    else if bmi < 24.9 then
-        NormalWeight
-    else if bmi < 29.9 then
-        Overweight
-    else
-        Obesity
-
-{-| Calculate the BMI range based on the obesity classification.
--}
-bmiRange : ObesityClassification -> (Float, Float)
-bmiRange classification =
-    case classification of
-        Underweight ->
-            (0.0, 18.4)
-        NormalWeight ->
-            (18.5, 24.9)
-        Overweight ->
-            (25.0, 29.9)
-        Obesity ->
-            (30.0, 1/0)
-
-
--- Recursion
-
-factorial : Int -> Int
-factorial n =
-    if n <= 0 then
-        1
-    else
-        n * factorial (n - 1)
-        """
+type Response
+    = Rejected
+    | Reserved Int
+    """
