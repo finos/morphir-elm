@@ -16,4 +16,5 @@ program
     .command('gen', 'Generate code from Morphir IR')
     .command('develop', 'Start up a web server and expose developer tools through a web UI')
     .command('test','Start Testing all the test cases present in morphir-ir.json')
+    .command('treeview', 'Start up a web server and expose treeview through a web UI')
     .parse(process.argv)

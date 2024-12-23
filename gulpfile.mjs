@@ -1,21 +1,43 @@
-const { series, parallel, src, dest } = require('gulp');
-const os = require('os')
-const path = require('path')
-const util = require('util')
-const fs = require('fs')
-const tmp = require('tmp')
-const git = require('isomorphic-git')
-const http = require('isomorphic-git/http/node')
-const del = require('del')
-const elmMake = require('node-elm-compiler').compile
-const execa = require('execa');
-const shell = require('shelljs')
-const mocha = require('gulp-mocha');
-const ts = require('gulp-typescript');
-const { isExpressionWithTypeArguments } = require('typescript');
+import gulp from 'gulp';
+const { series, parallel, src, dest } = gulp;
+
+import fs from 'fs';
+import concat from 'gulp-concat';
+import path from 'path';
+import tmp from 'tmp';
+import util from 'util';
+
+import git from 'isomorphic-git';
+
+import { HttpProxyAgent, HttpsProxyAgent } from 'hpagent';
+import http_node from 'isomorphic-git/http/node/index.js';
+const { request: delegate } = http_node
+
+import { deleteAsync as del } from 'del';
+import nodeElmCompiler from 'node-elm-compiler';
+const elmMake = nodeElmCompiler.compile
+
+import execa from 'execa';
+import mocha from 'gulp-mocha';
+import shell from 'shelljs';
+
+import ts from 'gulp-typescript';
+import tsp from 'typescript';
+const { isExpressionWithTypeArguments } = tsp;
+
 const mainTsProject = ts.createProject('./tsconfig.json')
 const cliTsProject = ts.createProject('./cli2/tsconfig.json')
 const readFile = util.promisify(fs.readFile)
+
+async function request({ url, method, headers, body }) {
+    const proxy = url.startsWith('https:')
+        ? { Agent: HttpsProxyAgent, url: process.env.https_proxy }
+        : { Agent: HttpProxyAgent, url: process.env.http_proxy }
+    const agent = proxy.url ? new proxy.Agent({ proxy: proxy.url }) : undefined
+    return delegate({ url, method, agent, headers, body })
+}
+
+const http = { request };
 
 const config = {
     morphirJvmVersion: '0.18.2',
@@ -85,19 +107,23 @@ function makeTryMorphir() {
     return make('cli', 'src/Morphir/Web/TryMorphir.elm', 'web/try-morphir.html')
 }
 
+async function makeComponents() {
+    return src(['./cli/web/insight.js', './cli/web/morphir-insight-element.js']).pipe(concat('insight.js')).pipe(dest('./cli/web/'))
+}
+
 const buildCLI2 =
     parallel(
         compileCli2Ts,
         makeCLI2
     )
 
-const buildMorphirAPI2 = async ()=>{
+export const buildMorphirAPI2 = async () => {
     try {
-        await morphirElmMakeRunOldCli('.', './morphir-ir.json', {typesOnly: true})
+        await morphirElmMakeRunOldCli('.', './morphir-ir.json', { typesOnly: true })
         await morphirElmGen('./morphir-ir.json', './lib/generated', 'TypeScript')
         src('./lib/sdk/**/*')
-        .pipe(dest('./lib/generated/morphir/sdk'))
-       return await execa('npx tsc', ['--project',path.join('.','lib','tsconfig.json')])
+            .pipe(dest('./lib/generated/morphir/sdk'))
+        return await execa('npx tsc', ['--project', path.join('.', 'lib', 'tsconfig.json')])
     } catch (error) {
         console.error("Error building morphir API 2", error);
         return error
@@ -115,12 +141,13 @@ const build =
         makeDevServer,
         makeDevServerAPI,
         makeInsightAPI,
+        makeComponents,
         makeTryMorphir
     )
 
 
 function morphirElmMake(projectDir, outputPath, options = {}) {
-    args = ['./cli/morphir-elm.js', 'make', '-p', projectDir, '-o', outputPath]
+    let args = ['./cli/morphir-elm.js', 'make', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {
         args.push('--types-only')
     }
@@ -129,7 +156,7 @@ function morphirElmMake(projectDir, outputPath, options = {}) {
 }
 
 function morphirElmMakeRunOldCli(projectDir, outputPath, options = {}) {
-    args = ['./cli/morphir-elm.js', 'make', '-f', '-p', projectDir, '-o', outputPath]
+    let args = ['./cli/morphir-elm.js', 'make', '-f', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {
         args.push('--types-only')
     }
@@ -138,7 +165,7 @@ function morphirElmMakeRunOldCli(projectDir, outputPath, options = {}) {
 }
 
 function morphirElmMake2(projectDir, outputPath, options = {}) {
-    args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
+    let args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {
         args.push('--types-only')
     }
@@ -148,7 +175,7 @@ function morphirElmMake2(projectDir, outputPath, options = {}) {
 
 // Generate the IR for the Json Schema mdel
 function morphirElmMakeJsonSchema(projectDir, outputPath, options = {}) {
-    args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
+    let args = ['./cli2/lib/morphir.js', 'make', '-p', projectDir, '-o', outputPath]
     if (options.typesOnly) {
         args.push('--types-only')
     }
@@ -157,20 +184,20 @@ function morphirElmMakeJsonSchema(projectDir, outputPath, options = {}) {
 }
 
 function morphirElmGen(inputPath, outputDir, target) {
-    args = ['./cli/morphir-elm.js', 'gen', '-i', inputPath, '-o', outputDir, '-t', target]
+    let args = ['./cli/morphir-elm.js', 'gen', '-i', inputPath, '-o', outputDir, '-t', target]
     console.log("Running: " + args.join(' '));
     return execa('node', args, { stdio })
 }
 
 // Test the json-schema-gen command.
 async function morphirJsonSchemaGen(inputPath, outputDir, target) {
-    args = ['./cli2/lib/morphir-json-schema-gen.js', 'json-schema-gen', '-i', inputPath, '-o', outputDir, '-t', target]
+    let args = ['./cli2/lib/morphir-json-schema-gen.js', 'json-schema-gen', '-i', inputPath, '-o', outputDir, '-t', target]
     console.log("Running: " + args.join(' '));
     try {
-        await execa('node', args, {stdio})
+        await execa('node', args, { stdio })
     } catch (err) {
         console.log("Error running json-schema-gen command", err);
-        throw(err)
+        throw (err)
     }
 }
 
@@ -181,7 +208,7 @@ function morphirDockerize(projectDir, options = {}) {
     let projectDirFlag = '-p'
     let overwriteDockerfileFlag = '-f'
     let projectDirArgs = [projectDirFlag, projectDir]
-    args = [
+    let args = [
         funcLocation,
         command,
         projectDirArgs.join(' '),
@@ -197,7 +224,7 @@ async function testUnit(cb) {
 }
 
 async function compileCli2Ts() {
-    src('./cli2/*.ts').pipe(cliTsProject()).pipe(dest('./cli2/lib/'))
+    src(['./cli2/*.ts', '!./cli2/*.test.ts']).pipe(cliTsProject()).pipe(dest('./cli2/lib/'))
 }
 
 
@@ -339,7 +366,7 @@ async function testCreateCSV(cb) {
     if (!shell.which('bash')) {
         console.log("Automatically creating CSV files is not available on this platform");
     } else {
-        code_no = shell.exec('bash ./create_csv_files.sh', { cwd: './tests-integration/spark/elm-tests/tests' }).code
+        let code_no = shell.exec('bash ./create_csv_files.sh', { cwd: './tests-integration/spark/elm-tests/tests' }).code
         if (code_no != 0) {
             console.error('ERROR: CSV files cannot be created')
             return false;
@@ -347,17 +374,17 @@ async function testCreateCSV(cb) {
     }
 }
 
-testIntegrationSpark = series(
+const testIntegrationSpark = series(
     testIntegrationMakeSpark,
     testIntegrationGenSpark,
     testIntegrationBuildSpark,
     testIntegrationTestSpark,
 )
 
-testIntegration = series(
+const testIntegration = series(
     testIntegrationClean,
     testIntegrationMake,
-    testCreateCSV,
+    // testCreateCSV,
     parallel(
         testIntegrationMorphirTest,
         //testIntegrationSpark,
@@ -369,8 +396,8 @@ testIntegration = series(
             testIntegrationGenTypeScript,
             testIntegrationTestTypeScript,
         ),
-    ),testIntegrationDockerize,
-     testIntegrationJsonSchemaGen
+    ), testIntegrationDockerize,
+    testIntegrationJsonSchemaGen
 )
 
 
@@ -412,7 +439,7 @@ async function checkPackageLockJson() {
     }
 }
 
-testMorphirIR = series(
+const testMorphirIR = series(
     testMorphirIRMake,
     testMorphirIRGenTypeScript,
     testMorphirIRTestTypeScript,
@@ -430,27 +457,25 @@ const csvfiles = series(
     testCreateCSV,
 )
 
-exports.clean = clean;
-exports.makeCLI = makeCLI;
-exports.makeDevCLI = makeDevCLI;
-exports.buildCLI2 = buildCLI2;
-exports.compileMain2Ts = compileMain2Ts;
-exports.build = build;
-exports.test = test;
-exports.csvfiles = csvfiles;
-exports.testIntegration = testIntegration;
-exports.testIntegrationSpark = testIntegrationSpark;
-exports.testMorphirIR = testMorphirIR;
-exports.testMorphirIRTypeScript = testMorphirIR;
-exports.checkPackageLockJson = checkPackageLockJson;
-exports.default =
+export {
+    build, buildCLI2, checkPackageLockJson, clean, compileMain2Ts, csvfiles, makeCLI,
+    makeDevCLI, test, testIntegration,
+    testIntegrationSpark,
+    testMorphirIR
+};
+
+
+    export { testMorphirIR as testMorphirIRTypeScript };
+
+
+
+export default series(
+    clean,
+    checkPackageLockJson,
     series(
-        clean,
-        checkPackageLockJson,
-        series(
-            cloneMorphirJVM,
-            copyMorphirJVMAssets,
-            cleanupMorphirJVM
-        ),
-        build
-    );
+        cloneMorphirJVM,
+        copyMorphirJVMAssets,
+        cleanupMorphirJVM
+    ),
+    build
+);

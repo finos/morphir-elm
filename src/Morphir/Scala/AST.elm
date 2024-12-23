@@ -41,7 +41,6 @@ generator uses. It's a relatively large portion of the language but it's not aim
 
 import Decimal exposing (Decimal)
 
-
 {-| -}
 type alias Name =
     String

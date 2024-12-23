@@ -5,6 +5,8 @@ dist
 .idea
 .metals/
 morphir-ir.json
+!tests-integration/cli2-qa-test/test-data/business-terms/morphir-ir.json
+
 morphir-hashes.json
 morphir-test-coverage.json
 generated/
@@ -23,3 +25,7 @@ docs.json
 tests-integration/reference-model/Dockerfile
 
 .scala-build/
+*Debug.log*
+tests-integration/cli2-qa-test/test-data/.DS_Store
+tests-integration/cli2-qa-test/test-data/business-terms/.DS_Store
+*.DS_Store*
