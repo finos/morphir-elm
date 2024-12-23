@@ -27,6 +27,7 @@ import Morphir.IR.SDK.Basics as Basics
 import Morphir.IR.SDK.Char as Char
 import Morphir.IR.SDK.Decimal as Decimal
 import Morphir.IR.SDK.Dict as Dict
+import Morphir.IR.SDK.Instant as Instant
 import Morphir.IR.SDK.Int as Int
 import Morphir.IR.SDK.Key as Key
 import Morphir.IR.SDK.List as List
@@ -76,6 +77,7 @@ packageSpec =
             , ( [ [ "number" ] ], Number.moduleSpec )
             , ( [ [ "key" ] ], Key.moduleSpec )
             , ( [ [ "aggregate" ] ], Aggregate.moduleSpec )
+            , ( [ [ "instant" ] ], Instant.moduleSpec )
             , ( [ [ "u", "u", "i", "d" ] ], UUID.moduleSpec )
             ]
     }
