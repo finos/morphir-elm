@@ -1,0 +1,23 @@
+{
+    "name": "Morphir.Example.App",
+    "type": "package",
+    "children": [
+        {
+            "name": "US",
+            "type": "module",
+            "children": [
+                {
+                    "name": "FR2052A",
+                    "type": "module",
+                    "children": [
+                        {
+                            "name": "DataTables",
+                            "type": "module",
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

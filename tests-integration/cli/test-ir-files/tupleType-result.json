@@ -1,0 +1,227 @@
+{
+    "name": "Morphir.Example.App",
+    "type": "package",
+    "children": [
+        {
+            "name": "App",
+            "type": "module",
+            "children": [
+                {
+                    "name": "aPI",
+                    "type": "Record",
+                    "children": [
+                        {
+                            "name": "receiveLocateList",
+                            "type": "Function",
+                            "children": [
+                                {
+                                    "name": "rentalID",
+                                    "type": "Reference",
+                                    "children": [
+                                        {
+                                            "name": "reason",
+                                            "type": "Reference",
+                                            "children": [
+                                                {
+                                                    "name": "reservedQuantity",
+                                                    "type": "Reference",
+                                                    "children": []
+                                                },
+                                                {
+                                                    "name": "event",
+                                                    "type": "Reference",
+                                                    "children": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "event",
+                    "type": "CustomType",
+                    "children": [
+                        {
+                            "name": "pickupCompleted",
+                            "type": "CustomType",
+                            "children": [
+                                {
+                                    "name": "rentalID",
+                                    "type": "Reference",
+                                    "children": []
+                                }
+                            ]
+                        },
+                        {
+                            "name": "requestAccepted",
+                            "type": "CustomType",
+                            "children": [
+                                {
+                                    "name": "rentalID",
+                                    "type": "Reference",
+                                    "children": []
+                                },
+                                {
+                                    "name": "reservedQuantity",
+                                    "type": "Reference",
+                                    "children": []
+                                }
+                            ]
+                        },
+                        {
+                            "name": "requestRejected",
+                            "type": "CustomType",
+                            "children": [
+                                {
+                                    "name": "rentalID",
+                                    "type": "Reference",
+                                    "children": []
+                                },
+                                {
+                                    "name": "reason",
+                                    "type": "Reference",
+                                    "children": []
+                                }
+                            ]
+                        },
+                        {
+                            "name": "returnCompleted",
+                            "type": "CustomType",
+                            "children": [
+                                {
+                                    "name": "rentalID",
+                                    "type": "Reference",
+                                    "children": []
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "BusinessTerms",
+            "type": "module",
+            "children": [
+                {
+                    "name": "allowPartials",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "availability",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "cancelationRatio",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "canceledQuantity",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "currentInventory",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "existingReservations",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "expertiseLevel",
+                    "type": "Enum",
+                    "children": [
+                        {
+                            "name": "expert",
+                            "type": "CustomType",
+                            "children": []
+                        },
+                        {
+                            "name": "intermediate",
+                            "type": "CustomType",
+                            "children": []
+                        },
+                        {
+                            "name": "novice",
+                            "type": "CustomType",
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "name": "pendingReturns",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "probableReservations",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "rentalID",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "requestedQuantity",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "reservedQuantity",
+                    "type": "Alias",
+                    "children": []
+                }
+            ]
+        },
+        {
+            "name": "Rentals",
+            "type": "module",
+            "children": [
+                {
+                    "name": "reason",
+                    "type": "Enum",
+                    "children": [
+                        {
+                            "name": "closedDueToConditions",
+                            "type": "CustomType",
+                            "children": []
+                        },
+                        {
+                            "name": "insufficientAvailability",
+                            "type": "CustomType",
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "name": "request",
+                    "type": "value",
+                    "children": [
+                        {
+                            "name": "requestedQuantity",
+                            "type": "Variable",
+                            "children": [
+                                {
+                                    "name": "availability",
+                                    "type": "Variable",
+                                    "children": []
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

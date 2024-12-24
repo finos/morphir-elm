@@ -1,0 +1,59 @@
+{
+    "name": "Morphir.Example.App",
+    "type": "package",
+    "children": [
+        {
+            "name": "Forecast",
+            "type": "module",
+            "children": [
+                {
+                    "name": "windDirection",
+                    "type": "Enum",
+                    "children": [
+                        {
+                            "name": "east",
+                            "type": "CustomType",
+                            "children": []
+                        },
+                        {
+                            "name": "north",
+                            "type": "CustomType",
+                            "children": []
+                        },
+                        {
+                            "name": "south",
+                            "type": "CustomType",
+                            "children": []
+                        },
+                        {
+                            "name": "west",
+                            "type": "CustomType",
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "name": "listExample",
+                    "type": "value",
+                    "children": [
+                        {
+                            "name": "north",
+                            "type": "Reference",
+                            "children": []
+                        },
+                        {
+                            "name": "west",
+                            "type": "Reference",
+                            "children": []
+                        },
+                        {
+                            "name": "east",
+                            "type": "Reference",
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

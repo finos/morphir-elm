@@ -1,0 +1,116 @@
+{
+    "name": "Morphir.Example.App",
+    "type": "package",
+    "children": [
+        {
+            "name": "Forecast",
+            "type": "module",
+            "children": [
+                {
+                    "name": "celcius",
+                    "type": "Alias",
+                    "children": []
+                },
+                {
+                    "name": "customReport",
+                    "type": "CustomType",
+                    "children": [
+                        {
+                            "name": "temp",
+                            "type": "CustomType",
+                            "children": [
+                                {
+                                    "name": "celcius",
+                                    "type": "Reference",
+                                    "children": []
+                                }
+                            ]
+                        },
+                        {
+                            "name": "weather",
+                            "type": "CustomType",
+                            "children": [
+                                {
+                                    "name": "forecastPercent",
+                                    "type": "Reference",
+                                    "children": []
+                                },
+                                {
+                                    "name": "celcius",
+                                    "type": "Reference",
+                                    "children": []
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "forecast",
+                    "type": "Record",
+                    "children": [
+                        {
+                            "name": "temp",
+                            "type": "Record",
+                            "children": [
+                                {
+                                    "name": "low",
+                                    "type": "Reference",
+                                    "children": [
+                                        {
+                                            "name": "celcius",
+                                            "type": "Reference",
+                                            "children": []
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "high",
+                                    "type": "Reference",
+                                    "children": [
+                                        {
+                                            "name": "celcius",
+                                            "type": "Reference",
+                                            "children": []
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "forecastPercent",
+                            "type": "Reference",
+                            "children": [
+                                {
+                                    "name": "forecastPercent",
+                                    "type": "Reference",
+                                    "children": []
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "forecastDetail",
+                    "type": "Enum",
+                    "children": [
+                        {
+                            "name": "showers",
+                            "type": "CustomType",
+                            "children": []
+                        },
+                        {
+                            "name": "thunderstorms",
+                            "type": "CustomType",
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "name": "forecastPercent",
+                    "type": "Alias",
+                    "children": []
+                }
+            ]
+        }
+    ]
+}
