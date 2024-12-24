@@ -1,0 +1,34 @@
+{
+    "name": "Morphir.Example.App",
+    "type": "package",
+    "children": [
+        {
+            "name": "Analytics",
+            "type": "module",
+            "children": [
+                {
+                    "name": "safeRatio",
+                    "type": "value",
+                    "children": [
+                        {
+                            "name": "result",
+                            "type": "Variable",
+                            "children": [
+                                {
+                                    "name": "numerator",
+                                    "type": "Variable",
+                                    "children": []
+                                },
+                                {
+                                    "name": "denominator",
+                                    "type": "Variable",
+                                    "children": []
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
