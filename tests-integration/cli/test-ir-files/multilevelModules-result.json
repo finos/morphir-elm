@@ -13,11 +13,15 @@
                         {
                             "name": "DataTables",
                             "type": "module",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         }
-                    ]
+                    ],
+                    "definition": []
                 }
-            ]
+            ],
+            "definition": []
         }
-    ]
+    ],
+    "definition": []
 }

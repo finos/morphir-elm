@@ -8,7 +8,7 @@
             "children": [
                 {
                     "name": "safeRatio",
-                    "type": "value",
+                    "type": "Value",
                     "children": [
                         {
                             "name": "result",
@@ -17,18 +17,32 @@
                                 {
                                     "name": "numerator",
                                     "type": "Variable",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 },
                                 {
                                     "name": "denominator",
                                     "type": "Variable",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
-                            ]
+                            ],
+                            "definition": []
                         }
-                    ]
+                    ],
+                    "definition": [
+                        {
+                            "name": "Analytics",
+                            "type": "modulePath",
+                            "children": [],
+                            "definition": []
+                        }
+                    ],
+                    "doc": ""
                 }
-            ]
+            ],
+            "definition": []
         }
-    ]
+    ],
+    "definition": []
 }

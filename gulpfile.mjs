@@ -21,6 +21,9 @@ import execa from 'execa';
 import mocha from 'gulp-mocha';
 import shell from 'shelljs';
 
+import webpack from 'webpack-stream';
+import webpackConfig from './cli/treeview/webpack.config.js';
+
 import ts from 'gulp-typescript';
 import tsp from 'typescript';
 const { isExpressionWithTypeArguments } = tsp;
@@ -132,12 +135,17 @@ export const buildMorphirTSLib = async () => {
 
 }
 
+export function buildTreeviewWebpack(){
+    return src('./cli/treeview/src/index.ts').pipe(webpack(webpackConfig)).pipe(dest('./cli/treeview/dist'));
+}
+
 const build =
     series(
         checkElmDocs,
         makeCLI,
         makeDevCLI,
         buildCLI2,
+        buildTreeviewWebpack,
         buildMorphirTSLib,
         makeDevServer,
         makeDevServerAPI,

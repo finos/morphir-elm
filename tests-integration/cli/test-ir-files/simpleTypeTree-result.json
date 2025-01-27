@@ -9,68 +9,83 @@
                 {
                     "name": "celcius",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "customReport",
                     "type": "CustomType",
-                    "children": [
+                    "children": [],
+                    "definition": [
                         {
                             "name": "temp",
                             "type": "CustomType",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "celcius",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
                             ]
                         },
                         {
                             "name": "weather",
                             "type": "CustomType",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "forecastPercent",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 },
                                 {
                                     "name": "celcius",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
                             ]
                         }
-                    ]
+                    ],
+                    "doc": ""
                 },
                 {
                     "name": "forecast",
                     "type": "Record",
-                    "children": [
+                    "children": [],
+                    "definition": [
                         {
                             "name": "temp",
                             "type": "Record",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "low",
                                     "type": "Reference",
-                                    "children": [
+                                    "children": [],
+                                    "definition": [
                                         {
                                             "name": "celcius",
                                             "type": "Reference",
-                                            "children": []
+                                            "children": [],
+                                            "definition": []
                                         }
                                     ]
                                 },
                                 {
                                     "name": "high",
                                     "type": "Reference",
-                                    "children": [
+                                    "children": [],
+                                    "definition": [
                                         {
                                             "name": "celcius",
                                             "type": "Reference",
-                                            "children": []
+                                            "children": [],
+                                            "definition": []
                                         }
                                     ]
                                 }
@@ -79,38 +94,49 @@
                         {
                             "name": "forecastPercent",
                             "type": "Reference",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "forecastPercent",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
                             ]
                         }
-                    ]
+                    ],
+                    "doc": ""
                 },
                 {
                     "name": "forecastDetail",
                     "type": "Enum",
-                    "children": [
+                    "children": [],
+                    "definition": [
                         {
                             "name": "showers",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "thunderstorms",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         }
-                    ]
+                    ],
+                    "doc": ""
                 },
                 {
                     "name": "forecastPercent",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 }
-            ]
+            ],
+            "definition": []
         }
-    ]
+    ],
+    "definition": []
 }
