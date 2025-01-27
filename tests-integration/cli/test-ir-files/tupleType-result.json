@@ -9,28 +9,34 @@
                 {
                     "name": "aPI",
                     "type": "Record",
-                    "children": [
+                    "children": [],
+                    "definition": [
                         {
                             "name": "receiveLocateList",
                             "type": "Function",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "rentalID",
                                     "type": "Reference",
-                                    "children": [
+                                    "children": [],
+                                    "definition": [
                                         {
                                             "name": "reason",
                                             "type": "Reference",
-                                            "children": [
+                                            "children": [],
+                                            "definition": [
                                                 {
                                                     "name": "reservedQuantity",
                                                     "type": "Reference",
-                                                    "children": []
+                                                    "children": [],
+                                                    "definition": []
                                                 },
                                                 {
                                                     "name": "event",
                                                     "type": "Reference",
-                                                    "children": []
+                                                    "children": [],
+                                                    "definition": []
                                                 }
                                             ]
                                         }
@@ -38,69 +44,83 @@
                                 }
                             ]
                         }
-                    ]
+                    ],
+                    "doc": ""
                 },
                 {
                     "name": "event",
                     "type": "CustomType",
-                    "children": [
+                    "children": [],
+                    "definition": [
                         {
                             "name": "pickupCompleted",
                             "type": "CustomType",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "rentalID",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
                             ]
                         },
                         {
                             "name": "requestAccepted",
                             "type": "CustomType",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "rentalID",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 },
                                 {
                                     "name": "reservedQuantity",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
                             ]
                         },
                         {
                             "name": "requestRejected",
                             "type": "CustomType",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "rentalID",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 },
                                 {
                                     "name": "reason",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
                             ]
                         },
                         {
                             "name": "returnCompleted",
                             "type": "CustomType",
-                            "children": [
+                            "children": [],
+                            "definition": [
                                 {
                                     "name": "rentalID",
                                     "type": "Reference",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
                             ]
                         }
-                    ]
+                    ],
+                    "doc": ""
                 }
-            ]
+            ],
+            "definition": []
         },
         {
             "name": "BusinessTerms",
@@ -109,80 +129,108 @@
                 {
                     "name": "allowPartials",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "availability",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "cancelationRatio",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "canceledQuantity",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "currentInventory",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "existingReservations",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "expertiseLevel",
                     "type": "Enum",
-                    "children": [
+                    "children": [],
+                    "definition": [
                         {
                             "name": "expert",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "intermediate",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "novice",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         }
-                    ]
+                    ],
+                    "doc": ""
                 },
                 {
                     "name": "pendingReturns",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "probableReservations",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "rentalID",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "requestedQuantity",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 },
                 {
                     "name": "reservedQuantity",
                     "type": "Alias",
-                    "children": []
+                    "children": [],
+                    "definition": [],
+                    "doc": ""
                 }
-            ]
+            ],
+            "definition": []
         },
         {
             "name": "Rentals",
@@ -191,22 +239,26 @@
                 {
                     "name": "reason",
                     "type": "Enum",
-                    "children": [
+                    "children": [],
+                    "definition": [
                         {
                             "name": "closedDueToConditions",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "insufficientAvailability",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         }
-                    ]
+                    ],
+                    "doc": ""
                 },
                 {
                     "name": "request",
-                    "type": "value",
+                    "type": "Value",
                     "children": [
                         {
                             "name": "requestedQuantity",
@@ -215,13 +267,26 @@
                                 {
                                     "name": "availability",
                                     "type": "Variable",
-                                    "children": []
+                                    "children": [],
+                                    "definition": []
                                 }
-                            ]
+                            ],
+                            "definition": []
                         }
-                    ]
+                    ],
+                    "definition": [
+                        {
+                            "name": "Rentals",
+                            "type": "modulePath",
+                            "children": [],
+                            "definition": []
+                        }
+                    ],
+                    "doc": ""
                 }
-            ]
+            ],
+            "definition": []
         }
-    ]
+    ],
+    "definition": []
 }

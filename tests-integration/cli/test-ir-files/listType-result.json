@@ -9,51 +9,71 @@
                 {
                     "name": "windDirection",
                     "type": "Enum",
-                    "children": [
+                    "children": [],
+                    "definition": [
                         {
                             "name": "east",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "north",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "south",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "west",
                             "type": "CustomType",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         }
-                    ]
+                    ],
+                    "doc": ""
                 },
                 {
                     "name": "listExample",
-                    "type": "value",
+                    "type": "Value",
                     "children": [
                         {
                             "name": "north",
                             "type": "Reference",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "west",
                             "type": "Reference",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         },
                         {
                             "name": "east",
                             "type": "Reference",
-                            "children": []
+                            "children": [],
+                            "definition": []
                         }
-                    ]
+                    ],
+                    "definition": [
+                        {
+                            "name": "Forecast",
+                            "type": "modulePath",
+                            "children": [],
+                            "definition": []
+                        }
+                    ],
+                    "doc": ""
                 }
-            ]
+            ],
+            "definition": []
         }
-    ]
+    ],
+    "definition": []
 }

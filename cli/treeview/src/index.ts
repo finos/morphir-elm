@@ -305,6 +305,22 @@ function createChart(data: TreeNode, app: any): SVGSVGElement | null {
 
 document.addEventListener("DOMContentLoaded", () => {
   const exitFlyout = document.getElementById("closeFlyout");
+  const infoButton = document.getElementById("info-button");
+  const infoPopup = document.getElementById("info-popup");
+  const popupBg = document.getElementById("popup-background");
+  const closePopup = document.getElementById("close-popup");
+  infoButton?.addEventListener("click", () => {
+    infoPopup!.style.display = "block";
+    popupBg!.style.display = "block";
+  });
+  popupBg?.addEventListener("click", () => {
+    infoPopup!.style.display = "none";
+    popupBg!.style.display = "none";
+  });
+  closePopup?.addEventListener("click", () => {
+    infoPopup!.style.display = "none";
+    popupBg!.style.display = "none";
+  });
   exitFlyout?.addEventListener("click", () => {
     document.getElementById("flyout")!.classList.remove("show");
     document.getElementById("flyout")!.classList.add("hide");
