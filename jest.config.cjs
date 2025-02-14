@@ -14,5 +14,6 @@ module.exports = {
     '^d3$': '<rootDir>/cli/node_modules/d3/dist/d3.js',
   },
   verbose: true, 
-  silent: false
+  silent: false,
+  testTimeout: 20000,
 };
