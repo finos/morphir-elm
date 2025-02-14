@@ -8,7 +8,7 @@ import { JSDOM } from "jsdom";
 import { getIR } from "../../cli/treeview/src/index";
 
 const { window } = new JSDOM(`<!DOCTYPE html><body><div></div></body>`);
-jest.mock("node-fetch", () => jest.fn());
+jest.mock("fetch", () => jest.fn());
 
 describe("test getIR", () => {
   beforeEach(() => {
