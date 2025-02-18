@@ -114,6 +114,7 @@
     "jsdom": "^26.0.0",
     "log-timestamp": "^0.3.0",
     "neverthrow": "^6.2.1",
+    "node-fetch": "^3.3.2",
     "packageurl-js": "^1.2.1",
     "prettier": "^2.4.1",
     "vis-network": "^9.1.2",
