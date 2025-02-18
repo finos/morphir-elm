@@ -111,6 +111,7 @@
     "get-stdin": "^8.0.0",
     "get-uri": "^6.0.3",
     "inquirer": "^8.0.0",
+    "jsdom": "^26.0.0",
     "log-timestamp": "^0.3.0",
     "neverthrow": "^6.2.1",
     "packageurl-js": "^1.2.1",
