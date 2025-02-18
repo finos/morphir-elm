@@ -7,9 +7,9 @@ describe('the get-uri-wrapper module', () => {
         expect(getUriWrapper.fetchUriToJson).toBeDefined
     });
     test("that fetches a document and converts it to JSON", async () => {
-        let file = path.resolve("./tsconfig.json")
-        let tsconfigJson = await getUriWrapper.fetchUriToJson(`file://${file}`);
-        expect(tsconfigJson).toHaveProperty("compilerOptions");
+        let file = path.resolve("./elm.json")
+        let elmJson = await getUriWrapper.fetchUriToJson(`file://${file}`);
+        expect(elmJson).toHaveProperty("compilerOptions");
  
     });
 });
