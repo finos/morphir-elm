@@ -1,11 +1,16 @@
 {
   "name": "morphir-elm",
-  "version": "2.91.0",
+  "version": "2.91.1-2",
   "description": "Elm bindings for Morphir",
   "type": "commonjs",
-  "types": "lib/dist/main.d.ts",
-  "main": "lib/dist/main.js",
   "module": "es6",
+  "types": "morphir-ts/dist/index.d.ts",
+  "main": "morphir-ts/dist/index.js",
+  "exports": {
+    ".": "./morphir-ts/dist/index.js",
+    "./ir": "./morphir-ts/dist/exports/ir.js",
+    "./sdk": "./morphir-ts/dist/exports/sdk.js"
+  },
   "scripts": {
     "prepare": "npm run setup-elm-tooling",
     "clean": "gulp clean",
@@ -56,7 +61,7 @@
     "redistributable/**",
     "cli2/lib/*",
     "cli2/Morphir.Elm.CLI.js",
-    "lib/**"
+    "morphir-ts/dist/**"
   ],
   "keywords": [
     "morphir",

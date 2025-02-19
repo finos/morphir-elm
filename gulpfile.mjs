@@ -117,13 +117,14 @@ const buildCLI2 =
         makeCLI2
     )
 
-export const buildMorphirAPI2 = async () => {
+export const buildMorphirTSLib = async () => {
     try {
         await morphirElmMakeRunOldCli('.', './morphir-ir.json', { typesOnly: true })
-        await morphirElmGen('./morphir-ir.json', './lib/generated', 'TypeScript')
-        src('./lib/sdk/**/*')
-            .pipe(dest('./lib/generated/morphir/sdk'))
-        return await execa('npx tsc', ['--project', path.join('.', 'lib', 'tsconfig.json')])
+        // clean out previously generate files
+        await del(['./morphir-ts/src/generated/', './morphir-ts/dist/'])
+        await morphirElmGen('./morphir-ir.json', './morphir-ts/src/generated', 'TypeScript')
+        src('./morphir-ts/src/sdk/**/*').pipe(dest('./morphir-ts/src/generated/morphir/sdk'))
+        return await execa('npx tsc', ['--project', path.join('.', 'morphir-ts', 'tsconfig.json')])
     } catch (error) {
         console.error("Error building morphir API 2", error);
         return error
@@ -137,7 +138,7 @@ const build =
         makeCLI,
         makeDevCLI,
         buildCLI2,
-        buildMorphirAPI2,
+        buildMorphirTSLib,
         makeDevServer,
         makeDevServerAPI,
         makeInsightAPI,
