@@ -117,7 +117,7 @@ const buildCLI2 =
         makeCLI2
     )
 
-export const buildMorphirAPI2 = async () => {
+export const buildMorphirTSLib = async () => {
     try {
         await morphirElmMakeRunOldCli('.', './morphir-ir.json', { typesOnly: true })
         // clean out previously generate files
@@ -138,7 +138,7 @@ const build =
         makeCLI,
         makeDevCLI,
         buildCLI2,
-        buildMorphirAPI2,
+        buildMorphirTSLib,
         makeDevServer,
         makeDevServerAPI,
         makeInsightAPI,
