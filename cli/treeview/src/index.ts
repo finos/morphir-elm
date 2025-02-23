@@ -37,7 +37,7 @@ export async function getIR(): Promise<TreeNode | string> {
     treeview.children = nestedTree(treeview);
     console.log("CREATED TREE: ", treeview);
 
-    d3.select("div").append(() => createChart(treeview));
+    d3.select("#treeview").append(() => createChart(treeview));
     return treeview;
   } catch (error) {
     return error instanceof Error
@@ -162,6 +162,9 @@ function createChart(data: TreeNode): SVGSVGElement | null {
       .attr("stroke-opacity", 0)
       .on("click", (event, d: any) => {
         d.children = d.children ? null : d._children;
+        if(!d._children){
+          flyout(d.data);
+        }
         update(event, d);
       });
 
@@ -172,7 +175,7 @@ function createChart(data: TreeNode): SVGSVGElement | null {
       .attr("fill", (d: any) => {
         //blue node if it is a type, less bright when terminating node
         if (types.includes(d.data.type))
-          return d._children ? "#0000ff" : "#5a86ad";
+            return d._children ? "rgba(0, 163, 225, 1)" : "rgba(0, 163, 225, 1)";
         return d._children ? "#555" : "#999";
       })
       .attr("stroke-width", 10);
@@ -257,6 +260,58 @@ function createChart(data: TreeNode): SVGSVGElement | null {
   return svg.node();
 }
 
+document.addEventListener('DOMContentLoaded', () =>{
+  const exitFlyout = document.getElementById("closeFlyout");
+  exitFlyout?.addEventListener('click', () => {
+    document.getElementById('flyout')!.classList.remove('show');
+    document.getElementById('flyout')!.classList.add('hide');
+    hideFlyout();
+  });
+});
+
+async function hideFlyout(){
+  await wait(500);
+  document.getElementById('flyout')!.style.display = "none";
+}
+
+async function wait(ms: number): Promise<void>{
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function flyout(node: TreeNode){
+  document.getElementById('flyout')!.style.display = "block";
+  document.getElementById('flyout')!.classList.remove('hide');
+  document.getElementById('flyout')!.classList.add('show');
+  document.getElementById('flyoutTitle')!.innerText = node.name.toString();
+  document.getElementById('flyoutSubtitle')!.innerText = ""+node.type.toString();
+
+  const definitionTable = document.createElement('table');
+  node.definition.forEach(node => {
+    let tableRow = document.createElement('tr');
+    let cell = document.createElement('td');
+    cell.textContent = node.name.toString();
+    tableRow.appendChild(cell);
+    definitionTable.appendChild(recursiveFlyoutDefinition(node, tableRow));
+  });
+
+  const docs = node.doc || 'None';
+  document.getElementById('docs')!.innerText= docs.toString();
+  document.getElementById('contentDef')!.innerHTML='';
+  document.getElementById('contentDef')!.appendChild(definitionTable);
+}
+
+function recursiveFlyoutDefinition(node: TreeNode, tableRow: any): any{
+  node.definition.forEach(child => {
+    let childCell = document.createElement('td');
+    childCell.textContent = child.name.toString();
+    tableRow.appendChild(childCell);
+    if(child.children.length == 0){
+      recursiveFlyoutDefinition(child, tableRow);
+    }
+  });
+  return tableRow;
+}
+
 function nestedTree(flatTree: TreeNode): TreeNode[] {
   const root = new TreeNode("root", "placeholder");
   flatTree.children.forEach((node) => {
@@ -296,6 +351,7 @@ function createTree(ir: Morphir.IR.Distribution.Distribution) {
           (documentedAccessControlledTypeDef, typeName) => {
             let distNode = documentedAccessControlledTypeDef.value.value;
             let typeNode = new TreeNode(toCamelCase(typeName), "type");
+            typeNode.doc = documentedAccessControlledTypeDef.value.doc;
             let typeTree: TreeNode;
 
             //Drilldown into each type
@@ -345,9 +401,9 @@ function getCustomTypeTree(
   typeDistNode.value.forEach((value, key) => {
     let node = new TreeNode(toCamelCase(key), "CustomType");
     value.forEach((val) =>
-      node.children.push(...recursiveTypeFunction(val[1]))
+      node.definition.push(...recursiveTypeFunction(val[1]))
     );
-    treeNode.children.push(node);
+    treeNode.definition.push(node);
   });
   return treeNode;
 }
@@ -362,10 +418,11 @@ function getTypeAliasTree(
   switch (kind) {
     case "Reference":
       treeNode.type = "Alias";
+      treeNode.definition.push(...recursiveTypeFunction(typeDistNode));
       break;
     case "Record":
       treeNode.type = "Record";
-      treeNode.children.push(...recursiveTypeFunction(typeDistNode));
+      treeNode.definition.push(...recursiveTypeFunction(typeDistNode));
       break;
     default:
       console.log("Unsupported type found: ", distNode.kind);
@@ -382,7 +439,7 @@ function recursiveTypeFunction(
 
   switch (distNode.kind) {
     case "Reference":
-      if (!isMorphirSDK(distNode)) {
+      if (!isMorphirSDK(distNode)) { //This filters out all basic types
         treeNodes.push(
           new TreeNode(toCamelCase(distNode.arg2[2]), distNode.kind)
         );
@@ -400,13 +457,13 @@ function recursiveTypeFunction(
     case "Record":
       distNode.arg2.forEach((node) => {
         let parentNode = new TreeNode(toCamelCase(node.name), node.tpe.kind);
-        parentNode.children.push(...recursiveTypeFunction(node.tpe));
+        parentNode.definition.push(...recursiveTypeFunction(node.tpe));
         treeNodes.push(parentNode);
       });
       break;
     case "Function":
       let parentNode = recursiveTypeFunction(distNode.arg2);
-      parentNode[0].children.push(...recursiveTypeFunction(distNode.arg3));
+      parentNode[0].definition.push(...recursiveTypeFunction(distNode.arg3));
       treeNodes.push(...parentNode);
       break;
     default:

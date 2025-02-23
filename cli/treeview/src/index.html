@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Morphir.Treeview</title>
+    <style>
+      body {
+        padding: 0;
+        margin: 0;
+        font-family: "Poppins", sans-serif;
+      }
+
+      #treeviewContainer {
+        display: flex;
+        margin: 10px;
+        overflow: hidden;
+      }
+
+      #flyout {
+        display: none;
+        flex-direction: column;
+        transition: transform 0.5s ease-in-out;
+        transform: translateX(100%);
+        width: 40%;
+        padding: 10px;
+        overflow: scroll;
+        border-left: 2px solid rgba(0, 163, 225, 1);
+      }
+  
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%); /* Starting position */
+        }
+        to {
+          transform: translateX(0); /* Ending position */
+        }
+      }
+
+      @keyframes slideOut {
+        from {
+          transform: translateX(0); /* Starting position */
+        }
+        to {
+          transform: translateX(100%); /* Ending position */
+        }
+      }
+
+      #flyout.show {
+        animation: slideIn 0.5s forwards; 
+      }
+
+      #flyout.hide {
+        animation: slideOut 0.5s forwards; 
+      }
+
+      #flyout h1,
+      #flyout h2,
+      #flyout h3,
+      #flyout h4,
+      #flyout h5 {
+        margin: 0;
+      }
+
+      hr {
+        border: none;
+        border-top: 1px solid rgba(0, 163, 225, 1);
+      }
+
+      #webHeader {
+        background-color: rgba(0, 163, 225, 1);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 50px;
+        padding-left: 15px;
+        padding-right: 15px;
+      }
+
+      #webHeader h1 {
+        font-size: xx-large;
+      }
+
+      #logoTitle {
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
+      }
+
+      #webHeader a {
+        font-size: small;
+        font-weight: bold;
+      }
+
+      #flyoutTitle {
+        font-size: x-large;
+      }
+
+      #flyoutSubtitleBox {
+        font-size: medium;
+        display: flex;
+        flex-direction: row;
+        background-color: plum;
+        padding: 5px;
+        border-radius: 10px;
+      }
+
+      #flyoutSubtitle {
+        margin-left: 10px;
+      }
+
+      .section-header {
+        margin-top: 15px;
+        color: grey;
+      }
+
+      .flyout-header {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      #closeFlyout:hover {
+        cursor: pointer;
+      }
+
+      #closeFlyout {
+        width: fit-content;
+      }
+
+      td {
+        padding: 5px;
+      }
+
+      td:first-child {
+        font-weight: bold;
+      }
+
+      tr {
+        border: solid;
+        border-width: 1px 0;
+        border-color: rgba(243, 234, 206, 1);
+      }
+
+      tr:first-child {
+        border-top: none;
+      }
+
+      tr:last-child {
+        border-bottom: none;
+      }
+
+      table {
+        border-collapse: collapse;
+      }
+
+      #morphirLogo {
+        height: 50px;
+        width: 50px;
+        margin-top: 15px;
+      }
+    </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+  </head>
+
+  <body>
+    <div id="webHeader">
+      <div id="logoTitle">
+        <img
+          id="morphirLogo"
+          src="/assets/2020_Morphir_Logo_Icon_WHT.svg"
+          alt="Morphir Logo"
+        />
+        <h1>Morphir: Treeview</h1>
+      </div>
+      <div>ⓘ</div>
+    </div>
+    <div id="treeviewContainer">
+      <div id="treeview" style="overflow: scroll"></div>
+      <div id="flyout">
+        <div id="closeFlyout">←</div>
+        <div id="flyoutName">
+          <div class="section-header">
+            <h4>Name/Type</h4>
+            <hr />
+          </div>
+        </div>
+        <div class="flyout-header">
+          <h2 id="flyoutTitle"></h2>
+          <div id="flyoutSubtitleBox">
+            <h4 id="flyoutSubtitle"></h4>
+          </div>
+        </div>
+        <div class="section-header">
+          <h4>Documentation</h4>
+          <hr />
+        </div>
+        <div id="docs"></div>
+        <div class="section-header">
+          <h4>Type Details</h4>
+          <hr />
+        </div>
+        <div id="contentDef"></div>
+      </div>
+    </div>
+  </body>
+</html>
