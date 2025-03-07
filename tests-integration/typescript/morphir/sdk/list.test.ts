@@ -1,5 +1,5 @@
 
-import List from '~/utils/morphir/sdk/list'
+import List from '~/sdk/list'
 
 describe('List', () => {
     it('should create an empty list', () => {

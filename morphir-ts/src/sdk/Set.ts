@@ -1,45 +1,79 @@
-import { Set as iSet } from 'immutable'
+import { Set as ISet, ValueObject } from 'immutable'
+import BackedDataStructure from './backed-structure'
 
-export default class Set<T> {
-    private iSet: iSet<T>
-
+/**
+ * This module has functions to help you work with morphir Sets!
+ */
+export default class Set<T> extends BackedDataStructure<ISet<T>> implements ValueObject {
+    /**
+     * Create an empty list.
+     */
     static empty<T>(): Set<T> {
         return new Set<T>()
     }
 
+    /**
+     * Create a Set from an iterable.
+     * @param iterable the iterable to create the Set from.
+     * @returns a new Set containing the elements from the iterable.
+     */
     static from<T>(iterable: Iterable<T>): Set<T> {
         return new Set<T>(iterable)
     }
 
+    static encoder<T>(encoder: (t: T) => any): (set: Set<T>) => any {
+        return (set) => set.reduce((acc, value) => [...acc, encoder(value)], [])
+    }   
+
+    static decoder<T>(decoder: (v: any) => T): (input: any) => Set<T> {
+        return input => Set.from(input.map(decoder))
+    }
+
     private constructor(iterable?: Iterable<T>) {
-        this.iSet = iSet<T>(iterable)
+         super(ISet<T>(iterable))
     }
 
-    get length(): number {
-        return this.iSet.size
+    /**
+     * Get the size of this Set.
+     */
+    get size(): number {
+        return this.struct.size
     }
 
+    /**
+     * Get an iterator for this Set.
+     */
     get iterator(): IterableIterator<T> {
-        return this.iSet.values()
+        return this.struct.values()
     }
 
-    push(value: T): Set<T> {
-        return new Set<T>(this.iSet.add(value))
+    
+    add(value: T): Set<T> {
+        return new Set<T>(this.struct.add(value))
     }
 
     remove(value: T): Set<T> {
-        return new Set<T>(this.iSet.remove(value))
+        return new Set<T>(this.struct.remove(value))
     }
 
-    concat(list: Set<T>): Set<T> {
-        return new Set<T>(this.iSet.concat(list.iSet))
+    union(list: Set<T>): Set<T> {
+        return new Set<T>(this.struct.concat(list.struct))
     }
 
     reduce<R>(reducer: (acc: R, value: T) => R, initialValue: R): R {
-        return this.iSet.reduce(reducer, initialValue)
+        return this.struct.reduce(reducer, initialValue)
     }
 
-    toArray(): T[] {
-        return this.iSet.toArray()
+    
+    equals(other: Set<T>): boolean {
+        return this.struct.equals(other.struct)
+    }
+
+    hashCode(): number {
+        return this.struct.hashCode()
+    }
+
+    override toString(): string {
+        return `List(${JSON.stringify(this.struct.toJS())})`
     }
 }

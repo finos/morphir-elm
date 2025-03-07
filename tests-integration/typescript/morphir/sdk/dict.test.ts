@@ -1,6 +1,6 @@
 
-import Dict from '~/utils/morphir/sdk/dict'
-import List from '~/utils/morphir/sdk/list'
+import Dict from '~/sdk/dict'
+import List from '~/sdk/list'
 
 describe('Dict', () => {
     it('should create an empty dictionary', () => {
