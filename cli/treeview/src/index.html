@@ -26,7 +26,8 @@
         overflow: scroll;
         border-left: 2px solid rgba(0, 163, 225, 1);
       }
-  
+
+            
       @keyframes slideIn {
         from {
           transform: translateX(100%); /* Starting position */
@@ -52,6 +53,8 @@
       #flyout.hide {
         animation: slideOut 0.5s forwards; 
       }
+
+
 
       #flyout h1,
       #flyout h2,
@@ -160,6 +163,7 @@
       }
     </style>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script defer src="bundle.js"></script>
   </head>
 
   <body>
@@ -199,6 +203,7 @@
           <h4>Type Details</h4>
           <hr />
         </div>
+        <div id="insightContainer"> <div id="insight"></div></div>
         <div id="contentDef"></div>
       </div>
     </div>

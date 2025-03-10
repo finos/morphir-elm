@@ -1,6 +1,7 @@
 import { toDistribution, Morphir } from "morphir-elm";
 import { TreeNode } from "./treeNode";
 import * as d3 from "d3";
+const Elm = require("morphir-elm/cli/web/insight.js") as any;
 
 const treeviewTitle: string = "Treeview Display";
 
@@ -37,7 +38,19 @@ export async function getIR(): Promise<TreeNode | string> {
     treeview.children = nestedTree(treeview);
     console.log("CREATED TREE: ", treeview);
 
-    d3.select("#treeview").append(() => createChart(treeview));
+    const node = document.getElementById('insight');
+  // all errors are not acutal js errors they are strings printed in the div
+    // if distributitobn is in wrong format but you run the sendfunction command it wont tell you the dist is in wrong format itll error n th send func
+    let app = Elm.Elm.Morphir.Web.Insight.init({
+        node,
+        flags: { 
+            distribution: result, 
+            config: { fontSize: 12, decimalDigit: 2 }
+        }
+    });
+
+    d3.select("#treeview").append(() => createChart(treeview, app)); //WHAT TYPE IS APP????
+
     return treeview;
   } catch (error) {
     return error instanceof Error
@@ -46,7 +59,7 @@ export async function getIR(): Promise<TreeNode | string> {
   }
 }
 
-function createChart(data: TreeNode): SVGSVGElement | null {
+function createChart(data: TreeNode, app: any): SVGSVGElement | null {
   // Chart from: https://observablehq.com/@d3/collapsible-tree with modifications to support our implementation.
   // Specify the charts’ dimensions. The height is variable, depending on the layout.
   const marginTop = 10;
@@ -58,8 +71,7 @@ function createChart(data: TreeNode): SVGSVGElement | null {
   // (dx is a height, and dy a width). This because the tree must be viewed with the root at the
   // “bottom”, in the data domain. The width of a column is based on the tree’s height.
   const root = d3.hierarchy<TreeNode>(data as TreeNode);
-  const dx = 30; //10
-  // const dy = ((width - marginRight - marginLeft) / (1 + root.height))+30;// NEed mor space
+  const dx = 30;
   const dy = 150;
 
   // Define the tree layout and the shape for links.
@@ -68,7 +80,6 @@ function createChart(data: TreeNode): SVGSVGElement | null {
     .linkHorizontal()
     .x((d: any) => d.y)
     .y((d: any) => d.x);
-  // const diagonal = d3.linkHorizontal().x(d => d.x).y(d => d.y);
 
   // Create the SVG container, a layer for the links and a layer for the nodes.
   const svg = d3
@@ -90,7 +101,7 @@ function createChart(data: TreeNode): SVGSVGElement | null {
 
   const gNode = svg
     .append("g")
-    .attr("cursor", "pointer")
+    // .attr("cursor",  "pointer") //???
     .attr("pointer-events", "all");
 
   function update(event: any, source: any) {
@@ -160,11 +171,14 @@ function createChart(data: TreeNode): SVGSVGElement | null {
       .attr("transform", (d) => `translate(${source.y0},${source.x0})`)
       .attr("fill-opacity", 0)
       .attr("stroke-opacity", 0)
+      .on("contextmenu", (event, d) => {
+        event.preventDefault();
+        if(d.data.definition.length>0){
+          flyout(d.data, app);
+        }
+      })
       .on("click", (event, d: any) => {
         d.children = d.children ? null : d._children;
-        if(!d._children){
-          flyout(d.data);
-        }
         update(event, d);
       });
 
@@ -172,10 +186,13 @@ function createChart(data: TreeNode): SVGSVGElement | null {
     nodeEnter
       .append("circle")
       .attr("r", 2.5)
+      .attr("cursor",  (d: any) => { return d._children ? "pointer" : "default"})
       .attr("fill", (d: any) => {
-        //blue node if it is a type, less bright when terminating node
+        //blue node if it is a type, green for values, less bright when terminating node
         if (types.includes(d.data.type))
-            return d._children ? "rgba(0, 163, 225, 1)" : "rgba(0, 163, 225, 1)";
+            return d._children ? "rgba(0, 163, 225, 1)" : "rgba(5, 161, 225, 1)";
+        if(d.data.definition.length>0)
+          return d._children ? "rgb(4, 146, 40)" : "rgb(10, 146, 40)";
         return d._children ? "#555" : "#999";
       })
       .attr("stroke-width", 10);
@@ -278,26 +295,32 @@ async function wait(ms: number): Promise<void>{
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function flyout(node: TreeNode){
+function flyout(node: TreeNode, app: any){  
   document.getElementById('flyout')!.style.display = "block";
   document.getElementById('flyout')!.classList.remove('hide');
   document.getElementById('flyout')!.classList.add('show');
   document.getElementById('flyoutTitle')!.innerText = node.name.toString();
   document.getElementById('flyoutSubtitle')!.innerText = ""+node.type.toString();
+  document.getElementById('contentDef')!.innerHTML='';
 
-  const definitionTable = document.createElement('table');
-  node.definition.forEach(node => {
-    let tableRow = document.createElement('tr');
-    let cell = document.createElement('td');
-    cell.textContent = node.name.toString();
-    tableRow.appendChild(cell);
-    definitionTable.appendChild(recursiveFlyoutDefinition(node, tableRow));
-  });
+  if(node.definition.length>0 && node.definition[0].type == "modulePath"){
+    document.getElementById('insightContainer')!.style.display = "block";
+    app.ports.receiveFunctionName.send(node.definition[0].name+":"+node.name)
+  }else{
+    document.getElementById('insightContainer')!.style.display = "none";
+    const definitionTable = document.createElement('table');
+    node.definition.forEach(node => {
+      let tableRow = document.createElement('tr');
+      let cell = document.createElement('td');
+      cell.textContent = node.name.toString();
+      tableRow.appendChild(cell);
+      definitionTable.appendChild(recursiveFlyoutDefinition(node, tableRow));
+    });
+    document.getElementById('contentDef')!.appendChild(definitionTable);
+  }
 
   const docs = node.doc || 'None';
   document.getElementById('docs')!.innerText= docs.toString();
-  document.getElementById('contentDef')!.innerHTML='';
-  document.getElementById('contentDef')!.appendChild(definitionTable);
 }
 
 function recursiveFlyoutDefinition(node: TreeNode, tableRow: any): any{
@@ -369,9 +392,10 @@ function createTree(ir: Morphir.IR.Distribution.Distribution) {
             let distNode = documentedAccessControlledValueDef.value.value.body;
             let valueNode: TreeNode = new TreeNode(
               toCamelCase(valueName),
-              "value"
+              "Value"
             );
-
+            valueNode.definition.push(new TreeNode(nodeName, "modulePath"))
+            valueNode.doc = documentedAccessControlledValueDef.value.doc;
             //Drilldown into each value
             valueNode.children.push(...recursiveValueFunction(distNode));
             moduleNode.children.push(valueNode);
