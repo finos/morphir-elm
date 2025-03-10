@@ -1,5 +1,5 @@
 
-import List from '~/sdk/list'
+import { List } from '~/exports/sdk'
 
 describe('List', () => {
     it('should create an empty list', () => {

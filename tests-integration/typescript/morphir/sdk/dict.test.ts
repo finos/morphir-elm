@@ -1,6 +1,5 @@
 
-import Dict from '~/sdk/dict'
-import List from '~/sdk/list'
+import { Dict, List } from '~/exports/sdk'
 
 describe('Dict', () => {
     it('should create an empty dictionary', () => {
