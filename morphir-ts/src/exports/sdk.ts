@@ -1,6 +1,3 @@
-import { Morphir_SDK_Decimal } from "../sdk/Decimal";
-import { Morphir_SDK_Set } from "../sdk/Set";
-
-export const Decimal = Morphir_SDK_Decimal;
-
-export const Set =  Morphir_SDK_Set
+export { default as Dict } from "../sdk/dict";
+export { default as Set } from "../sdk/set";
+export { default as List } from "../sdk/list";
