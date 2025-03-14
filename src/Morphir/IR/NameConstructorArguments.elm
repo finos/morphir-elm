@@ -2,19 +2,11 @@ module Morphir.IR.NameConstructorArguments exposing (..)
 
 import Dict exposing (Dict)
 import Morphir.IR.AccessControlled as AccessControlled exposing (AccessControlled)
-import Morphir.IR.Distribution as Distribution exposing (Distribution)
 import Morphir.IR.Documented as Documented exposing (Documented)
 import Morphir.IR.Module as Module
 import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Package as Package
 import Morphir.IR.Type as Type
-
-
-rewriteDistribution : Distribution -> Distribution
-rewriteDistribution distribution =
-    case distribution of
-        Distribution.Library packageName dependencies packageDef ->
-            Distribution.Library packageName dependencies (rewritePackage packageDef)
 
 
 rewritePackage : Package.Definition ta va -> Package.Definition ta va
@@ -51,7 +43,7 @@ rewriteModule moduleDef =
                                     |> List.map (\( _, _, tpe ) -> tpe)
                         in
                         -- If the function argument types match the constructor argument types
-                        if funcArgTypes == ctorArgTypes then
+                        if List.length funcArgTypes == List.length ctorArgTypes then
                             -- return the argument names
                             Just (List.map (\( argName, _, _ ) -> argName) funcArgs)
 
