@@ -7,10 +7,8 @@ representation.
 
 -}
 
-import Elm.Syntax.Expression exposing (Expression(..))
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
-import Morphir.IR.Path exposing (Path)
-import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, Parameter, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.AST exposing (CompilationUnit, FunctionScope(..), ImportDeclaration, NamespacePath, Parameter, Privacy(..), Statement(..), TSExpression(..), TypeDef(..), TypeExp(..))
 import Morphir.TypeScript.PrettyPrinter.Expressions exposing (..)
 
 
@@ -148,7 +146,7 @@ mapTypeDef typeDef =
                 ]
 
 
-mapExpression : Expression -> String
+mapExpression : TSExpression -> String
 mapExpression expression =
     case expression of
         ArrayLiteralExpression values ->
@@ -181,11 +179,16 @@ mapExpression expression =
                 ]
 
         MemberExpression { object, member } ->
-            concat
-                [ mapExpression object
-                , "."
-                , mapExpression member
-                ]
+            case object of
+                Identifier "" ->
+                    mapExpression member
+
+                _ ->
+                    concat
+                        [ mapExpression object
+                        , "."
+                        , mapExpression member
+                        ]
 
         NewExpression { constructor, arguments } ->
             concat
@@ -201,7 +204,7 @@ mapExpression expression =
 
         ObjectLiteralExpression { properties } ->
             let
-                mapObjectField : ( String, Expression ) -> String
+                mapObjectField : ( String, TSExpression ) -> String
                 mapObjectField ( fieldName, fieldValue ) =
                     concat
                         [ fieldName
@@ -236,7 +239,7 @@ mapMaybeStatement maybeStatement =
 mapStatement : Statement -> String
 mapStatement statement =
     case statement of
-        FunctionDeclaration { name, typeVariables, returnType, scope, parameters, body, privacy } ->
+        FunctionDeclaration { name, typeVariables, returnType, parameters, body } scope privacy ->
             let
                 prefaceKeywords : String
                 prefaceKeywords =
@@ -295,9 +298,9 @@ mapStatement statement =
         ReturnStatement expression ->
             concat [ "return ", mapExpression expression, ";" ]
 
-        LetStatement lhsExpression maybeAnnotation rhsExpression ->
+        ConstStatement lhsExpression maybeAnnotation rhsExpression ->
             concat
-                [ "let "
+                [ "const "
                 , mapExpression lhsExpression
                 , mapMaybeAnnotation maybeAnnotation
                 , " = "
@@ -319,7 +322,7 @@ mapStatement statement =
 
         SwitchStatement condition cases ->
             let
-                mapCase : ( Expression, List Statement ) -> String
+                mapCase : ( TSExpression, List Statement ) -> String
                 mapCase ( caseExpr, statementList ) =
                     concat
                         [ "case "

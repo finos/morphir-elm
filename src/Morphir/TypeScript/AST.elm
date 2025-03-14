@@ -23,6 +23,7 @@ type alias CompilationUnit =
     , fileName : String
     , imports : List ImportDeclaration
     , typeDefs : List TypeDef
+    , statements : List Statement
     }
 
 
@@ -57,34 +58,34 @@ namespaceNameFromPackageAndModule packagePath modulePath =
 
 
 type alias CallExpression =
-    { function : Expression
-    , arguments : List Expression
+    { function : TSExpression
+    , arguments : List TSExpression
     }
 
 
-type Expression
-    = ArrayLiteralExpression (List Expression)
+type TSExpression
+    = ArrayLiteralExpression (List TSExpression)
     | Call CallExpression
     | Identifier String
     | IntLiteralExpression Int
     | IndexedExpression
-        { object : Expression
-        , index : Expression
+        { object : TSExpression
+        , index : TSExpression
         }
     | MemberExpression
-        { object : Expression
-        , member : Expression
+        { object : TSExpression
+        , member : TSExpression
         }
     | NewExpression
         { constructor : String
-        , arguments : List Expression
+        , arguments : List TSExpression
         }
     | NullLiteral
-    | ObjectLiteralExpression { properties : List ( String, Expression ) }
+    | ObjectLiteralExpression { properties : List ( String, TSExpression ) }
     | StringLiteralExpression String
 
 
-emptyObject : Expression
+emptyObject : TSExpression
 emptyObject =
     ObjectLiteralExpression { properties = [] }
 
@@ -110,21 +111,29 @@ parameter modifiers name typeAnnotation =
     }
 
 
+type alias FunctionDefintion =
+    { name : String
+    , typeVariables : List TypeExp
+    , returnType : Maybe TypeExp
+    , parameters : List Parameter
+    , body : List Statement
+    }
+
+
+type alias ConstDefintion =
+    { name : String
+    , tpe : Maybe TypeExp
+    , value : List Statement
+    }
+
+
 type Statement
-    = FunctionDeclaration
-        { name : String
-        , typeVariables : List TypeExp
-        , returnType : Maybe TypeExp
-        , scope : FunctionScope
-        , parameters : List Parameter
-        , body : List Statement
-        , privacy : Privacy
-        }
-    | LetStatement Expression (Maybe TypeExp) Expression
-    | AssignmentStatement Expression (Maybe TypeExp) Expression
-    | ExpressionStatement Expression
-    | ReturnStatement Expression
-    | SwitchStatement Expression (List ( Expression, List Statement ))
+    = FunctionDeclaration FunctionDefintion FunctionScope Privacy
+    | ConstStatement TSExpression (Maybe TypeExp) TSExpression
+    | AssignmentStatement TSExpression (Maybe TypeExp) TSExpression
+    | ExpressionStatement TSExpression
+    | ReturnStatement TSExpression
+    | SwitchStatement TSExpression (List ( TSExpression, List Statement ))
 
 
 {-| Represents a type definition.

@@ -35,6 +35,7 @@ makeTopLevelNamespaceModule packagePath packageDef =
             |> List.concatMap (getUniqueImportRefs [] [])
             |> List.map (renderInternalImport [])
     , typeDefs = typeDefs
+    , statements = []
     }
 
 

@@ -4,7 +4,7 @@
   "description": "Elm bindings for Morphir",
   "type": "commonjs",
   "module": "es6",
-  "types": "morphir-ts/dist/index.d.ts",
+  "types": "morphir-ts/dist/",
   "main": "morphir-ts/dist/index.js",
   "exports": {
     ".": "./morphir-ts/dist/index.js",
