@@ -119,7 +119,7 @@ const buildCLI2 =
 
 export const buildMorphirTSLib = async () => {
     try {
-        await morphirElmMakeRunOldCli('.', './morphir-ir.json', { typesOnly: true })
+        await morphirElmMakeRunOldCli('.', './morphir-ir.json', { typesOnly: false })
         // clean out previously generate files
         await del(['./morphir-ts/src/generated/', './morphir-ts/dist/'])
         await morphirElmGen('./morphir-ir.json', './morphir-ts/src/generated', 'TypeScript')
@@ -466,7 +466,7 @@ export {
 };
 
 
-    export { testMorphirIR as testMorphirIRTypeScript };
+export { testMorphirIR as testMorphirIRTypeScript };
 
 
 
