@@ -20,7 +20,7 @@ import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value
 import Morphir.TypeScript.AST as TS
 import Morphir.TypeScript.Backend.Imports exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
-import Morphir.TypeScript.Backend.Module exposing (mapModuleDefinition)
+import Morphir.TypeScript.Backend.Module as Backend exposing (mapModuleDefinition)
 import Morphir.TypeScript.Backend.TopLevelNamespace exposing (makeTopLevelNamespaceModule)
 import Morphir.TypeScript.Backend.Types as Types exposing (mapPrivacy, mapTypeDefinition, mapTypeExp)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
@@ -63,7 +63,7 @@ mapPackageDefinition opt distribution packagePath packageDef =
                 |> Dict.toList
                 |> List.concatMap
                     (\( modulePath, moduleImpl ) ->
-                        mapModuleDefinition opt distribution packagePath modulePath moduleImpl
+                        Backend.mapModuleDefinition opt distribution packagePath modulePath moduleImpl
                     )
 
         compilationUnitToFileMapElement : TS.Module -> FileMapElement
@@ -95,36 +95,3 @@ mapPackageDefinition opt distribution packagePath packageDef =
         |> List.map compilationUnitToFileMapElement
         |> Dict.fromList
 
-
-processModulePath : Module.ModuleName -> List String
-processModulePath modulePath =
-    let
-        makeWords : List String -> String -> List String -> List String
-        makeWords wordsSoFar nextWord name =
-            case name of
-                [] ->
-                    List.reverse wordsSoFar
-
-                [ word ] ->
-                    (if String.length word == 1 then
-                        (nextWord ++ word) :: wordsSoFar
-
-                     else if String.length nextWord == 0 then
-                        word :: wordsSoFar
-
-                     else
-                        word :: nextWord :: wordsSoFar
-                    )
-                        |> List.reverse
-
-                word :: rest ->
-                    if String.length word == 1 then
-                        makeWords wordsSoFar (nextWord ++ word) rest
-
-                    else if String.length nextWord == 0 then
-                        makeWords (word :: wordsSoFar) "" rest
-
-                    else
-                        makeWords (word :: nextWord :: wordsSoFar) "" rest
-    in
-    modulePath |> List.map (makeWords [] "" >> String.join "-")

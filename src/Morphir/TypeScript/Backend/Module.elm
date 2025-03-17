@@ -16,6 +16,7 @@ import Morphir.TypeScript.AST as TS
 import Morphir.TypeScript.Backend.Imports exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
 import Morphir.TypeScript.Backend.TopLevelNamespace exposing (makeTopLevelNamespaceModule)
 import Morphir.TypeScript.Backend.Types as Types exposing (mapPrivacy, mapTypeDefinition, mapTypeExp)
+import Morphir.TypeScript.Backend.Values as Values
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
 
 
@@ -38,7 +39,7 @@ mapModuleDefinition distribution currentPackagePath currentModulePath accessCont
                 |> Dict.toList
                 |> List.map
                     (\( valueName, accDocValueDef ) ->
-                        mapConstAndFunctionDefinition valueName
+                        Values.mapConstAndFunctionDefinition valueName
                             accDocValueDef.value.value
                             currentModulePath
                     )
@@ -92,3 +93,38 @@ mapModuleDefinition distribution currentPackagePath currentModulePath accessCont
             }
     in
     [ moduleUnit ]
+
+
+
+processModulePath : Module.ModuleName -> List String
+processModulePath modulePath =
+    let
+        makeWords : List String -> String -> List String -> List String
+        makeWords wordsSoFar nextWord name =
+            case name of
+                [] ->
+                    List.reverse wordsSoFar
+
+                [ word ] ->
+                    (if String.length word == 1 then
+                        (nextWord ++ word) :: wordsSoFar
+
+                     else if String.length nextWord == 0 then
+                        word :: wordsSoFar
+
+                     else
+                        word :: nextWord :: wordsSoFar
+                    )
+                        |> List.reverse
+
+                word :: rest ->
+                    if String.length word == 1 then
+                        makeWords wordsSoFar (nextWord ++ word) rest
+
+                    else if String.length nextWord == 0 then
+                        makeWords (word :: wordsSoFar) "" rest
+
+                    else
+                        makeWords (word :: nextWord :: wordsSoFar) "" rest
+    in
+    modulePath |> List.map (makeWords [] "" >> String.join "-")
