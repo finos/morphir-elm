@@ -56,7 +56,7 @@ abbreviation:
 
 -}
 
-import Regex exposing (Regex)
+--import Regex exposing (Regex)
 
 
 {-| Type that represents a name that is made up of words.
@@ -88,16 +88,7 @@ characters start a new word.
 -}
 fromString : String -> Name
 fromString string =
-    let
-        wordPattern : Regex
-        wordPattern =
-            Regex.fromString "([a-zA-Z][a-z]*|[0-9]+)"
-                |> Maybe.withDefault Regex.never
-    in
-    Regex.find wordPattern string
-        |> List.map .match
-        |> List.map String.toLower
-        |> fromList
+    [ string ]
 
 
 {-| Turns a name into a title-case string.
@@ -200,11 +191,13 @@ toHumanWords name =
                                 process (List.append prefix [ join abbrev, first ]) [] rest
     in
     case name of
-        [word] ->
+        [ word ] ->
             if String.length word == 1 then
                 name
+
             else
                 process [] [] words
+
         _ ->
             process [] [] words
 

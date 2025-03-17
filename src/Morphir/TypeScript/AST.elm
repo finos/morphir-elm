@@ -18,12 +18,12 @@ import Morphir.IR.Path exposing (Path)
 
 
 {-| -}
-type alias CompilationUnit =
-    { dirPath : List String
-    , fileName : String
+type alias Module =
+    { modulePath : List String
     , imports : List ImportDeclaration
     , typeDefs : List TypeDef
     , statements : List Statement
+    , exports : List String
     }
 
 
@@ -63,11 +63,25 @@ type alias CallExpression =
     }
 
 
+
+--type TSPattern
+--    = IdentifierPattern String
+--    | ArrayPattern (List TSPattern)
+--    | ObjectPattern (List TS)
+
+
+type Literal
+    = FloatNumberLiteral Float
+    | IntNumberLiteral Int
+    | BooleanLiteral Bool
+    | StringLiteral String
+
+
 type TSExpression
-    = ArrayLiteralExpression (List TSExpression)
+    = LiteralExpression Literal
+    | ArrayLiteralExpression (List TSExpression)
     | Call CallExpression
     | Identifier String
-    | IntLiteralExpression Int
     | IndexedExpression
         { object : TSExpression
         , index : TSExpression
@@ -81,13 +95,21 @@ type TSExpression
         , arguments : List TSExpression
         }
     | NullLiteral
-    | ObjectLiteralExpression { properties : List ( String, TSExpression ) }
-    | StringLiteralExpression String
+      --
+    | ObjectLiteralExpression
+        { spread : List TSExpression
+        , properties : List ( String, TSExpression )
+        }
+    | IfElse TSExpression TSExpression TSExpression
+    | ArrowFunction
+        { params : List String
+        , body : TSExpression
+        }
 
 
 emptyObject : TSExpression
 emptyObject =
-    ObjectLiteralExpression { properties = [] }
+    ObjectLiteralExpression { spread = [], properties = [] }
 
 
 type FunctionScope

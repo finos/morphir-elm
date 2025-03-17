@@ -1,4 +1,4 @@
-module Morphir.TypeScript.Backend.Types exposing (mapPrivacy, mapTypeDefinition)
+module Morphir.TypeScript.Backend.Types exposing (mapPrivacy, mapTypeDefinition, mapTypeExp, mapTypeName)
 
 {-| This module contains the TypeScript backend that translates the Morphir IR Types
 into TypeScript.
@@ -33,7 +33,7 @@ inputIndexArg : Int -> TS.TSExpression
 inputIndexArg index =
     TS.IndexedExpression
         { object = TS.Identifier "input"
-        , index = TS.IntLiteralExpression index
+        , index = TS.LiteralExpression (TS.IntNumberLiteral index)
         }
 
 
@@ -230,7 +230,7 @@ mapConstructor moduleName constructor =
             TS.AssignmentStatement
                 (TS.Identifier "kind")
                 (Just (TS.LiteralString (constructor.name |> Name.toTitleCase)))
-                (TS.StringLiteralExpression (constructor.name |> Name.toTitleCase))
+                (TS.LiteralExpression <| TS.StringLiteral <| (constructor.name |> Name.toTitleCase))
 
         typeExpressions : List TS.TypeExp
         typeExpressions =
@@ -410,7 +410,7 @@ decoderExpression moduleName customTypeVars typeExp inputArg =
                     |> List.map
                         (\field ->
                             TS.ArrayLiteralExpression
-                                [ TS.StringLiteralExpression (Name.toCamelCase field.name)
+                                [ TS.LiteralExpression <| TS.StringLiteral (Name.toCamelCase field.name)
                                 , specificDecoderForType moduleName customTypeVars field.tpe
                                 ]
                         )
@@ -556,7 +556,7 @@ generateConstructorDecoderFunction moduleName constructor =
             TS.parameter [] "input" (Just TS.Any)
 
         kind =
-            TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
+            TS.LiteralExpression <| TS.StringLiteral (constructor.name |> Name.toTitleCase)
 
         validateCall : TS.TSExpression
         validateCall =
@@ -564,7 +564,7 @@ generateConstructorDecoderFunction moduleName constructor =
                 { function = codecsModule "preprocessCustomTypeVariant"
                 , arguments =
                     [ kind
-                    , constructor.args |> List.length |> TS.IntLiteralExpression
+                    , constructor.args |> List.length |> TS.IntNumberLiteral |> TS.LiteralExpression
                     , TS.Identifier "input"
                     ]
                 }
@@ -654,14 +654,14 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
             (TS.Call >> TS.ExpressionStatement)
                 { function = codecsModule "raiseDecodeErrorFromCustomType"
                 , arguments =
-                    [ TS.StringLiteralExpression (typeName |> Name.toTitleCase)
+                    [ TS.LiteralExpression <| TS.StringLiteral <| (typeName |> Name.toTitleCase)
                     , TS.Identifier "kind"
                     ]
                 }
 
         constructorToCaseBlock : ConstructorDetail ta -> ( TS.TSExpression, List TS.Statement )
         constructorToCaseBlock constructor =
-            ( constructor.name |> Name.toTitleCase |> TS.StringLiteralExpression
+            ( constructor.name |> Name.toTitleCase |> TS.StringLiteral |> TS.LiteralExpression
             , [ TS.ReturnStatement
                     (TS.Call
                         { function = constructor.name |> prependDecodeToName |> TS.Identifier
@@ -745,7 +745,7 @@ encoderExpression moduleName customTypeVars typeExp valueArg =
                     |> List.map
                         (\field ->
                             TS.ArrayLiteralExpression
-                                [ TS.StringLiteralExpression (Name.toCamelCase field.name)
+                                [ TS.LiteralExpression <| TS.StringLiteral <| Name.toCamelCase field.name
                                 , specificEncoderForType moduleName customTypeVars field.tpe
                                 ]
                         )
@@ -936,7 +936,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
 
         constructorToCaseBlock : ConstructorDetail ta -> ( TS.TSExpression, List TS.Statement )
         constructorToCaseBlock constructor =
-            ( constructor.name |> Name.toTitleCase |> TS.StringLiteralExpression
+            ( constructor.name |> Name.toTitleCase |> TS.StringLiteral |> TS.LiteralExpression
             , [ TS.ReturnStatement
                     (TS.Call
                         { function = constructor.name |> prependEncodeToName |> TS.Identifier
@@ -983,3 +983,8 @@ generateConstructorConstructorFunction moduleName { name, privacy, args, typeVar
         }
         TS.ClassMemberFunction
         privacy
+
+
+mapTypeName : Name -> String
+mapTypeName name =
+    name |> Name.toTitleCase
