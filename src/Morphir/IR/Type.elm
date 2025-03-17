@@ -19,11 +19,11 @@ module Morphir.IR.Type exposing
     ( Type(..)
     , variable, reference, tuple, record, extensibleRecord, function, unit
     , Field, mapFieldName, mapFieldType
-    , Specification(..), typeAliasSpecification, opaqueTypeSpecification, customTypeSpecification
+    , Specification(..), typeAliasSpecification, opaqueTypeSpecification, customTypeSpecification, derivedTypeSpecification, DerivedTypeSpecificationDetails
     , Definition(..), typeAliasDefinition, customTypeDefinition, definitionToSpecification, definitionToSpecificationWithPrivate
     , Constructors, Constructor, ConstructorArgs
     , mapTypeAttributes, mapSpecificationAttributes, mapDefinitionAttributes, mapDefinition, typeAttributes
-    , eraseAttributes, collectVariables, collectReferences, collectReferencesFromDefintion, substituteTypeVariables, toString, DerivedTypeSpecificationDetails
+    , eraseAttributes, collectVariables, collectReferences, collectReferencesFromDefintion, substituteTypeVariables, toString
     )
 
 {-| Like any other programming languages Morphir has a type system as well. This module defines the building blocks of
@@ -109,7 +109,7 @@ Here is the full definition for reference:
 
 # Specification
 
-@docs Specification, typeAliasSpecification, opaqueTypeSpecification, customTypeSpecification, DerivedTypeSpecificationDetails
+@docs Specification, typeAliasSpecification, opaqueTypeSpecification, customTypeSpecification, derivedTypeSpecification, DerivedTypeSpecificationDetails
 
 
 # Definition
@@ -239,6 +239,7 @@ type Specification a
     | OpaqueTypeSpecification (List Name)
     | CustomTypeSpecification (List Name) (Constructors a)
     | DerivedTypeSpecification (List Name) (DerivedTypeSpecificationDetails a)
+
 
 {-| Details of the base type of a Derived Type
 -}
@@ -481,8 +482,8 @@ eraseAttributes typeDef =
 
 -}
 variable : a -> Name -> Type a
-variable attributes name =
-    Variable attributes name
+variable attrs name =
+    Variable attrs name
 
 
 {-| Creates a fully-qualified reference to a type.
@@ -497,8 +498,8 @@ variable attributes name =
 
 -}
 reference : a -> FQName -> List (Type a) -> Type a
-reference attributes typeName typeParameters =
-    Reference attributes typeName typeParameters
+reference attrs typeName typeParameters =
+    Reference attrs typeName typeParameters
 
 
 {-| Creates a tuple type.
@@ -508,8 +509,8 @@ reference attributes typeName typeParameters =
 
 -}
 tuple : a -> List (Type a) -> Type a
-tuple attributes elementTypes =
-    Tuple attributes elementTypes
+tuple attrs elementTypes =
+    Tuple attrs elementTypes
 
 
 {-| Creates a record type.
@@ -529,8 +530,8 @@ tuple attributes elementTypes =
 
 -}
 record : a -> List (Field a) -> Type a
-record attributes fieldTypes =
-    Record attributes fieldTypes
+record attrs fieldTypes =
+    Record attrs fieldTypes
 
 
 {-| Creates an extensible record type.
@@ -548,8 +549,8 @@ record attributes fieldTypes =
 
 -}
 extensibleRecord : a -> Name -> List (Field a) -> Type a
-extensibleRecord attributes variableName fieldTypes =
-    ExtensibleRecord attributes variableName fieldTypes
+extensibleRecord attrs variableName fieldTypes =
+    ExtensibleRecord attrs variableName fieldTypes
 
 
 {-| Creates a function type. Use currying to create functions with more than one argument.
@@ -569,8 +570,8 @@ extensibleRecord attributes variableName fieldTypes =
 
 -}
 function : a -> Type a -> Type a -> Type a
-function attributes argumentType returnType =
-    Function attributes argumentType returnType
+function attrs argumentType returnType =
+    Function attrs argumentType returnType
 
 
 {-| Creates a unit type.
@@ -579,8 +580,8 @@ function attributes argumentType returnType =
 
 -}
 unit : a -> Type a
-unit attributes =
-    Unit attributes
+unit attrs =
+    Unit attrs
 
 
 {-| -}
@@ -611,6 +612,12 @@ opaqueTypeSpecification typeParams =
 customTypeSpecification : List Name -> Constructors a -> Specification a
 customTypeSpecification typeParams ctors =
     CustomTypeSpecification typeParams ctors
+
+
+{-| -}
+derivedTypeSpecification : List Name -> DerivedTypeSpecificationDetails a -> Specification a
+derivedTypeSpecification typeParams details =
+    DerivedTypeSpecification typeParams details
 
 
 {-| Map the name of the field to get a new field.

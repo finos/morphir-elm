@@ -38,6 +38,7 @@ import Morphir.IR.Value as Value
 import Morphir.SDK.ResultList as ResultList
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
+import Morphir.IR.NameConstructorArguments as NameConstructorArguments
 
 
 port packageDefinitionFromSource : (( Decode.Value, Decode.Value, List SourceFile ) -> msg) -> Sub msg
@@ -107,6 +108,7 @@ update msg model =
                         frontendResult : Result (List Compiler.Error) (Package.Definition Frontend.SourceLocation Frontend.SourceLocation)
                         frontendResult =
                             Frontend.mapSource opts packageInfo Dict.empty relevantSourceFiles
+                                |> Result.map NameConstructorArguments.rewritePackage
 
                         typedResult : Result (List Compiler.Error) (Package.Definition () ( Frontend.SourceLocation, Type () ))
                         typedResult =
