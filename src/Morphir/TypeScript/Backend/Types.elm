@@ -306,11 +306,38 @@ mapTypeExp moduleName tpe =
         Type.Variable _ name ->
             TS.Variable (Name.toTitleCase name)
 
-        Type.ExtensibleRecord _ _ _ ->
-            TS.UnhandledType "ExtensibleRecord"
+        Type.ExtensibleRecord _ _ fieldList ->
+            TS.Object
+                (fieldList
+                    |> List.map
+                        (\field ->
+                            ( field.name |> Name.toCamelCase, mapTypeExp moduleName field.tpe )
+                        )
+                )
 
-        Type.Function _ _ _ ->
-            TS.UnhandledType "Function"
+        Type.Function _ inputTpe outputTpe ->
+            let
+                collectParamsFromFunctionType : List (Type ta) -> Type ta -> List (Type ta)
+                collectParamsFromFunctionType collectedSoFar fnTpe =
+                    case fnTpe of
+                        Type.Function _ inTpe outTpe ->
+                            collectParamsFromFunctionType (inTpe :: collectedSoFar) outTpe
+
+                        _ ->
+                            List.reverse collectedSoFar
+
+                params : List TS.Parameter
+                params =
+                    collectParamsFromFunctionType [ inputTpe ] outputTpe
+                        |> List.indexedMap
+                            (\index paramTpe ->
+                                { name = "arg" ++ String.fromInt index
+                                , typeAnnotation = Just (mapTypeExp moduleName paramTpe)
+                                , modifiers = []
+                                }
+                            )
+            in
+            TS.FunctionTypeExp params (mapTypeExp moduleName outputTpe)
 
 
 decoderTypeSignature : TS.TypeExp -> TS.TypeExp

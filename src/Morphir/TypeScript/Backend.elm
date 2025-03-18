@@ -63,7 +63,7 @@ mapPackageDefinition opt distribution packagePath packageDef =
                 |> Dict.toList
                 |> List.concatMap
                     (\( modulePath, moduleImpl ) ->
-                        Backend.mapModuleDefinition opt distribution packagePath modulePath moduleImpl
+                        Backend.mapModuleDefinition distribution packagePath modulePath moduleImpl
                     )
 
         compilationUnitToFileMapElement : TS.Module -> FileMapElement
@@ -94,4 +94,3 @@ mapPackageDefinition opt distribution packagePath packageDef =
     individualModules
         |> List.map compilationUnitToFileMapElement
         |> Dict.fromList
-
