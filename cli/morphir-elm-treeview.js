@@ -8,6 +8,7 @@ const fs = require("fs");
 const readFile = util.promisify(fs.readFile);
 const commander = require("commander");
 const express = require("express");
+const { file } = require("get-uri/dist/file");
 
 // Set up Commander
 const program = new commander.Command();
@@ -41,6 +42,19 @@ app.get(
 
 createSimpleGetJsonApi(app, "morphir.json");
 createSimpleGetJsonApi(app, "morphir-ir.json");
+
+app.get('/assets/2020_Morphir_Logo_Icon_WHT.svg', (req, res) => {
+  var options = {
+          root: path.join(__dirname)
+      };
+    var fileName = path.join(program.opts().projectDir, 'treeview/assets/2020_Morphir_Logo_Icon_WHT.svg');
+    res.sendFile(fileName, options
+      , function (err) {
+        if (err) {
+            console.error(err);
+        }
+  });
+});
 
 app.get(
   "*",

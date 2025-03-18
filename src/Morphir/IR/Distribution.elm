@@ -1,5 +1,5 @@
 module Morphir.IR.Distribution exposing
-    ( Distribution(..)
+    ( Distribution(..), library
     , lookupModuleSpecification, lookupTypeSpecification, lookupValueSpecification, lookupBaseTypeName, lookupValueDefinition
     , lookupPackageSpecification, lookupPackageName, typeSpecifications, lookupTypeConstructor
     , resolveAliases, resolveType, resolveRecordConstructors
@@ -18,7 +18,7 @@ information:
   - The package definition which contains all the module definitions included in the library. The package definition
     contains implementations as well, even ones that are not exposed.
 
-@docs Distribution
+@docs Distribution, library
 
 
 # Lookups
@@ -47,6 +47,21 @@ import Morphir.IR.Value as Value exposing (Value)
 -}
 type Distribution
     = Library PackageName (Dict PackageName (Package.Specification ())) (Package.Definition () (Type ()))
+
+
+{-| A library distribution contains the following pieces of information:
+
+  - The name of the library. This is the globally unique identifier of the package like the package name in NPM or the
+    Group and Artifact ID in Maven.
+  - All the library dependencies as a dictionary of package name and package specification. The package specification
+    only contains type signatures, no implementations.
+  - The package definition which contains all the module definitions included in the library. The package definition
+    contains implementations as well, even ones that are not exposed.
+
+-}
+library : PackageName -> Dict PackageName (Package.Specification ()) -> Package.Definition () (Type ()) -> Distribution
+library packageName dependencies packageDef =
+    Library packageName dependencies packageDef
 
 
 {-| Look up a module specification by package and module path in a distribution.

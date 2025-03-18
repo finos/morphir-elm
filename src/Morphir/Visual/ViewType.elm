@@ -8,11 +8,10 @@ import Element exposing (..)
 import Element.Font as Font
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Type as Type exposing (Type)
-import Morphir.Visual.Common exposing (nameToText)
+import Morphir.Visual.Common exposing (nameToText, nameToTitleText, pathToUrl)
 import Morphir.Visual.Components.Card as Card
 import Morphir.Visual.Theme as Theme exposing (Theme)
 import Morphir.Visual.XRayView as XRayView
-import Morphir.Visual.Common exposing (nameToTitleText, pathToUrl)
 
 
 viewType : Theme -> Name -> Type.Definition () -> String -> Element msg
@@ -177,7 +176,14 @@ viewTypeDetails theme typeName typeDef =
                                             el
                                                 (Theme.labelStyles theme)
                                                 (ctorArgs
-                                                    |> List.map (Tuple.second >> XRayView.viewType pathToUrl)
+                                                    |> List.map
+                                                        (\( argName, argType ) ->
+                                                            row [ spacing 5 ]
+                                                                [ argName |> nameToText |> text
+                                                                , text " : "
+                                                                , XRayView.viewType pathToUrl argType
+                                                                ]
+                                                        )
                                                     |> row [ spacing 5 ]
                                                 )
                                 in

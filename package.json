@@ -1,6 +1,6 @@
 {
   "name": "morphir-elm",
-  "version": "2.91.1-2",
+  "version": "2.93.0",
   "description": "Elm bindings for Morphir",
   "type": "commonjs",
   "module": "es6",
@@ -114,6 +114,7 @@
     "fs-extra": "^9.1.0",
     "get-stdin": "^8.0.0",
     "get-uri": "^6.0.3",
+    "immutable": "^5.0.3",
     "inquirer": "^8.0.0",
     "log-timestamp": "^0.3.0",
     "neverthrow": "^6.2.1",
