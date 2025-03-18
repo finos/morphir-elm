@@ -1706,8 +1706,8 @@ fieldFunction attrs fieldName =
 
 -}
 apply : va -> Value ta va -> Value ta va -> Value ta va
-apply attrs function argument =
-    Apply attrs function argument
+apply attrs func argument =
+    Apply attrs func argument
 
 
 {-| Represents a lambda abstraction.
