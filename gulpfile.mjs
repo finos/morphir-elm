@@ -127,7 +127,7 @@ export const buildMorphirTSLib = async () => {
         return await execa('npx tsc', ['--project', path.join('.', 'morphir-ts', 'tsconfig.json')])
     } catch (error) {
         console.error("Error building morphir API 2", error);
-        return error
+        throw error
     }
 
 }
@@ -466,7 +466,7 @@ export {
 };
 
 
-    export { testMorphirIR as testMorphirIRTypeScript };
+export { testMorphirIR as testMorphirIRTypeScript };
 
 
 
