@@ -146,16 +146,16 @@ nativeFunctions =
             (Native.encodeMaybe Native.encodeLocalDate)
       )
     , ( "diffInDays"
-      , Native.eval2 LocalDate.diffInDays Native.decodeLocalDate Native.decodeLocalDate (Native.encodeLiteral Literal.intLiteral)
+      , Native.eval2 LocalDate.diffInDays Native.decodeLocalDate Native.decodeLocalDate (Native.encodeLiteral Literal.wholeNumberLiteral)
       )
     , ( "diffInWeeks"
-      , Native.eval2 LocalDate.diffInWeeks Native.decodeLocalDate Native.decodeLocalDate (Native.encodeLiteral Literal.intLiteral)
+      , Native.eval2 LocalDate.diffInWeeks Native.decodeLocalDate Native.decodeLocalDate (Native.encodeLiteral Literal.wholeNumberLiteral)
       )
     , ( "diffInMonths"
-      , Native.eval2 LocalDate.diffInMonths Native.decodeLocalDate Native.decodeLocalDate (Native.encodeLiteral Literal.intLiteral)
+      , Native.eval2 LocalDate.diffInMonths Native.decodeLocalDate Native.decodeLocalDate (Native.encodeLiteral Literal.wholeNumberLiteral)
       )
     , ( "diffInYears"
-      , Native.eval2 LocalDate.diffInYears Native.decodeLocalDate Native.decodeLocalDate (Native.encodeLiteral Literal.intLiteral)
+      , Native.eval2 LocalDate.diffInYears Native.decodeLocalDate Native.decodeLocalDate (Native.encodeLiteral Literal.wholeNumberLiteral)
       )
     , ( "addDays"
       , Native.eval2 LocalDate.addDays (Native.decodeLiteral Native.intLiteral) Native.decodeLocalDate Native.encodeLocalDate

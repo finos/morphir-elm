@@ -15,7 +15,7 @@
 -}
 
 
-module Morphir.IR.Literal exposing (Literal(..), boolLiteral, charLiteral, stringLiteral, intLiteral, floatLiteral)
+module Morphir.IR.Literal exposing (Literal(..), boolLiteral, charLiteral, stringLiteral, wholeNumberLiteral, floatLiteral, decimalLiteral)
 
 {-| Literals represent fixed values in the IR. We support the same set of basic types as Elm which almost matches JSON's supported values:
 
@@ -25,7 +25,7 @@ module Morphir.IR.Literal exposing (Literal(..), boolLiteral, charLiteral, strin
   - Int
   - Float
 
-@docs Literal, boolLiteral, charLiteral, stringLiteral, intLiteral, floatLiteral
+@docs Literal, boolLiteral, charLiteral, stringLiteral, wholeNumberLiteral, floatLiteral, decimalLiteral
 
 -}
 
@@ -66,8 +66,8 @@ stringLiteral value =
 
 {-| Represents an integer value. Some possible values: `0`, `-1`, `9832479`
 -}
-intLiteral : Int -> Literal
-intLiteral value =
+wholeNumberLiteral : Int -> Literal
+wholeNumberLiteral value =
     WholeNumberLiteral value
 
 
@@ -76,3 +76,10 @@ intLiteral value =
 floatLiteral : Float -> Literal
 floatLiteral value =
     FloatLiteral value
+
+
+{-| Represents a decimal number. Some possible values: `1.25`, `-13.4`
+-}
+decimalLiteral : Decimal -> Literal
+decimalLiteral value =
+    DecimalLiteral value

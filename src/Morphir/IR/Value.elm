@@ -16,10 +16,10 @@
 
 
 module Morphir.IR.Value exposing
-    ( Value(..), RawValue, TypedValue, literal, constructor, apply, field, fieldFunction, lambda, letDef, letDestruct, letRec, list, record, reference
-    , tuple, variable, ifThenElse, patternMatch, update, unit
+    ( Value(..), RawValue, TypedValue, literal, constructor, destructure, apply, field, fieldFunction, lambda, letDefinition, letDestruct, letRecursion, list, record, reference
+    , tuple, variable, ifThenElse, patternMatch, updateRecord, unit
     , mapValueAttributes, rewriteMaybeToPatternMatch, replaceVariables
-    , Pattern(..), wildcardPattern, asPattern, tuplePattern, constructorPattern, emptyListPattern, headTailPattern, literalPattern
+    , Pattern(..), wildcardPattern, asPattern, tuplePattern, unitPattern, constructorPattern, emptyListPattern, headTailPattern, literalPattern
     , Specification, mapSpecificationAttributes
     , Definition, mapDefinition, mapDefinitionAttributes
     , definitionToSpecification, typeAndValueToDefinition, uncurryApply, collectVariables, collectReferences, collectDefinitionAttributes, collectPatternAttributes
@@ -81,8 +81,8 @@ to find more details. Here are the Morphir IR snippets for the above values as a
 
 Value is the top level building block for data and logic. See the constructor functions below for details on each node type.
 
-@docs Value, RawValue, TypedValue, literal, constructor, apply, field, fieldFunction, lambda, letDef, letDestruct, letRec, list, record, reference
-@docs tuple, variable, ifThenElse, patternMatch, update, unit
+@docs Value, RawValue, TypedValue, literal, constructor, destructure, apply, field, fieldFunction, lambda, letDefinition, letDestruct, letRecursion, list, record, reference
+@docs tuple, variable, ifThenElse, patternMatch, updateRecord, unit
 @docs mapValueAttributes, rewriteMaybeToPatternMatch, replaceVariables
 
 
@@ -92,7 +92,7 @@ Patterns are used in multiple ways in the IR: they can take apart a structured v
 can also filter values. The combination of these two features creates a very powerful method tool that can be used in two ways:
 destructuring and pattern-matching. Pattern-matching is a combination of destructuring, filtering and branching.
 
-@docs Pattern, wildcardPattern, asPattern, tuplePattern, constructorPattern, emptyListPattern, headTailPattern, literalPattern
+@docs Pattern, wildcardPattern, asPattern, tuplePattern, unitPattern, constructorPattern, emptyListPattern, headTailPattern, literalPattern
 
 
 # Specification
@@ -128,8 +128,8 @@ import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path as Path
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.SDK.Decimal as Decimal
-import Morphir.SDK.UUID exposing (UUID)
 import Morphir.SDK.ResultList as ListOfResults
+import Morphir.SDK.UUID exposing (UUID)
 import Set exposing (Set)
 
 
@@ -1575,8 +1575,8 @@ rewriteValue f value =
 
 -}
 literal : va -> Literal -> Value ta va
-literal attributes value =
-    Literal attributes value
+literal attrs value =
+    Literal attrs value
 
 
 {-| A reference to a constructor of a custom type.
@@ -1587,8 +1587,21 @@ literal attributes value =
 
 -}
 constructor : va -> FQName -> Value ta va
-constructor attributes fullyQualifiedName =
-    Constructor attributes fullyQualifiedName
+constructor attrs fullyQualifiedName =
+    Constructor attrs fullyQualifiedName
+
+
+{-| A [destructure] represents a pattern match expression.
+
+    case a of
+        Just x -> x
+        Nothing -> 0
+    -- Destructure ( ..., [ [ "maybe" ] ], [ "just" ] ) (Variable [ "a" ]) (Variable [ "x" ]) (Literal (WholeNumberLiteral 0))
+
+-}
+destructure : va -> Pattern va -> Value ta va -> Value ta va -> Value ta va
+destructure attrs pattern valueToDestruct inValue =
+    Destructure attrs pattern valueToDestruct inValue
 
 
 {-| A [tuple] represents an ordered list of values where each value can be of a different type.
@@ -1605,8 +1618,8 @@ constructor attributes fullyQualifiedName =
 
 -}
 tuple : va -> List (Value ta va) -> Value ta va
-tuple attributes elements =
-    Tuple attributes elements
+tuple attrs elements =
+    Tuple attrs elements
 
 
 {-| A [list] represents an ordered list of values where every value has to be of the same type.
@@ -1619,8 +1632,8 @@ tuple attributes elements =
 
 -}
 list : va -> List (Value ta va) -> Value ta va
-list attributes items =
-    List attributes items
+list attrs items =
+    List attrs items
 
 
 {-| A [record] represents a dictionary of fields where the keys are the field names, and the values are the field values
@@ -1635,8 +1648,8 @@ list attributes items =
 
 -}
 record : va -> Dict Name (Value ta va) -> Value ta va
-record attributes fields =
-    Record attributes fields
+record attrs fields =
+    Record attrs fields
 
 
 {-| A [variable] represents a reference to a named value in the scope.
@@ -1649,8 +1662,8 @@ record attributes fields =
 
 -}
 variable : va -> Name -> Value ta va
-variable attributes name =
-    Variable attributes name
+variable attrs name =
+    Variable attrs name
 
 
 {-| A reference that refers to a function or a value with its fully-qualified name.
@@ -1659,8 +1672,8 @@ variable attributes name =
 
 -}
 reference : va -> FQName -> Value ta va
-reference attributes fullyQualifiedName =
-    Reference attributes fullyQualifiedName
+reference attrs fullyQualifiedName =
+    Reference attrs fullyQualifiedName
 
 
 {-| Extracts the value of a record's field.
@@ -1669,8 +1682,8 @@ reference attributes fullyQualifiedName =
 
 -}
 field : va -> Value ta va -> Name -> Value ta va
-field attributes subjectValue fieldName =
-    Field attributes subjectValue fieldName
+field attrs subjectValue fieldName =
+    Field attrs subjectValue fieldName
 
 
 {-| Represents a function that extract a field from a record value passed to it.
@@ -1679,8 +1692,8 @@ field attributes subjectValue fieldName =
 
 -}
 fieldFunction : va -> Name -> Value ta va
-fieldFunction attributes fieldName =
-    FieldFunction attributes fieldName
+fieldFunction attrs fieldName =
+    FieldFunction attrs fieldName
 
 
 {-| Represents a function invocation. We use currying to represent function invocations with multiple arguments.
@@ -1693,8 +1706,8 @@ fieldFunction attributes fieldName =
 
 -}
 apply : va -> Value ta va -> Value ta va -> Value ta va
-apply attributes function argument =
-    Apply attributes function argument
+apply attrs func argument =
+    Apply attrs func argument
 
 
 {-| Represents a lambda abstraction.
@@ -1712,8 +1725,8 @@ apply attributes function argument =
 
 -}
 lambda : va -> Pattern va -> Value ta va -> Value ta va
-lambda attributes argumentPattern body =
-    Lambda attributes argumentPattern body
+lambda attrs argumentPattern body =
+    Lambda attrs argumentPattern body
 
 
 {-| Represents a let expression that assigns a value (and optionally type) to a name.
@@ -1746,9 +1759,9 @@ lambda attributes argumentPattern body =
     --     )
 
 -}
-letDef : va -> Name -> Definition ta va -> Value ta va -> Value ta va
-letDef attributes valueName valueDefinition inValue =
-    LetDefinition attributes valueName valueDefinition inValue
+letDefinition : va -> Name -> Definition ta va -> Value ta va -> Value ta va
+letDefinition attrs valueName valueDefinition inValue =
+    LetDefinition attrs valueName valueDefinition inValue
 
 
 {-| Represents a let expression with one or many recursive definitions.
@@ -1768,9 +1781,9 @@ letDef attributes valueName valueDefinition inValue =
     --     (Variable [ "a" ])
 
 -}
-letRec : va -> Dict Name (Definition ta va) -> Value ta va -> Value ta va
-letRec attributes valueDefinitions inValue =
-    LetRecursion attributes valueDefinitions inValue
+letRecursion : va -> Dict Name (Definition ta va) -> Value ta va -> Value ta va
+letRecursion attrs valueDefinitions inValue =
+    LetRecursion attrs valueDefinitions inValue
 
 
 {-| Represents a let expression that extracts values using a pattern.
@@ -1786,8 +1799,8 @@ letRec attributes valueDefinitions inValue =
 
 -}
 letDestruct : va -> Pattern va -> Value ta va -> Value ta va -> Value ta va
-letDestruct attributes pattern valueToDestruct inValue =
-    Destructure attributes pattern valueToDestruct inValue
+letDestruct attrs pattern valueToDestruct inValue =
+    Destructure attrs pattern valueToDestruct inValue
 
 
 {-| Represents and if/then/else expression.
@@ -1802,8 +1815,8 @@ letDestruct attributes pattern valueToDestruct inValue =
 
 -}
 ifThenElse : va -> Value ta va -> Value ta va -> Value ta va -> Value ta va
-ifThenElse attributes condition thenBranch elseBranch =
-    IfThenElse attributes condition thenBranch elseBranch
+ifThenElse attrs condition thenBranch elseBranch =
+    IfThenElse attrs condition thenBranch elseBranch
 
 
 {-| Represents a pattern-match.
@@ -1821,8 +1834,8 @@ ifThenElse attributes condition thenBranch elseBranch =
 
 -}
 patternMatch : va -> Value ta va -> List ( Pattern va, Value ta va ) -> Value ta va
-patternMatch attributes branchOutOn cases =
-    PatternMatch attributes branchOutOn cases
+patternMatch attrs branchOutOn cases =
+    PatternMatch attrs branchOutOn cases
 
 
 {-| Update one or many fields of a record value.
@@ -1830,9 +1843,9 @@ patternMatch attributes branchOutOn cases =
     { a | foo = 1 } -- Update (Variable ["a"]) [ ( ["foo"], Literal (WholeNumberLiteral 1) ) ]
 
 -}
-update : va -> Value ta va -> Dict Name (Value ta va) -> Value ta va
-update attributes valueToUpdate fieldsToUpdate =
-    UpdateRecord attributes valueToUpdate fieldsToUpdate
+updateRecord : va -> Value ta va -> Dict Name (Value ta va) -> Value ta va
+updateRecord attrs valueToUpdate fieldsToUpdate =
+    UpdateRecord attrs valueToUpdate fieldsToUpdate
 
 
 {-| Represents the unit value.
@@ -1841,8 +1854,8 @@ update attributes valueToUpdate fieldsToUpdate =
 
 -}
 unit : va -> Value ta va
-unit attributes =
-    Unit attributes
+unit attrs =
+    Unit attrs
 
 
 {-| Matches any value and ignores it (assigns no variable name).
@@ -1851,8 +1864,8 @@ unit attributes =
 
 -}
 wildcardPattern : a -> Pattern a
-wildcardPattern attributes =
-    WildcardPattern attributes
+wildcardPattern attrs =
+    WildcardPattern attrs
 
 
 {-| Assigns a variable name to a pattern.
@@ -1865,8 +1878,8 @@ wildcardPattern attributes =
 
 -}
 asPattern : a -> Pattern a -> Name -> Pattern a
-asPattern attributes pattern name =
-    AsPattern attributes pattern name
+asPattern attrs pattern name =
+    AsPattern attrs pattern name
 
 
 {-| Destructures a tuple using a pattern for every element.
@@ -1875,8 +1888,18 @@ asPattern attributes pattern name =
 
 -}
 tuplePattern : a -> List (Pattern a) -> Pattern a
-tuplePattern attributes elementPatterns =
-    TuplePattern attributes elementPatterns
+tuplePattern attrs elementPatterns =
+    TuplePattern attrs elementPatterns
+
+
+{-| Matches the unit value.
+
+    () -- UnitPattern
+
+-}
+unitPattern : a -> Pattern a
+unitPattern attrs =
+    UnitPattern attrs
 
 
 {-| Matches on a custom type's constructor.
@@ -1889,8 +1912,8 @@ When there are multiple constructors it also does filtering so it cannot be used
 
 -}
 constructorPattern : a -> FQName -> List (Pattern a) -> Pattern a
-constructorPattern attributes constructorName argumentPatterns =
-    ConstructorPattern attributes constructorName argumentPatterns
+constructorPattern attrs constructorName argumentPatterns =
+    ConstructorPattern attrs constructorName argumentPatterns
 
 
 {-| Matches an empty list. Can be used standalon but frequently used as a terminal pattern
@@ -1905,8 +1928,8 @@ in a [`HeadTailPattern`](#headTailPattern).
 
 -}
 emptyListPattern : a -> Pattern a
-emptyListPattern attributes =
-    EmptyListPattern attributes
+emptyListPattern attrs =
+    EmptyListPattern attrs
 
 
 {-| Matches the head and the tail of a list. It can be used to match lists of at least N items
@@ -1932,8 +1955,8 @@ by nesting this pattern N times and terminating with [`EmptyListPattern`](#empty
 
 -}
 headTailPattern : a -> Pattern a -> Pattern a -> Pattern a
-headTailPattern attributes headPattern tailPattern =
-    HeadTailPattern attributes headPattern tailPattern
+headTailPattern attrs headPattern tailPattern =
+    HeadTailPattern attrs headPattern tailPattern
 
 
 {-| Matches a specific literal value. This pattern can only be used in a [pattern-match](#patternMatch)
@@ -1951,8 +1974,8 @@ since it always filters.
 
 -}
 literalPattern : a -> Literal -> Pattern a
-literalPattern attributes value =
-    LiteralPattern attributes value
+literalPattern attrs value =
+    LiteralPattern attrs value
 
 
 {-| Extract the argument list from a curried apply tree. It takes the two arguments of an apply and returns a tuple of
@@ -2039,7 +2062,6 @@ toString value =
 
                 DecimalLiteral decimal ->
                     Decimal.toString decimal
-
 
         patternToString : Pattern va -> String
         patternToString pattern =
