@@ -5,7 +5,6 @@ into TypeScript.
 -}
 
 import Dict
-import Maybe exposing (withDefault)
 import Morphir.IR.AccessControlled exposing (Access(..), AccessControlled)
 import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.FQName as FQName exposing (FQName)

@@ -1,27 +1,20 @@
 module Morphir.TypeScript.Backend.Module exposing (..)
 
-import Decimal
 import Dict
-import Morphir.File.FileMap exposing (FileMap)
 import Morphir.IR.AccessControlled exposing (Access(..), AccessControlled)
-import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
-import Morphir.IR.Literal as Literal
+import Morphir.IR.Distribution exposing (Distribution(..))
 import Morphir.IR.Module as Module
 import Morphir.IR.Name as Name
 import Morphir.IR.Package as Package
-import Morphir.IR.Path as Path exposing (Path)
-import Morphir.IR.Type as Type exposing (Type)
-import Morphir.IR.Value as Value
+import Morphir.IR.Path exposing (Path)
+import Morphir.IR.Type exposing (Type)
 import Morphir.TypeScript.AST as TS
 import Morphir.TypeScript.Backend.Imports exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
-import Morphir.TypeScript.Backend.TopLevelNamespace exposing (makeTopLevelNamespaceModule)
-import Morphir.TypeScript.Backend.Types as Types exposing (mapPrivacy, mapTypeDefinition, mapTypeExp)
-import Morphir.TypeScript.Backend.Values as Values
-import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
+import Morphir.TypeScript.Backend.Types exposing (mapTypeDefinition)
 
 
 mapModuleDefinition : Distribution -> Package.PackageName -> Path -> AccessControlled (Module.Definition ta (Type ())) -> List TS.Module
-mapModuleDefinition distribution currentPackagePath currentModulePath accessControlledModuleDef =
+mapModuleDefinition _ currentPackagePath currentModulePath accessControlledModuleDef =
     let
         ( typeScriptPackagePath, moduleName ) =
             getTypeScriptPackagePathAndModuleName currentPackagePath currentModulePath
@@ -33,17 +26,6 @@ mapModuleDefinition distribution currentPackagePath currentModulePath accessCont
                 |> List.concatMap
                     (\( typeName, typeDef ) -> mapTypeDefinition typeName typeDef currentModulePath)
 
-        constAndFunctionDefs : List TS.Statement
-        constAndFunctionDefs =
-            accessControlledModuleDef.value.values
-                |> Dict.toList
-                |> List.map
-                    (\( valueName, accDocValueDef ) ->
-                        Values.mapConstAndFunctionDefinition valueName
-                            accDocValueDef.value.value
-                            currentModulePath
-                    )
-
         namespace : TS.TypeDef
         namespace =
             TS.Namespace
@@ -54,7 +36,7 @@ mapModuleDefinition distribution currentPackagePath currentModulePath accessCont
 
         codecsImport =
             { importClause = "* as codecs"
-            , moduleSpecifier = makeRelativeImport typeScriptPackagePath "morphir/internal/Codecs"
+            , moduleSpecifier = makeRelativeImport typeScriptPackagePath "morphir/internal/codecs"
             }
 
         imports =
@@ -64,36 +46,19 @@ mapModuleDefinition distribution currentPackagePath currentModulePath accessCont
                         |> List.map (renderInternalImport typeScriptPackagePath)
                    )
 
-        modulePath =
-            processModulePath currentModulePath
-
-        valueExports =
-            accessControlledModuleDef.value.values
-                |> Dict.foldl
-                    (\key accessControlled acc ->
-                        case accessControlled.access of
-                            Public ->
-                                Name.toCamelCase key :: acc
-
-                            Private ->
-                                acc
-                    )
-                    []
-
         {--Collect references from inside the module,
         filter out references to current module
         then sort references and get a list of unique references-}
         moduleUnit : TS.Module
         moduleUnit =
-            { modulePath = modulePath
+            { modulePath = typeScriptPackagePath ++ [ Name.toHumanWords moduleName |> String.join "-" |> String.toLower ]
             , imports = imports
             , typeDefs = typeDefs
-            , statements = constAndFunctionDefs
-            , exports = valueExports
+            , statements = []
+            , exports = []
             }
     in
     [ moduleUnit ]
-
 
 
 processModulePath : Module.ModuleName -> List String

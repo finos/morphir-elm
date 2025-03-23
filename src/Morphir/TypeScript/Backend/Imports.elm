@@ -18,7 +18,7 @@ getTypeScriptPackagePathAndModuleName packagePath modulePath =
         lastName :: reverseModulePath ->
             ( List.append
                 (packagePath |> List.map (Name.toCamelCase >> String.toLower))
-                (reverseModulePath |> List.reverse |> List.map (Name.toCamelCase >> String.toLower))
+                (reverseModulePath |> List.reverse |> List.map (Name.toHumanWords >> String.join "-" >> String.toLower))
             , lastName
             )
 
@@ -30,7 +30,7 @@ filePathFromTop ( packagePath, modulePath ) =
                 concat
                     [ typeScriptPackagePath |> String.join "/"
                     , "/"
-                    , moduleName |> Name.toTitleCase
+                    , moduleName |> Name.toHumanWords |> String.join "-" |> String.toLower
                     ]
            )
 
