@@ -107,8 +107,8 @@ async function gen(input, outputPath, options) {
                 console.log(`INSERT - ${filePath}`)
             }
             if (options.target == 'TypeScript') {
-                return fsWriteFile(filePath, content)
-//                return fsWriteFile(filePath, prettier.format(content, { parser: "typescript" }))
+                // return fsWriteFile(filePath, content)
+                return fsWriteFile(filePath, prettier.format(content, { parser: "typescript" }))
             } else {
                 return fsWriteFile(filePath, content)
             }
