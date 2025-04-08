@@ -18,7 +18,7 @@ getTypeScriptPackagePathAndModuleName packagePath modulePath =
         lastName :: reverseModulePath ->
             ( List.append
                 (packagePath |> List.map (Name.toCamelCase >> String.toLower))
-                (reverseModulePath |> List.reverse |> List.map (Name.toCamelCase >> String.toLower))
+                (reverseModulePath |> List.reverse |> List.map (Name.toHumanWords >> String.join "-" >> String.toLower))
             , lastName
             )
 
@@ -30,7 +30,7 @@ filePathFromTop ( packagePath, modulePath ) =
                 concat
                     [ typeScriptPackagePath |> String.join "/"
                     , "/"
-                    , moduleName |> Name.toTitleCase
+                    , moduleName |> Name.toHumanWords |> String.join "-" |> String.toLower
                     ]
            )
 
@@ -53,9 +53,21 @@ renderInternalImport dirPath ( packagePath, modulePath ) =
     let
         modulePathFromTop =
             ( packagePath, modulePath ) |> filePathFromTop
+
+        ( importClause, moduleSpecifier ) =
+            case ( packagePath, modulePath ) of
+                ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ name ] ) ->
+                    ( "{ " ++ Name.toTitleCase name ++ " as " ++ TS.namespaceNameFromPackageAndModule packagePath modulePath ++ " }"
+                    , "morphir-elm/sdk"
+                    )
+
+                _ ->
+                    ( "* as " ++ TS.namespaceNameFromPackageAndModule packagePath modulePath
+                    , makeRelativeImport dirPath modulePathFromTop
+                    )
     in
-    { importClause = "{ " ++ TS.namespaceNameFromPackageAndModule packagePath modulePath ++ " }"
-    , moduleSpecifier = makeRelativeImport dirPath modulePathFromTop
+    { importClause = importClause
+    , moduleSpecifier = moduleSpecifier
     }
 
 
