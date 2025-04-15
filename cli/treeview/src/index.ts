@@ -1,6 +1,7 @@
 import { toDistribution, Morphir } from "morphir-elm";
 import { TreeNode } from "./treeNode";
 import * as d3 from "d3";
+const Elm = require("morphir-elm/cli/web/insight.js") as any;
 
 const treeviewTitle: string = "Treeview Display";
 
@@ -32,12 +33,21 @@ export async function getIR(): Promise<TreeNode | string> {
     const distribution: Morphir.IR.Distribution.Distribution = toDistribution(
       JSON.stringify(result)
     );
-    console.log("DIST: ", distribution);
     let treeview: TreeNode = createTree(distribution);
     treeview.children = nestedTree(treeview);
-    console.log("CREATED TREE: ", treeview);
 
-    d3.select("#treeview").append(() => createChart(treeview));
+    //Following: https://morphir.finos.org/docs/insight-api-guide/
+    const node = document.getElementById("insight");
+    let app = Elm.Elm.Morphir.Web.Insight.init({
+      node,
+      flags: {
+        distribution: result,
+        config: { fontSize: 12, decimalDigit: 2 },
+      },
+    });
+
+    d3.select("#treeview").append(() => createChart(treeview, app));
+    document.getElementById("loading")!.style.display = "none";
     return treeview;
   } catch (error) {
     return error instanceof Error
@@ -46,7 +56,7 @@ export async function getIR(): Promise<TreeNode | string> {
   }
 }
 
-function createChart(data: TreeNode): SVGSVGElement | null {
+function createChart(data: TreeNode, app: any): SVGSVGElement | null {
   // Chart from: https://observablehq.com/@d3/collapsible-tree with modifications to support our implementation.
   // Specify the charts’ dimensions. The height is variable, depending on the layout.
   const marginTop = 10;
@@ -58,8 +68,7 @@ function createChart(data: TreeNode): SVGSVGElement | null {
   // (dx is a height, and dy a width). This because the tree must be viewed with the root at the
   // “bottom”, in the data domain. The width of a column is based on the tree’s height.
   const root = d3.hierarchy<TreeNode>(data as TreeNode);
-  const dx = 30; //10
-  // const dy = ((width - marginRight - marginLeft) / (1 + root.height))+30;// NEed mor space
+  const dx = 30;
   const dy = 150;
 
   // Define the tree layout and the shape for links.
@@ -68,7 +77,6 @@ function createChart(data: TreeNode): SVGSVGElement | null {
     .linkHorizontal()
     .x((d: any) => d.y)
     .y((d: any) => d.x);
-  // const diagonal = d3.linkHorizontal().x(d => d.x).y(d => d.y);
 
   // Create the SVG container, a layer for the links and a layer for the nodes.
   const svg = d3
@@ -88,10 +96,7 @@ function createChart(data: TreeNode): SVGSVGElement | null {
     .attr("stroke-opacity", 0.4)
     .attr("stroke-width", 1.5);
 
-  const gNode = svg
-    .append("g")
-    .attr("cursor", "pointer")
-    .attr("pointer-events", "all");
+  const gNode = svg.append("g").attr("pointer-events", "all");
 
   function update(event: any, source: any) {
     const duration = event?.altKey ? 2500 : 250; // hold the alt key to slow down the transition
@@ -153,6 +158,13 @@ function createChart(data: TreeNode): SVGSVGElement | null {
       .selectAll<SVGGElement, d3.HierarchyNode<TreeNode>>("g")
       .data(nodes, (d) => d.id as string);
 
+    // tooltip div
+    var tooltipDiv = d3
+      .select("body")
+      .append("div")
+      .attr("class", "tooltip-node")
+      .style("opacity", 0);
+
     // Enter any new nodes at the parent's previous position.
     const nodeEnter = node
       .enter()
@@ -160,22 +172,53 @@ function createChart(data: TreeNode): SVGSVGElement | null {
       .attr("transform", (d) => `translate(${source.y0},${source.x0})`)
       .attr("fill-opacity", 0)
       .attr("stroke-opacity", 0)
+      .on("contextmenu", (event, d) => {
+        event.preventDefault();
+        if (d.data.definition.length > 0) {
+          flyout(d.data, app);
+        }
+      })
       .on("click", (event, d: any) => {
         d.children = d.children ? null : d._children;
-        if(!d._children){
-          flyout(d.data);
-        }
         update(event, d);
+      })
+      .on("mouseover", function (event: MouseEvent, d: any) {
+        tooltipDiv
+          .style("display", "block")
+          .transition()
+          .duration(100)
+          .style("opacity", 1);
+        tooltipDiv
+          .html(
+            `<div class="tooltip-content">
+             <span class="tooltip-label">Type:</span> 
+             <span class="tooltip-badge">${d.data.type}</span>
+           </div>`
+          )
+          .style("left", event.pageX + 15 + "px")
+          .style("top", event.pageY - 10 + "px");
+      })
+      .on("mouseout", function (d, i) {
+        tooltipDiv
+          .transition()
+          .duration(100)
+          .style("opacity", 0)
+          .on("end", () => tooltipDiv.style("display", "none"));
       });
 
     const types = ["Enum", "CustomType", "Record", "Alias"];
     nodeEnter
       .append("circle")
       .attr("r", 2.5)
+      .attr("cursor", (d: any) => {
+        return d._children ? "pointer" : "default";
+      })
       .attr("fill", (d: any) => {
-        //blue node if it is a type, less bright when terminating node
+        //blue node if it is a type, green for values, less bright when terminating node
         if (types.includes(d.data.type))
-            return d._children ? "rgba(0, 163, 225, 1)" : "rgba(0, 163, 225, 1)";
+          return d._children ? "rgba(0, 163, 225, 1)" : "rgba(5, 161, 225, 1)";
+        if (d.data.definition.length > 0)
+          return d._children ? "rgb(4, 146, 40)" : "rgb(10, 146, 40)";
         return d._children ? "#555" : "#999";
       })
       .attr("stroke-width", 10);
@@ -260,52 +303,61 @@ function createChart(data: TreeNode): SVGSVGElement | null {
   return svg.node();
 }
 
-document.addEventListener('DOMContentLoaded', () =>{
+document.addEventListener("DOMContentLoaded", () => {
   const exitFlyout = document.getElementById("closeFlyout");
-  exitFlyout?.addEventListener('click', () => {
-    document.getElementById('flyout')!.classList.remove('show');
-    document.getElementById('flyout')!.classList.add('hide');
+  exitFlyout?.addEventListener("click", () => {
+    document.getElementById("flyout")!.classList.remove("show");
+    document.getElementById("flyout")!.classList.add("hide");
     hideFlyout();
   });
 });
 
-async function hideFlyout(){
+async function hideFlyout() {
   await wait(500);
-  document.getElementById('flyout')!.style.display = "none";
+  document.getElementById("flyout")!.style.display = "none";
 }
 
-async function wait(ms: number): Promise<void>{
-  return new Promise(resolve => setTimeout(resolve, ms));
+async function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function flyout(node: TreeNode){
-  document.getElementById('flyout')!.style.display = "block";
-  document.getElementById('flyout')!.classList.remove('hide');
-  document.getElementById('flyout')!.classList.add('show');
-  document.getElementById('flyoutTitle')!.innerText = node.name.toString();
-  document.getElementById('flyoutSubtitle')!.innerText = ""+node.type.toString();
+function flyout(node: TreeNode, app: any) {
+  document.getElementById("flyout")!.style.display = "block";
+  document.getElementById("flyout")!.classList.remove("hide");
+  document.getElementById("flyout")!.classList.add("show");
+  document.getElementById("flyoutTitle")!.innerText = node.name.toString();
+  document.getElementById("flyoutSubtitle")!.innerText =
+    "" + node.type.toString();
+  document.getElementById("contentDef")!.innerHTML = "";
 
-  const definitionTable = document.createElement('table');
-  node.definition.forEach(node => {
-    let tableRow = document.createElement('tr');
-    let cell = document.createElement('td');
-    cell.textContent = node.name.toString();
-    tableRow.appendChild(cell);
-    definitionTable.appendChild(recursiveFlyoutDefinition(node, tableRow));
-  });
+  if (node.definition.length > 0 && node.definition[0].type == "modulePath") {
+    document.getElementById("insightContainer")!.style.display = "block";
+    app.ports.receiveFunctionName.send(
+      node.definition[0].name + ":" + node.name
+    );
+  } else {
+    document.getElementById("insightContainer")!.style.display = "none";
+    const definitionTable = document.createElement("table");
+    node.definition.forEach((node) => {
+      let tableRow = document.createElement("tr");
+      let cell = document.createElement("td");
+      cell.textContent = node.name.toString();
+      tableRow.appendChild(cell);
+      definitionTable.appendChild(recursiveFlyoutDefinition(node, tableRow));
+    });
+    document.getElementById("contentDef")!.appendChild(definitionTable);
+  }
 
-  const docs = node.doc || 'None';
-  document.getElementById('docs')!.innerText= docs.toString();
-  document.getElementById('contentDef')!.innerHTML='';
-  document.getElementById('contentDef')!.appendChild(definitionTable);
+  const docs = node.doc || "None";
+  document.getElementById("docs")!.innerText = docs.toString();
 }
 
-function recursiveFlyoutDefinition(node: TreeNode, tableRow: any): any{
-  node.definition.forEach(child => {
-    let childCell = document.createElement('td');
+function recursiveFlyoutDefinition(node: TreeNode, tableRow: any): any {
+  node.definition.forEach((child) => {
+    let childCell = document.createElement("td");
     childCell.textContent = child.name.toString();
     tableRow.appendChild(childCell);
-    if(child.children.length == 0){
+    if (child.children.length == 0) {
       recursiveFlyoutDefinition(child, tableRow);
     }
   });
@@ -369,9 +421,10 @@ function createTree(ir: Morphir.IR.Distribution.Distribution) {
             let distNode = documentedAccessControlledValueDef.value.value.body;
             let valueNode: TreeNode = new TreeNode(
               toCamelCase(valueName),
-              "value"
+              "Value"
             );
-
+            valueNode.definition.push(new TreeNode(nodeName, "modulePath"));
+            valueNode.doc = documentedAccessControlledValueDef.value.doc;
             //Drilldown into each value
             valueNode.children.push(...recursiveValueFunction(distNode));
             moduleNode.children.push(valueNode);
@@ -439,7 +492,8 @@ function recursiveTypeFunction(
 
   switch (distNode.kind) {
     case "Reference":
-      if (!isMorphirSDK(distNode)) { //This filters out all basic types
+      if (!isMorphirSDK(distNode)) {
+        //This filters out all basic types
         treeNodes.push(
           new TreeNode(toCamelCase(distNode.arg2[2]), distNode.kind)
         );

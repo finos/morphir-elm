@@ -12,7 +12,7 @@ import Morphir.TypeScript.Backend.Types exposing (mapPrivacy)
 
 {-| Generate a TypeScript file for the package that includes each of its modules.
 -}
-makeTopLevelNamespaceModule : Package.PackageName -> Package.Definition ta (Type ()) -> TS.CompilationUnit
+makeTopLevelNamespaceModule : Package.PackageName -> Package.Definition ta (Type ()) -> TS.Module
 makeTopLevelNamespaceModule packagePath packageDef =
     let
         topLevelPackageName : String
@@ -28,13 +28,14 @@ makeTopLevelNamespaceModule packagePath packageDef =
         typeDefs =
             mapModuleNamespacesForTopLevelFile packagePath packageDef
     in
-    { dirPath = []
-    , fileName = topLevelPackageName
+    { modulePath = [topLevelPackageName]
     , imports =
         typeDefs
             |> List.concatMap (getUniqueImportRefs [] [])
             |> List.map (renderInternalImport [])
     , typeDefs = typeDefs
+    , statements = []
+    , exports = []
     }
 
 

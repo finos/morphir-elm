@@ -30,7 +30,6 @@ module Morphir.IR.Literal exposing (Literal(..), boolLiteral, charLiteral, strin
 -}
 
 import Morphir.SDK.Decimal exposing (Decimal)
-import Morphir.SDK.UUID exposing (UUID)
 
 
 {-| Type that represents a literal value.
