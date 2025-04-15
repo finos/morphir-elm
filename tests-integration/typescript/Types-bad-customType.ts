@@ -1,6 +1,6 @@
 // `tsc` should report 6 compile errors for this file.
 //
-import type { Custom, CustomOneArg } from '../generated/refModel/src/typescript/morphir/reference/model/Types'
+import type { Custom, CustomOneArg } from '../generated/refModel/src/typescript/morphir/reference/model/types'
 
 const badNoArg_TooManyArgs: Custom = { kind: "CustomNoArg", arg1: false, arg2: "Very wrong" };
 const badNoArg_NoKindField: Custom = {};

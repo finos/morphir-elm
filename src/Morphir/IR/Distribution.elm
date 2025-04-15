@@ -74,11 +74,6 @@ type Distribution
 
   - The name of the library. This is the globally unique identifier of the package like the package name in NPM or the
     Group and Artifact ID in Maven.
-    import Dict exposing (Dict)
-    import Morphir.IR.FQName exposing (FQName)
-    import Morphir.IR.Name exposing (Name)
-    import Morphir.IR.Path exposing (Path)
-    import Set exposing (Set)
   - All the library dependencies as a dictionary of package name and package specification. The package specification
     only contains type signatures, no implementations.
   - The package definition which contains all the module definitions included in the library. The package definition

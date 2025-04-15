@@ -1,6 +1,6 @@
 const assert = require('assert');
 
-import { Morphir } from '../generated/refModel/src/typescript/Morphir'
+import * as Types from '../generated/refModel/src/typescript/morphir/reference/model/types'
 
 // Tests for generated TypeScript API, using types from reference-model.
 //
@@ -8,25 +8,25 @@ import { Morphir } from '../generated/refModel/src/typescript/Morphir'
 // mostly appear as compile failures, rather than runtime assert failures.
 describe('TypeScript type mapping', function() {
     it('represents custom type variants', function() {
-        const goodNoArg: Morphir.Reference.Model.Types.Custom = { kind: "CustomNoArg" };
-        const goodOneArg: Morphir.Reference.Model.Types.Custom = { kind: "CustomOneArg", arg1: true };
-        const goodTwoArg: Morphir.Reference.Model.Types.Custom = { kind: "CustomTwoArg", arg1: "some good quantity", arg2: 42 };
+        const goodNoArg: Types.Custom = { kind: "CustomNoArg" };
+        const goodOneArg: Types.Custom = { kind: "CustomOneArg", arg1: true };
+        const goodTwoArg: Types.Custom = { kind: "CustomTwoArg", arg1: "some good quantity", arg2: 42 };
 
         // The `kind` field must be specified even when we specify the variant explicitly.
-        const goodNoArg_Explicit: Morphir.Reference.Model.Types.CustomNoArg = { kind: "CustomNoArg" };
-        const goodOneArg_Explicit: Morphir.Reference.Model.Types.CustomOneArg = { kind: "CustomOneArg", arg1: true };
-        const goodTwoArg_Explicit: Morphir.Reference.Model.Types.CustomTwoArg = { kind: "CustomTwoArg", arg1: "some good quantity", arg2: 42 };
+        const goodNoArg_Explicit: Types.CustomNoArg = { kind: "CustomNoArg" };
+        const goodOneArg_Explicit: Types.CustomOneArg = { kind: "CustomOneArg", arg1: true };
+        const goodTwoArg_Explicit: Types.CustomTwoArg = { kind: "CustomTwoArg", arg1: "some good quantity", arg2: 42 };
 
         assert.equal(goodNoArg.kind, "CustomNoArg");
         assert.equal(goodNoArg_Explicit.kind, "CustomNoArg");
     })
 
     it('represents custom type unions', function() {
-        const goodNoArg: Morphir.Reference.Model.Types.Custom = { kind: "CustomNoArg" };
-        const goodOneArg: Morphir.Reference.Model.Types.Custom = { kind: "CustomOneArg", arg1: true };
-        const goodTwoArg: Morphir.Reference.Model.Types.Custom = { kind: "CustomTwoArg", arg1: "some good quantity", arg2: 42 };
+        const goodNoArg: Types.Custom = { kind: "CustomNoArg" };
+        const goodOneArg: Types.Custom = { kind: "CustomOneArg", arg1: true };
+        const goodTwoArg: Types.Custom = { kind: "CustomTwoArg", arg1: "some good quantity", arg2: 42 };
 
-        const goodVariantArray: Morphir.Reference.Model.Types.Custom[] = [
+        const goodVariantArray: Types.Custom[] = [
             goodNoArg, goodOneArg, goodTwoArg,
         ];
     })
@@ -36,7 +36,7 @@ describe('TypeScript type mapping', function() {
         //
         //     const goodFullName = FullName(FirstName("Brian"), LastName("Blessed"));
         //
-        const fullName_Manual: Morphir.Reference.Model.Types.FullName = {
+        const fullName_Manual: Types.FullName = {
             kind: "FullName",
             arg1: {
                 kind: "FirstName",
@@ -48,16 +48,16 @@ describe('TypeScript type mapping', function() {
             }
         };
 
-        const fullName_ConstructorFn = new Morphir.Reference.Model.Types.FullName(
-            new Morphir.Reference.Model.Types.FirstName("Brian"),
-            new Morphir.Reference.Model.Types.LastName("Blessed"),
+        const fullName_ConstructorFn = new Types.FullName(
+            new Types.FirstName("Brian"),
+            new Types.LastName("Blessed"),
         );
 
         assert.deepEqual(fullName_Manual, fullName_ConstructorFn);
     })
 
     it('allows constructing records', function() {
-        const goodRecord: Morphir.Reference.Model.Types.FooBarBazRecord = {
+        const goodRecord: Types.FooBarBazRecord = {
             foo: "A delicious banana",
             bar: true,
             baz: 123.456,
