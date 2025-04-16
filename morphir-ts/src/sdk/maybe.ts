@@ -8,16 +8,16 @@ type Nothing = {
 }
 
 interface MaybeOps<T> {
-    getOrElse(defaultValue: T): T;
+    withDefault(defaultValue: T): T;
     map<U>(fn: (value: T) => U): Maybe<U>;
-    flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
+    andThen<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
 }
 
 export type Maybe<T> = (Just<T> | Nothing) & MaybeOps<T>;
 
 function MaybeOps<T>(maybe: Just<T> | Nothing): MaybeOps<T> {
     return {
-        getOrElse(defaultValue: T): T {
+        withDefault(defaultValue: T): T {
             if (maybe.kind === 'Just') {
                 return maybe.value;
             }
@@ -31,7 +31,7 @@ function MaybeOps<T>(maybe: Just<T> | Nothing): MaybeOps<T> {
             return Nothing();
         },
 
-        flatMap<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
+        andThen<U>(fn: (value: T) => Maybe<U>): Maybe<U> {
             if (maybe.kind === 'Just') {
                 return fn(maybe.value);
             }

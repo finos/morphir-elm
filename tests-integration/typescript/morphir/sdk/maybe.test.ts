@@ -7,23 +7,23 @@ describe('Maybe', () => {
             expect(justValue.kind).toBe('Just');
         });
 
-        it('should return the value using getOrElse', () => {
+        it('should return the value using withDefault', () => {
             const justValue = Maybe.Just(42);
-            expect(justValue.getOrElse(0)).toBe(42);
+            expect(justValue.withDefault(0)).toBe(42);
         });
 
         it('should map the value using map', () => {
             const justValue = Maybe.Just(10);
             const mappedValue = justValue.map(x => x * 2);
             expect(mappedValue.kind).toBe('Just');
-            expect(mappedValue.getOrElse(0)).toBe(20);
+            expect(mappedValue.withDefault(0)).toBe(20);
         });
 
-        it('should flatMap the value using flatMap', () => {
+        it('should return the value using andThen', () => {
             const justValue = Maybe.Just(5);
-            const flatMappedValue = justValue.flatMap(x => Maybe.Just(x * 3));
+            const flatMappedValue = justValue.andThen(x => Maybe.Just(x * 3));
             expect(flatMappedValue.kind).toBe('Just');
-            expect(flatMappedValue.getOrElse(0)).toBe(15);
+            expect(flatMappedValue.withDefault(0)).toBe(15);
         });
     });
 
@@ -33,9 +33,9 @@ describe('Maybe', () => {
             expect(nothingValue.kind).toBe('Nothing');
         });
 
-        it('should return the default value using getOrElse', () => {
+        it('should return the default value using withDefault', () => {
             const nothingValue = Maybe.Nothing<number>();
-            expect(nothingValue.getOrElse(0)).toBe(0);
+            expect(nothingValue.withDefault(0)).toBe(0);
         });
 
         it('should remain Nothing when using map', () => {
@@ -44,9 +44,9 @@ describe('Maybe', () => {
             expect(mappedValue.kind).toBe('Nothing');
         });
 
-        it('should remain Nothing when using flatMap', () => {
+        it('should remain Nothing when using andThen', () => {
             const nothingValue = Maybe.Nothing<number>();
-            const flatMappedValue = nothingValue.flatMap(x => Maybe.Just(x * 3));
+            const flatMappedValue = nothingValue.andThen(x => Maybe.Just(x * 3));
             expect(flatMappedValue.kind).toBe('Nothing');
         });
     });
@@ -55,7 +55,7 @@ describe('Maybe', () => {
         it('should create a Just when the value is not null or undefined', () => {
             const maybeValue = Maybe.Maybe(100);
             expect(maybeValue.kind).toBe('Just');
-            expect(maybeValue.getOrElse(0)).toBe(100);
+            expect(maybeValue.withDefault(0)).toBe(100);
         });
 
         it('should create a Nothing when the value is null', () => {
