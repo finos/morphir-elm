@@ -11,10 +11,10 @@ module.exports = {
     '^.+\\.(ts|tsx)?$': 'ts-jest',
   },
   moduleNameMapper: { //Fixes import/export of d3 module by pointing to bundled version of d3
-    '^d3$': '<rootDir>/cli/node_modules/d3/dist/d3.js',
+    '^d3$': '<rootDir>/node_modules/d3/dist/d3.js',
     '~/(.*)$': '<rootDir>/morphir-ts/src/$1',
   },
-  verbose: true, 
+  verbose: false, 
   silent: false,
   testTimeout: 20000,
 };
