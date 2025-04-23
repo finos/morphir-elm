@@ -15,7 +15,10 @@
 -}
 
 
-module Morphir.IR.Distribution.Codec exposing (encodeDistribution, decodeDistribution)
+module Morphir.IR.Distribution.Codec exposing
+    ( encodeDistribution, decodeDistribution
+    , encodeComponent, decodeComponent
+    )
 
 {-| Codecs for types in the `Morphir.IR.Distribution` module.
 
@@ -24,17 +27,24 @@ module Morphir.IR.Distribution.Codec exposing (encodeDistribution, decodeDistrib
 
 @docs encodeDistribution, decodeDistribution
 
+
+# Component
+
+@docs encodeComponent, decodeComponent
+
 -}
 
 import Dict
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Morphir.Codec exposing (decodeUnit, encodeUnit)
-import Morphir.IR.Distribution exposing (Distribution(..))
+import Morphir.IR.Distribution exposing (Component, Distribution(..))
 import Morphir.IR.Distribution.CodecV1 as CodecV1
+import Morphir.IR.Name as Name
 import Morphir.IR.Package.Codec as PackageCodec
 import Morphir.IR.Path.Codec exposing (decodePath, encodePath)
 import Morphir.IR.Type.Codec exposing (decodeType, encodeType)
+import Morphir.IR.Value.Codec exposing (decodeValue, encodeValue)
 
 
 {-| Encode Distribution.
@@ -87,3 +97,52 @@ decodeDistribution =
                     other ->
                         Decode.fail <| "Unknown value type: " ++ other
             )
+
+
+{-| Encodes a Component.
+-}
+encodeComponent : Component -> Encode.Value
+encodeComponent component =
+    Encode.object
+        [ ( "name", encodePath component.name )
+        , ( "libraries"
+          , component.libraries
+                |> Dict.toList
+                |> Encode.list
+                    (\( packageName, packageDef ) ->
+                        Encode.list identity
+                            [ encodePath packageName
+                            , PackageCodec.encodeDefinition encodeUnit (encodeType encodeUnit) packageDef
+                            ]
+                    )
+          )
+        , ( "inputs", Encode.dict Name.toCamelCase (encodeType encodeUnit) component.inputs )
+        , ( "states", Encode.dict Name.toCamelCase (encodeType encodeUnit) component.states )
+        , ( "outputs", Encode.dict Name.toCamelCase (encodeValue encodeUnit <| encodeType encodeUnit) component.outputs )
+        ]
+
+
+{-| Decodes a Component.
+-}
+decodeComponent : Decode.Decoder Component
+decodeComponent =
+    let
+        nameKeyValueDecoder valueDecoder =
+            Decode.keyValuePairs valueDecoder
+                |> Decode.map
+                    (List.map (Tuple.mapFirst Name.fromString)
+                        >> Dict.fromList
+                    )
+
+        libraryEntryDecoder =
+            Decode.map2 Tuple.pair
+                (Decode.index 0 decodePath)
+                (Decode.index 1 (PackageCodec.decodeDefinition decodeUnit (decodeType decodeUnit)))
+    in
+    Decode.map5
+        Component
+        (Decode.field "name" decodePath)
+        (Decode.field "libraries" <| (Decode.list libraryEntryDecoder |> Decode.map Dict.fromList))
+        (Decode.field "inputs" <| nameKeyValueDecoder (decodeType decodeUnit))
+        (Decode.field "states" <| nameKeyValueDecoder (decodeType decodeUnit))
+        (Decode.field "outputs" <| nameKeyValueDecoder (decodeValue decodeUnit (decodeType decodeUnit)))
