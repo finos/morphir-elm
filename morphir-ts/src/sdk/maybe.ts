@@ -1,3 +1,4 @@
+import { dequal } from 'dequal';
 type Just<T> = {
     readonly kind: 'Just';
     readonly value: T;
@@ -56,6 +57,23 @@ interface MaybeOps<T> {
      * ```
      */
     andThen<U>(fn: (value: T) => Maybe<U>): Maybe<U>;
+
+    /**
+     * Compare two Maybe values for equality.
+     * @param other the other Maybe value to compare with.
+     * @return true if both Maybe values are equal, false otherwise.
+     * @example
+     * ```ts
+     * const maybeValue1 = Maybe.Just(42);
+     * const maybeValue2 = Maybe.Just(42);
+     * const maybeValue3 = Maybe.Nothing<number>();
+     * const maybeValue4 = Maybe.Nothing<number>();
+     * maybeValue1.equal(maybeValue2); // true
+     * maybeValue1.equal(maybeValue3); // false
+     * maybeValue3.equal(maybeValue4); // true
+     *```
+    */
+    equal(other: Maybe<T>): boolean;
 }
 
 /**
@@ -86,6 +104,13 @@ function MaybeOps<T>(maybe: Just<T> | Nothing): MaybeOps<T> {
                 return fn(maybe.value);
             }
             return Nothing();
+        },
+
+        equal(other: Maybe<T>): boolean {
+            if (maybe.kind === 'Just' && other.kind === 'Just') {
+                return dequal(maybe.value, other.value);
+            }
+            return maybe.kind === other.kind;
         }
     }
 }
