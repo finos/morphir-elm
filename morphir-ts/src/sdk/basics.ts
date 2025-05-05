@@ -2,7 +2,7 @@ import { dequal } from "dequal";
 
 
 /**
- * Compares values of all types, including Function, RegExp, Date, Set, Map, TypedArrays, DataView, null, undefined, and NaN values. 
+ * Compares values of all types, including Function, RegExp, Date, Set, Map, null, undefined, and NaN values. 
  * Complex values (eg, Objects, Arrays, Sets, Maps, etc) are traversed recursively.
  * @param a The first value to compare.
  * @param b The second value to compare.
