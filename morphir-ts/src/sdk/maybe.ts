@@ -1,4 +1,5 @@
 import { dequal } from 'dequal';
+import { equal } from './basics';
 type Just<T> = {
     readonly kind: 'Just';
     readonly value: T;
@@ -107,10 +108,7 @@ function MaybeOps<T>(maybe: Just<T> | Nothing): MaybeOps<T> {
         },
 
         equal(other: Maybe<T>): boolean {
-            if (maybe.kind === 'Just' && other.kind === 'Just') {
-                return dequal(maybe.value, other.value);
-            }
-            return maybe.kind === other.kind;
+            return equal(maybe, other);
         }
     }
 }
