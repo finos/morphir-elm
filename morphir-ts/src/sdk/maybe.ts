@@ -1,4 +1,3 @@
-import { dequal } from 'dequal';
 import { equal } from './basics';
 type Just<T> = {
     readonly kind: 'Just';
