@@ -1,6 +1,6 @@
 {
   "name": "morphir-elm",
-  "version": "2.95.1",
+  "version": "2.96.0",
   "description": "Elm bindings for Morphir",
   "type": "commonjs",
   "module": "es6",
@@ -118,6 +118,7 @@
     "cookie-parser": "^1.4.6",
     "d3": "^7.9.0",
     "data-urls": "^5.0.0",
+    "dequal": "^2.0.3",
     "express": "^4.21.0",
     "fs-extra": "^9.1.0",
     "get-stdin": "^8.0.0",

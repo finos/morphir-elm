@@ -25,6 +25,36 @@ describe('Maybe', () => {
             expect(flatMappedValue.kind).toBe('Just');
             expect(flatMappedValue.withDefault(0)).toBe(15);
         });
+
+        it('should not be equal to Nothing', () => {
+            const justValue = Maybe.Just(42);
+            const nothingValue = Maybe.Nothing<number>();
+            expect(justValue.equal(nothingValue)).toBe(false);
+        })
+
+        it('should be equal to another Just with the same primitive value', () => {
+            const justValue1 = Maybe.Just(42);
+            const justValue2 = Maybe.Just(42);
+            expect(justValue1.equal(justValue2)).toBe(true);
+        });
+
+        it('should not be equal to another Just with a different primitive value', () => {
+            const justValue1 = Maybe.Just(42);
+            const justValue2 = Maybe.Just(100);
+            expect(justValue1.equal(justValue2)).toBe(false);
+        });
+
+        it('should not be equal to another Just with same object value', () => {
+            const justValue1 = Maybe.Just({ a: 1, b: 2 });
+            const justValue2 = Maybe.Just({ a: 1, b: 2 });
+            expect(justValue1.equal(justValue2)).toBe(true);
+        });
+
+        it('should not be equal to another Just with different object value', () => {
+            const justValue1 = Maybe.Just({ a: 1, b: 2 });
+            const justValue2 = Maybe.Just({ a: 1, b: 3 });
+            expect(justValue1.equal(justValue2)).toBe(false);
+        });
     });
 
     describe('Nothing', () => {
