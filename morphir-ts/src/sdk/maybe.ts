@@ -107,7 +107,10 @@ function MaybeOps<T>(maybe: Just<T> | Nothing): MaybeOps<T> {
         },
 
         equal(other: Maybe<T>): boolean {
-            return equal(maybe, other);
+            if (maybe.kind === 'Just' && other.kind === 'Just') {
+                return equal(maybe.value, other.value);
+            }
+            return maybe.kind === other.kind;
         }
     }
 }
