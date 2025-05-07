@@ -16,8 +16,9 @@
 
 
 module Morphir.IR.Source exposing
-    ( Component, ComponentName, DataSourceName, OutputName, OutputSource, DataType(..)
+    ( Component, ComponentName, DataSourceName, OutputName, OutputSource, DataType(..), Literal(..)
     , component, outputSource
+    , toDistributionComponent
     , ParameterName
     )
 
@@ -28,12 +29,17 @@ allows for the production of an encapsulated and tree-shaken component that has 
 
 # Types
 
-@docs Component, ComponentName, DataSourceName, OutputName, ArgumentName, OutputSource, DataType
+@docs Component, ComponentName, DataSourceName, OutputName, ArgumentName, OutputSource, DataType, Literal
 
 
 # Creation
 
 @docs component, outputSource
+
+
+# Conversion
+
+@docs toDistributionComponent
 
 -}
 
@@ -45,8 +51,8 @@ import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name exposing (Name)
-import Morphir.IR.Package as Package exposing (PackageName)
-import Morphir.IR.Path as Path exposing (Path)
+import Morphir.IR.Package exposing (PackageName)
+import Morphir.IR.Path exposing (Path)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (Value)
 import Set exposing (Set)
@@ -81,6 +87,18 @@ type alias DataSourceName =
     Name
 
 
+{-| Represents a Literal type.
+The fields of a Literal are:
+
+  - BoolLiteral: A boolean literal
+  - StringLiteral: A string literal
+  - WholeNumberLiteral: A whole number literal
+  - FloatLiteral: A float literal
+  - DecimalLiteral: A decimal literal
+  - LocalDateLiteral: A local date literal
+  - LocalTimeLiteral: A local time literal
+
+-}
 type Literal
     = BoolLiteral
     | StringLiteral
@@ -143,6 +161,20 @@ outputSource functionName arguments =
     }
 
 
+{-| Represents the errors that can occur when converting a [Component](#Component) to a [Distribution.Component](Distribution#Component).
+The errors are:
+
+  - CyclicDependency: A cycle was detected in the dependency graph of the component.
+  - BrokenFunctionReference: A function reference was not found in the distribution.
+  - MissingPackage: A package was referenced but was not found in the distribution.
+  - MultiplePackageShareSameName: Multiple packages share the same name.
+  - UnknownInputStateReference: An input or state reference was not found in the component.
+  - ParamNotSupplied: A parameter was not supplied for a function reference.
+  - InputStateNameConflict: A name conflict across input and state declaration was detected.
+  - OutputSourceTypeMismatch: One or more slices of an output do not return the expected type.
+  - UnexpectedError: An unexpected error occurred.
+
+-}
 type Error
     = CyclicDependency (DAG.CycleDetected ( NodeType, FQName ))
     | BrokenFunctionReference FQName
@@ -160,6 +192,14 @@ type alias NodeType =
     String
 
 
+{-| Converts a [Component](#Component) to a [Distribution.Component](Distribution#Component).
+
+The function takes:
+
+  - list of distributions that account for all dependencies for the Distribution#Comnpoent
+  - And a Source component definition and returns either a list of errors or the converted distribution component.
+
+-}
 toDistributionComponent : List Distribution -> Component -> Result (List Error) Distribution.Component
 toDistributionComponent distros comp =
     let
@@ -225,40 +265,89 @@ toDistributionComponent distros comp =
             ]
     of
         [] ->
-            let
-                distrosMap =
-                    distrosToMap distros
-            in
-            distrosMap
-                |> dependencyGraphFromEntryPointFunctions entryPoints
-                |> Result.map (treeShakeDistributions distrosMap)
+            treeShakeDistributions entryPoints distros
                 |> Result.andThen createDistributionComponent
 
         errs ->
             Err errs
 
 
+{-| Tree shakes the distributions by removing all modules and types that are not reachable from the entry points.
+-}
+treeShakeDistributions : Set FQName -> List Distribution -> Result (List Error) (Dict PackageName Distribution)
+treeShakeDistributions entryPoints distros =
+    let
+        distrosMap =
+            distrosToMap distros
+    in
+    dependencyGraphFromEntryPointFunctions entryPoints distrosMap
+        |> Result.map
+            (\dag ->
+                let
+                    dagNodes : Set ( NodeType, FQName )
+                    dagNodes =
+                        DAG.toList dag
+                            |> List.foldl
+                                (\( fromNode, toNodes ) nodesSoFar ->
+                                    Set.insert fromNode toNodes
+                                        |> Set.union nodesSoFar
+                                )
+                                Set.empty
+                in
+                distrosMap
+                    |> Dict.map
+                        (\packageName (Distribution.Library _ _ pkgDef) ->
+                            let
+                                treeShakenModules : Dict ModuleName (AccessControlled (Module.Definition () (Type ())))
+                                treeShakenModules =
+                                    pkgDef.modules
+                                        |> Dict.map
+                                            (\moduleName accessCntrldModuleDef ->
+                                                let
+                                                    treeShakenTypes : Dict Name (AccessControlled (Documented (Type.Definition ())))
+                                                    treeShakenTypes =
+                                                        accessCntrldModuleDef.value.types
+                                                            |> Dict.filter
+                                                                (\name _ ->
+                                                                    Set.member ( "Type", FQName.fQName packageName moduleName name ) dagNodes
+                                                                )
+
+                                                    treeShakenValues : Dict Name (AccessControlled (Documented (Value.Definition () (Type ()))))
+                                                    treeShakenValues =
+                                                        accessCntrldModuleDef.value.values
+                                                            |> Dict.filter
+                                                                (\name _ ->
+                                                                    Set.member ( "Value", FQName.fQName packageName moduleName name ) dagNodes
+                                                                )
+                                                in
+                                                { access = accessCntrldModuleDef.access
+                                                , value =
+                                                    { types = treeShakenTypes
+                                                    , values = treeShakenValues
+                                                    , doc = accessCntrldModuleDef.value.doc
+                                                    }
+                                                }
+                                            )
+                                        -- drop empty modules
+                                        |> Dict.filter
+                                            (\_ accessCntrldModuleDef ->
+                                                Dict.isEmpty accessCntrldModuleDef.value.types
+                                                    && Dict.isEmpty accessCntrldModuleDef.value.values
+                                            )
+                            in
+                            Distribution.Library packageName Dict.empty { modules = treeShakenModules }
+                        )
+                    -- drop empty distros
+                    |> Dict.filter
+                        (\_ (Distribution.Library _ _ pkgDef) ->
+                            Dict.isEmpty pkgDef.modules
+                        )
+            )
+
+
 dependencyGraphFromEntryPointFunctions : Set FQName -> Dict PackageName Distribution -> Result (List Error) (DAG ( NodeType, FQName ))
 dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
     let
-        dagWithEntryPointsAdded : Result (List Error) (DAG ( NodeType, FQName ))
-        dagWithEntryPointsAdded =
-            entryPoints
-                |> Set.foldl
-                    (\entryPoint acc ->
-                        acc
-                            |> Result.andThen
-                                (\dag ->
-                                    dag
-                                        |> DAG.insertNode ( "Value", entryPoint ) Set.empty
-                                        |> Result.mapError
-                                            (CyclicDependency
-                                                >> List.singleton
-                                            )
-                                )
-                    )
-                    (Ok DAG.empty)
-
         collectReferenceDependencies :
             ( NodeType, FQName )
             -> Result (List Error) (DAG ( NodeType, FQName ))
@@ -354,70 +443,23 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
             refs
                 |> Set.foldl collectReferenceDependencies dagResult
     in
-    collectDependenciesFromRefs (entryPoints |> Set.map (Tuple.pair "Value")) dagWithEntryPointsAdded
-
-
-treeShakeDistributions : Dict PackageName Distribution -> DAG ( NodeType, FQName ) -> Dict PackageName Distribution
-treeShakeDistributions distros dag =
-    let
-        dagNodes : Set ( NodeType, FQName )
-        dagNodes =
-            DAG.toList dag
-                |> List.foldl
-                    (\( fromNode, toNodes ) nodesSoFar ->
-                        Set.insert fromNode toNodes
-                            |> Set.union nodesSoFar
-                    )
-                    Set.empty
-    in
-    distros
-        |> Dict.map
-            (\packageName (Distribution.Library _ _ pkgDef) ->
-                let
-                    treeShakenModules : Dict ModuleName (AccessControlled (Module.Definition () (Type ())))
-                    treeShakenModules =
-                        pkgDef.modules
-                            |> Dict.map
-                                (\moduleName accessCntrldModuleDef ->
-                                    let
-                                        treeShakenTypes : Dict Name (AccessControlled (Documented (Type.Definition ())))
-                                        treeShakenTypes =
-                                            accessCntrldModuleDef.value.types
-                                                |> Dict.filter
-                                                    (\name _ ->
-                                                        Set.member ( "Type", FQName.fQName packageName moduleName name ) dagNodes
-                                                    )
-
-                                        treeShakenValues : Dict Name (AccessControlled (Documented (Value.Definition () (Type ()))))
-                                        treeShakenValues =
-                                            accessCntrldModuleDef.value.values
-                                                |> Dict.filter
-                                                    (\name _ ->
-                                                        Set.member ( "Value", FQName.fQName packageName moduleName name ) dagNodes
-                                                    )
-                                    in
-                                    { access = accessCntrldModuleDef.access
-                                    , value =
-                                        { types = treeShakenTypes
-                                        , values = treeShakenValues
-                                        , doc = accessCntrldModuleDef.value.doc
-                                        }
-                                    }
-                                )
-                            -- drop empty modules
-                            |> Dict.filter
-                                (\_ accessCntrldModuleDef ->
-                                    Dict.isEmpty accessCntrldModuleDef.value.types
-                                        && Dict.isEmpty accessCntrldModuleDef.value.values
-                                )
-                in
-                Distribution.Library packageName Dict.empty { modules = treeShakenModules }
+    -- add all entry points to the DAG
+    entryPoints
+        |> Set.foldl
+            (\entryPoint acc ->
+                acc
+                    |> Result.andThen
+                        (\dag ->
+                            dag
+                                |> DAG.insertNode ( "Value", entryPoint ) Set.empty
+                                |> Result.mapError
+                                    (CyclicDependency
+                                        >> List.singleton
+                                    )
+                        )
             )
-        -- drop empty distros
-        |> Dict.filter
-            (\_ (Distribution.Library _ _ pkgDef) ->
-                Dict.isEmpty pkgDef.modules
-            )
+            (Ok DAG.empty)
+        |> collectDependenciesFromRefs (entryPoints |> Set.map (Tuple.pair "Value"))
 
 
 distrosToMap : List Distribution -> Dict PackageName Distribution.Distribution
@@ -581,6 +623,9 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
                     ( Ok v, Ok accSoFar ) ->
                         Ok (v :: accSoFar)
 
+                    ( Ok _, Err err ) ->
+                        Err err
+
                     ( Err resErrs, Err accErrs ) ->
                         Err (resErrs ++ accErrs)
 
@@ -704,6 +749,9 @@ collectOutputSliceTypeMismatchErrors comp distros =
         |> Dict.foldl
             (\outputName outputSources acc ->
                 case outputSources of
+                    [] ->
+                        acc
+
                     head :: rest ->
                         case
                             -- get the first returnType
