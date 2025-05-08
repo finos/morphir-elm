@@ -16,7 +16,7 @@
 
 
 module Morphir.IR.Source exposing
-    ( Component, ComponentName, DataSourceName, OutputName, OutputSource, DataType(..), Literal(..)
+    ( Component, ComponentName, DataSourceName, OutputName, OutputSource, DataType(..), Literal(..), Error(..)
     , component, outputSource
     , toDistributionComponent
     , ParameterName
@@ -29,7 +29,7 @@ allows for the production of an encapsulated and tree-shaken component that has 
 
 # Types
 
-@docs Component, ComponentName, DataSourceName, OutputName, ArgumentName, OutputSource, DataType, Literal
+@docs Component, ComponentName, DataSourceName, OutputName, ArgumentName, OutputSource, DataType, Literal, Error
 
 
 # Creation
@@ -181,6 +181,7 @@ type Error
     | MissingPackage PackageName
     | MultiplePackageShareSameName Int PackageName
     | UnknownInputStateReference OutputName (List DataSourceName)
+    | UnusedInputOrState DataSourceName
     | ParamNotSupplied OutputName Int FQName ParameterName
     | InputStateNameConflict (List DataSourceName)
     | OutputSourceTypeMismatch OutputName (Type ()) (Type ())
@@ -196,7 +197,7 @@ type alias NodeType =
 
 The function takes:
 
-  - list of distributions that account for all dependencies for the Distribution#Comnpoent
+  - list of distributions that account for all dependencies for the Distribution#Comnponent
   - And a Source component definition and returns either a list of errors or the converted distribution component.
 
 -}
@@ -262,6 +263,7 @@ toDistributionComponent distros comp =
             , collectNonInputReferenceErrors comp
             , collectInputAndStateNameConflictErrors comp
             , collectOutputSliceTypeMismatchErrors comp distros
+            , collectUnusedInputStateErrors comp
             ]
     of
         [] ->
@@ -331,8 +333,10 @@ treeShakeDistributions entryPoints distros =
                                         -- drop empty modules
                                         |> Dict.filter
                                             (\_ accessCntrldModuleDef ->
-                                                Dict.isEmpty accessCntrldModuleDef.value.types
-                                                    && Dict.isEmpty accessCntrldModuleDef.value.values
+                                                not
+                                                    (Dict.isEmpty accessCntrldModuleDef.value.types
+                                                        && Dict.isEmpty accessCntrldModuleDef.value.values
+                                                    )
                                             )
                             in
                             Distribution.Library packageName Dict.empty { modules = treeShakenModules }
@@ -340,7 +344,7 @@ treeShakeDistributions entryPoints distros =
                     -- drop empty distros
                     |> Dict.filter
                         (\_ (Distribution.Library _ _ pkgDef) ->
-                            Dict.isEmpty pkgDef.modules
+                            not (Dict.isEmpty pkgDef.modules)
                         )
             )
 
@@ -474,6 +478,8 @@ distrosToMap distros =
         |> Dict.fromList
 
 
+{-| Converts an allowable Source [DataType](#DataType) to a standard Morphir [Type](Type).
+-}
 dataTypeToType : DataType -> Type ()
 dataTypeToType dataType =
     case dataType of
@@ -534,13 +540,17 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
 
         tpesToFunctionType : List (Type ()) -> Type () -> Type ()
         tpesToFunctionType types outType =
-            case types of
-                [] ->
-                    outType
+            let
+                helper tpes out =
+                    case tpes of
+                        [] ->
+                            out
 
-                firstType :: tail ->
-                    tpesToFunctionType tail
-                        (Type.Function () firstType outType)
+                        lastType :: tail ->
+                            tpesToFunctionType tail
+                                (Type.Function () lastType outType)
+            in
+            helper (List.reverse types) outType
 
         asReference : FQName -> List (Type ()) -> Type () -> Value.TypedValue
         asReference fQName inputTypes outType =
@@ -570,7 +580,7 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
                                         Just paramValue ->
                                             resSoFar
                                                 |> Result.map
-                                                    (\( inTpes, targetVal, outTpe ) ->
+                                                    (\( inTpes, targetVal ) ->
                                                         let
                                                             rest =
                                                                 case inTpes of
@@ -581,14 +591,13 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
                                                                         tail
 
                                                             nextOutType =
-                                                                tpesToFunctionType rest outTpe
+                                                                tpesToFunctionType rest valDef.outputType
                                                         in
                                                         ( rest
                                                         , Value.Apply
                                                             nextOutType
                                                             targetVal
                                                             paramValue
-                                                        , nextOutType
                                                         )
                                                     )
 
@@ -611,9 +620,9 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
                                                             paramName
                                                         ]
                                 )
-                                (Ok ( inputTypes, asReference outputSrc.functionReference inputTypes valDef.outputType, valDef.outputType ))
+                                (Ok ( inputTypes, asReference outputSrc.functionReference inputTypes valDef.outputType ))
                     )
-                |> Result.map (\( _, val, _ ) -> val)
+                |> Result.map (\( _, val ) -> val)
     in
     outputSources
         |> List.indexedMap outputSliceToValue
@@ -636,21 +645,21 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
         |> Result.map2
             (\outTpe v ->
                 Value.Apply
-                    (Type.Reference () (FQName.fqn "Morphir.SDK" "List" "List") [ outTpe ])
+                    outTpe
                     (Value.Reference
                         (Type.Function ()
                             (Type.Reference ()
                                 (FQName.fqn "Morphir.SDK" "List" "List")
-                                [ Type.Reference () (FQName.fqn "Morphir.SDK" "List" "List") [ outTpe ] ]
+                                [ outTpe ]
                             )
-                            (Type.Reference () (FQName.fqn "Morphir.SDK" "List" "List") [ outTpe ])
+                            outTpe
                         )
                         (FQName.fqn "Morphir.SDK" "List" "concat")
                     )
                     (Value.List
                         (Type.Reference ()
                             (FQName.fqn "Morphir.SDK" "List" "List")
-                            [ Type.Reference () (FQName.fqn "Morphir.SDK" "List" "List") [ outTpe ] ]
+                            [ outTpe ]
                         )
                         v
                     )
@@ -784,3 +793,25 @@ collectOutputSliceTypeMismatchErrors comp distros =
                                 BrokenFunctionReference head.functionReference :: acc
             )
             []
+
+
+collectUnusedInputStateErrors : Component -> List Error
+collectUnusedInputStateErrors comp =
+    let
+        inputsAndStates : Set DataSourceName
+        inputsAndStates =
+            Dict.keys comp.inputs
+                |> List.append (Dict.keys comp.states)
+                |> Set.fromList
+
+        usedInputsAndStates : Set DataSourceName
+        usedInputsAndStates =
+            comp.outputs
+                |> Dict.values
+                |> List.concat
+                |> List.concatMap (.arguments >> Dict.values)
+                |> Set.fromList
+    in
+    Set.diff inputsAndStates usedInputsAndStates
+        |> Set.toList
+        |> List.map UnusedInputOrState
