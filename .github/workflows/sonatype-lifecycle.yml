@@ -1,0 +1,96 @@
+name: Sonatype Lifecycle Evaluation
+permissions:
+  actions: write
+  contents: write
+
+on:
+  workflow_run:
+    workflows: ["Node.js CI"]
+    types:
+      - completed
+env:
+  SonatypeUrl: "https://finos.sonatype.app/platform/"
+  SonatypeAppId: "morphir-elm"
+  SonatypeScanTarget: "./package-lock.json"
+  ExcludeDirectory: "**/docs/ **/.*'"
+  ArtifactName: ""
+    
+jobs:
+  scan:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check GITHUB_TOKEN Permissions
+        run: |
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}
+
+      - name: Get Artifact ID
+        id: get_artifact_id
+        run: |
+          echo "ARTIFACT_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{github.event.workflow_run.id}}/artifacts" \
+            | jq -r '.artifacts[] | select(.name=="package-lock").id')" >> $GITHUB_ENV
+
+      - name: Download Artifact
+        run: |
+          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            --output target.zip
+          unzip target.zip -d ./target  
+          cd target/
+          ls -al
+
+      - name: 'Download artifact'
+        uses: actions/github-script@v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            var artifacts = await github.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{github.event.workflow_run.id }}
+            });
+            
+            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "package-lock"
+            })[0];
+            
+            var download = await github.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            var fs = require('fs');
+            fs.writeFileSync('${{github.workspace}}/package-lock.zip', Buffer.from(download.data));
+      
+      - run: unzip package-lock.zip
+      
+      - name: Sonatype Lifecycle SCA Scan
+        id: evaluate
+        uses: sonatype/actions/evaluate@v1
+        with:
+          iq-server-url: ${{ env.SonatypeUrl }}
+          username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
+          password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
+          application-id: ${{ env.SonatypeAppId }}
+          stage: "build"
+          scan-targets: target/
+          module-exclude: ${{ env.ExcludeDirectory }}
+      
+      - name: Save Sonatype SBOM
+        uses: sonatype/actions/fetch-sbom@v1
+        if: steps.evaluate.outputs.scan-id
+        with:
+          iq-server-url: ${{ env.SonatypeUrl }}
+          username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
+          password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
+          application-id: ${{ env.SonatypeAppId }}
+          scan-id: ${{ steps.evaluate.outputs.scan-id }}
+          sbom-standard: spdx
+          sbom-version: 2.3
+          artifact-name: ${{ env.SonatypeAppId }}-bom
