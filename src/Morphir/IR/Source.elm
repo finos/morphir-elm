@@ -169,6 +169,7 @@ The errors are:
   - MissingPackage: A package was referenced but was not found in the distribution.
   - MultiplePackageShareSameName: Multiple packages share the same name.
   - UnknownInputStateReference: An input or state reference was not found in the component.
+  - UnusedInputOrState: An input or state was declared but not used in any of the outputs.
   - ParamNotSupplied: A parameter was not supplied for a function reference.
   - InputStateNameConflict: A name conflict across input and state declaration was detected.
   - OutputSourceTypeMismatch: One or more slices of an output do not return the expected type.
@@ -204,6 +205,7 @@ The function takes:
 toDistributionComponent : List Distribution -> Component -> Result (List Error) Distribution.Component
 toDistributionComponent distros comp =
     let
+        -- Entry points are the fully qualified names used in the outputs of the component.
         entryPoints : Set FQName
         entryPoints =
             comp.outputs
@@ -358,6 +360,7 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
             -> Result (List Error) (DAG ( NodeType, FQName ))
         collectReferenceDependencies ( nodeType, fQName ) dagResultSoFar =
             let
+                withErr : Error -> Result (List Error) value
                 withErr err =
                     case dagResultSoFar of
                         Ok _ ->
@@ -377,6 +380,7 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                                 >> Result.mapError (CyclicDependency >> List.singleton)
                             )
 
+                isMorphirReference : FQName -> Bool
                 isMorphirReference fqn =
                     FQName.getPackagePath fqn == [ [ "morphir" ], [ "s", "d", "k" ] ]
             in
@@ -390,6 +394,7 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                             case Distribution.lookupValueDefinition fQName distro of
                                 Just valueDef ->
                                     let
+                                        directDependencies : Set ( String, FQName )
                                         directDependencies =
                                             Value.collectReferences valueDef.body
                                                 |> Set.filter (isMorphirReference >> not)
