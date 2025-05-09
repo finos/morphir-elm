@@ -167,13 +167,16 @@ The errors are:
   - CyclicDependency: A cycle was detected in the dependency graph of the component.
   - BrokenFunctionReference: A function reference was not found in the distribution.
   - MissingPackage: A package was referenced but was not found in the distribution.
-  - MultiplePackageShareSameName: Multiple packages share the same name.
+  - MultiplePackageShareSameName: A number of packages share the same name.
   - UnknownInputStateReference: An input or state reference was not found in the component.
   - UnusedInputOrState: An input or state was declared but not used in any of the outputs.
-  - ParamNotSupplied: A parameter was not supplied for a function reference.
+  - ParamNotSupplied: A parameter was not supplied for a function reference. The arguments represent:
+      - the name of the output reporting this error,
+      - the position of the slice in the output,
+      - the function referenced from that slice,
+      - the name of the functions' parameter that was not supplied,
   - InputStateNameConflict: A name conflict across input and state declaration was detected.
   - OutputSourceTypeMismatch: One or more slices of an output do not return the expected type.
-  - UnexpectedError: An unexpected error occurred.
 
 -}
 type Error
@@ -186,7 +189,6 @@ type Error
     | ParamNotSupplied OutputName Int FQName ParameterName
     | InputStateNameConflict (List DataSourceName)
     | OutputSourceTypeMismatch OutputName (Type ()) (Type ())
-    | UnexpectedError
 
 
 type alias NodeType =
@@ -205,7 +207,7 @@ The function takes:
 toDistributionComponent : List Distribution -> Component -> Result (List Error) Distribution.Component
 toDistributionComponent distros comp =
     let
-        -- Entry points are the fully qualified names used in the outputs of the component.
+        -- Collects all fully qualified names used in the outputs of the component.
         entryPoints : Set FQName
         entryPoints =
             comp.outputs
@@ -218,19 +220,22 @@ toDistributionComponent distros comp =
                     )
                     Set.empty
 
+        -- Maps the inputs of the component to their corresponding data types.
         inputs =
             comp.inputs |> Dict.map (\_ -> dataTypeToType)
 
+        -- Maps the states of the component to their corresponding data types.
         states =
             comp.states |> Dict.map (\_ -> dataTypeToType)
 
+        -- Processes the outputs of the component and converts them into a dictionary of values.
         outputs : Result (List Error) (Dict Name (Value () (Type ())))
         outputs =
             comp.outputs
                 |> Dict.foldl
                     (\outputName outputSources outputResultSoFar ->
                         outputSourcesToValue
-                            (distros |> distrosToMap)
+                            (distros |> distrosByName)
                             (Dict.union inputs states)
                             outputName
                             outputSources
@@ -244,6 +249,7 @@ toDistributionComponent distros comp =
                     )
                     (Ok Dict.empty)
 
+        -- Creates a distribution component by combining the processed outputs, inputs, and states.
         createDistributionComponent : Dict PackageName Distribution -> Result (List Error) Distribution.Component
         createDistributionComponent treeShakenDistros =
             outputs
@@ -281,13 +287,15 @@ toDistributionComponent distros comp =
 treeShakeDistributions : Set FQName -> List Distribution -> Result (List Error) (Dict PackageName Distribution)
 treeShakeDistributions entryPoints distros =
     let
+        -- Converts the list of distributions into a dictionary for easier access.
         distrosMap =
-            distrosToMap distros
+            distrosByName distros
     in
     dependencyGraphFromEntryPointFunctions entryPoints distrosMap
         |> Result.map
             (\dag ->
                 let
+                    -- Collects all nodes in the dependency graph into a Set
                     dagNodes : Set ( NodeType, FQName )
                     dagNodes =
                         DAG.toList dag
@@ -302,12 +310,14 @@ treeShakeDistributions entryPoints distros =
                     |> Dict.map
                         (\packageName (Distribution.Library _ _ pkgDef) ->
                             let
+                                -- Filters and retains only the modules that are reachable in the dependency graph.
                                 treeShakenModules : Dict ModuleName (AccessControlled (Module.Definition () (Type ())))
                                 treeShakenModules =
                                     pkgDef.modules
                                         |> Dict.map
                                             (\moduleName accessCntrldModuleDef ->
                                                 let
+                                                    -- Filters and retains only the types that are reachable in the dependency graph.
                                                     treeShakenTypes : Dict Name (AccessControlled (Documented (Type.Definition ())))
                                                     treeShakenTypes =
                                                         accessCntrldModuleDef.value.types
@@ -316,6 +326,7 @@ treeShakeDistributions entryPoints distros =
                                                                     Set.member ( "Type", FQName.fQName packageName moduleName name ) dagNodes
                                                                 )
 
+                                                    -- Filters and retains only the values that are reachable in the dependency graph.
                                                     treeShakenValues : Dict Name (AccessControlled (Documented (Value.Definition () (Type ()))))
                                                     treeShakenValues =
                                                         accessCntrldModuleDef.value.values
@@ -354,12 +365,16 @@ treeShakeDistributions entryPoints distros =
 dependencyGraphFromEntryPointFunctions : Set FQName -> Dict PackageName Distribution -> Result (List Error) (DAG ( NodeType, FQName ))
 dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
     let
+        -- Collects the dependencies of a given reference and adds them to the dependency graph.
         collectReferenceDependencies :
             ( NodeType, FQName )
             -> Result (List Error) (DAG ( NodeType, FQName ))
             -> Result (List Error) (DAG ( NodeType, FQName ))
         collectReferenceDependencies ( nodeType, fQName ) dagResultSoFar =
             let
+                -- Utility for adding an error to the current result.
+                -- if the current result is an error, it appends the new error to the list of errors.
+                -- if the current result is a success, it returns a new error.
                 withErr : Error -> Result (List Error) value
                 withErr err =
                     case dagResultSoFar of
@@ -369,6 +384,7 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                         Err errs ->
                             Err (err :: errs)
 
+                -- Adds edges to the dependency graph for the current node processing.
                 addNodeEdges :
                     Result (List Error) (DAG ( NodeType, FQName ))
                     -> Set ( NodeType, FQName )
@@ -380,11 +396,11 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                                 >> Result.mapError (CyclicDependency >> List.singleton)
                             )
 
-                isMorphirReference : FQName -> Bool
-                isMorphirReference fqn =
+                isMorphirSDKFQN : FQName -> Bool
+                isMorphirSDKFQN fqn =
                     FQName.getPackagePath fqn == [ [ "morphir" ], [ "s", "d", "k" ] ]
             in
-            if isMorphirReference fQName then
+            if isMorphirSDKFQN fQName then
                 dagResultSoFar
 
             else
@@ -394,10 +410,18 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                             case Distribution.lookupValueDefinition fQName distro of
                                 Just valueDef ->
                                     let
+                                        {- Collects the direct dependencies of a given value definition.
+
+                                           The function identifies all references (both value and type references)
+                                           used within the body and input/output types of the value definition.
+                                           It filters out references to the Morphir SDK and returns a `Set` of
+                                           dependencies, where each dependency is represented as a tuple of
+                                           `("Value", FQName)` or `("Type", FQName)`.
+                                        -}
                                         directDependencies : Set ( String, FQName )
                                         directDependencies =
                                             Value.collectReferences valueDef.body
-                                                |> Set.filter (isMorphirReference >> not)
+                                                |> Set.filter (isMorphirSDKFQN >> not)
                                                 |> Set.map (Tuple.pair "Value")
                                                 |> Set.union
                                                     (valueDef.outputType
@@ -405,7 +429,7 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                                                         |> List.map Type.collectReferences
                                                         |> List.foldl Set.union Set.empty
                                                         |> Set.union (Value.collectTypeReferences valueDef.body)
-                                                        |> Set.filter (isMorphirReference >> not)
+                                                        |> Set.filter (isMorphirSDKFQN >> not)
                                                         |> Set.map (Tuple.pair "Type")
                                                     )
                                     in
@@ -418,8 +442,9 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                         else
                             case Distribution.lookupTypeSpecification fQName distro of
                                 Just (Type.TypeAliasSpecification _ tpe) ->
+                                    -- Collect type dependencies from type aliases
                                     Type.collectReferences tpe
-                                        |> Set.filter (isMorphirReference >> not)
+                                        |> Set.filter (isMorphirSDKFQN >> not)
                                         |> Set.map (Tuple.pair "Type")
                                         |> (\directDependencies ->
                                                 collectDependenciesFromRefs directDependencies
@@ -427,11 +452,12 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                                            )
 
                                 Just (Type.CustomTypeSpecification _ ctors) ->
+                                    -- Collect type dependencies from custom types
                                     Dict.values ctors
                                         |> List.concat
                                         |> List.map (Tuple.second >> Type.collectReferences)
                                         |> List.foldl Set.union Set.empty
-                                        |> Set.filter (isMorphirReference >> not)
+                                        |> Set.filter (isMorphirSDKFQN >> not)
                                         |> Set.map (Tuple.pair "Type")
                                         |> (\directDependencies ->
                                                 collectDependenciesFromRefs directDependencies
@@ -447,12 +473,13 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
                     Nothing ->
                         withErr (MissingPackage (FQName.getPackagePath fQName))
 
+        -- Recursively collects dependencies from a set of references.
         collectDependenciesFromRefs : Set ( NodeType, FQName ) -> Result (List Error) (DAG ( NodeType, FQName )) -> Result (List Error) (DAG ( NodeType, FQName ))
         collectDependenciesFromRefs refs dagResult =
             refs
                 |> Set.foldl collectReferenceDependencies dagResult
     in
-    -- add all entry points to the DAG
+    -- add all entry points to a starting DAG
     entryPoints
         |> Set.foldl
             (\entryPoint acc ->
@@ -471,8 +498,8 @@ dependencyGraphFromEntryPointFunctions entryPoints distrosMap =
         |> collectDependenciesFromRefs (entryPoints |> Set.map (Tuple.pair "Value"))
 
 
-distrosToMap : List Distribution -> Dict PackageName Distribution.Distribution
-distrosToMap distros =
+distrosByName : List Distribution -> Dict PackageName Distribution.Distribution
+distrosByName distros =
     distros
         |> List.map
             (\distro ->
@@ -520,29 +547,13 @@ dataTypeToType dataType =
 outputSourcesToValue : Dict PackageName Distribution -> Dict DataSourceName (Type ()) -> OutputName -> List OutputSource -> Result (List Error) Value.TypedValue
 outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
     let
-        outputSourcesAsValues : Dict DataSourceName Value.TypedValue
-        outputSourcesAsValues =
+        -- Makes each data source a variable
+        dataSourceValues : Dict DataSourceName Value.TypedValue
+        dataSourceValues =
             validDataSourceNames
                 |> Dict.map (\srcName tpe -> Value.Variable tpe srcName)
 
-        outputType : Result Error (Type ())
-        outputType =
-            outputSources
-                |> List.head
-                |> Maybe.andThen
-                    (\outputSrc ->
-                        distroMap
-                            |> Dict.get (FQName.getPackagePath outputSrc.functionReference)
-                            |> Maybe.andThen (Distribution.lookupValueDefinition outputSrc.functionReference)
-                            |> Maybe.map .outputType
-                    )
-                |> Result.fromMaybe UnexpectedError
-
-        defInputTypesInOrder : Value.Definition () (Type ()) -> List (Type ())
-        defInputTypesInOrder valDef =
-            valDef.inputTypes
-                |> List.map (\( _, _, tpe ) -> tpe)
-
+        -- Folds a list of types into a function type
         tpesToFunctionType : List (Type ()) -> Type () -> Type ()
         tpesToFunctionType types outType =
             let
@@ -551,20 +562,16 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
                         [] ->
                             out
 
-                        lastType :: tail ->
-                            tpesToFunctionType tail
-                                (Type.Function () lastType outType)
+                        lastType :: rest ->
+                            helper rest
+                                (Type.Function () lastType out)
             in
             helper (List.reverse types) outType
 
-        asReference : FQName -> List (Type ()) -> Type () -> Value.TypedValue
-        asReference fQName inputTypes outType =
-            Value.Reference
-                (tpesToFunctionType inputTypes outType)
-                fQName
-
+        -- Converts a slice of an output to a morphir value.
         outputSliceToValue : Int -> OutputSource -> Result (List Error) Value.TypedValue
         outputSliceToValue sliceIndex outputSrc =
+            -- lookup the functions definition
             distroMap
                 |> Dict.get (FQName.getPackagePath outputSrc.functionReference)
                 |> Maybe.andThen (Distribution.lookupValueDefinition outputSrc.functionReference)
@@ -572,35 +579,38 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
                 |> Result.andThen
                     (\valDef ->
                         let
+                            inputTypes : List (Type ())
                             inputTypes =
-                                defInputTypesInOrder valDef
+                                valDef.inputTypes
+                                    |> List.map (\( _, _, tpe ) -> tpe)
                         in
                         valDef.inputTypes
                             |> List.foldl
                                 (\( paramName, _, _ ) resSoFar ->
                                     case
+                                        -- check if the parameter name was supplied in the arguments
                                         Dict.get paramName outputSrc.arguments
-                                            |> Maybe.andThen (\n -> Dict.get n outputSourcesAsValues)
+                                            |> Maybe.andThen (\n -> Dict.get n dataSourceValues)
                                     of
                                         Just paramValue ->
                                             resSoFar
                                                 |> Result.map
                                                     (\( inTpes, targetVal ) ->
                                                         let
-                                                            rest =
-                                                                case inTpes of
-                                                                    [] ->
-                                                                        []
+                                                            -- this value exists for the sake of clarity.
+                                                            -- it drops the current parameter type from the list of input types
+                                                            -- so that the apply type doesn't include it
+                                                            tpesWithoutCurrentParamTpe : List (Type ())
+                                                            tpesWithoutCurrentParamTpe =
+                                                                List.drop 1 inTpes
 
-                                                                    _ :: tail ->
-                                                                        tail
-
-                                                            nextOutType =
-                                                                tpesToFunctionType rest valDef.outputType
+                                                            applyTpe : Type ()
+                                                            applyTpe =
+                                                                tpesToFunctionType tpesWithoutCurrentParamTpe
+                                                                    valDef.outputType
                                                         in
-                                                        ( rest
-                                                        , Value.Apply
-                                                            nextOutType
+                                                        ( tpesWithoutCurrentParamTpe
+                                                        , Value.Apply applyTpe
                                                             targetVal
                                                             paramValue
                                                         )
@@ -625,7 +635,13 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
                                                             paramName
                                                         ]
                                 )
-                                (Ok ( inputTypes, asReference outputSrc.functionReference inputTypes valDef.outputType ))
+                                (Ok
+                                    ( inputTypes
+                                      -- start with a reference value that we then apply the arguments to
+                                    , Value.Reference (tpesToFunctionType inputTypes valDef.outputType)
+                                        outputSrc.functionReference
+                                    )
+                                )
                     )
                 |> Result.map (\( _, val ) -> val)
     in
@@ -633,6 +649,7 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
         |> List.indexedMap outputSliceToValue
         |> List.foldl
             (\res acc ->
+                -- Combine the results of all output sources into a single result.
                 case ( res, acc ) of
                     ( Ok v, Ok accSoFar ) ->
                         Ok (v :: accSoFar)
@@ -640,36 +657,48 @@ outputSourcesToValue distroMap validDataSourceNames outputName outputSources =
                     ( Ok _, Err err ) ->
                         Err err
 
+                    ( Err errs, Ok _ ) ->
+                        Err errs
+
                     ( Err resErrs, Err accErrs ) ->
                         Err (resErrs ++ accErrs)
-
-                    ( Err errs, _ ) ->
-                        Err errs
             )
             (Ok [])
-        |> Result.map2
-            (\outTpe v ->
-                Value.Apply
-                    outTpe
-                    (Value.Reference
-                        (Type.Function ()
-                            (Type.Reference ()
-                                (FQName.fqn "Morphir.SDK" "List" "List")
-                                [ outTpe ]
-                            )
+        |> Result.map
+            (\v ->
+                -- At this point, we should have a list of values that represent slices of an output.
+                case v of
+                    [] ->
+                        -- but it shouldn't if the list is empty, we return a unit value
+                        Value.Unit (Type.Unit ())
+
+                    head :: _ ->
+                        let
+                            -- we extract the type of the output from the first value
+                            outTpe =
+                                Value.valueAttribute head
+                        in
+                        -- Return an expression that concatenates all the slices into a single output value.
+                        Value.Apply
                             outTpe
-                        )
-                        (FQName.fqn "Morphir.SDK" "List" "concat")
-                    )
-                    (Value.List
-                        (Type.Reference ()
-                            (FQName.fqn "Morphir.SDK" "List" "List")
-                            [ outTpe ]
-                        )
-                        v
-                    )
+                            (Value.Reference
+                                (Type.Function ()
+                                    (Type.Reference ()
+                                        (FQName.fqn "Morphir.SDK" "List" "List")
+                                        [ outTpe ]
+                                    )
+                                    outTpe
+                                )
+                                (FQName.fqn "Morphir.SDK" "List" "concat")
+                            )
+                            (Value.List
+                                (Type.Reference ()
+                                    (FQName.fqn "Morphir.SDK" "List" "List")
+                                    [ outTpe ]
+                                )
+                                v
+                            )
             )
-            (outputType |> Result.mapError List.singleton)
 
 
 
@@ -710,6 +739,7 @@ collectNonUniqueDistributionErrors distros =
 collectNonInputReferenceErrors : Component -> List Error
 collectNonInputReferenceErrors comp =
     let
+        inputsAndStates : Set DataSourceName
         inputsAndStates =
             Dict.keys comp.inputs
                 |> List.append (Dict.keys comp.states)
@@ -757,7 +787,7 @@ collectOutputSliceTypeMismatchErrors : Component -> List Distribution -> List Er
 collectOutputSliceTypeMismatchErrors comp distros =
     let
         distroMaps =
-            distrosToMap distros
+            distrosByName distros
     in
     comp.outputs
         |> Dict.foldl
@@ -800,6 +830,12 @@ collectOutputSliceTypeMismatchErrors comp distros =
             []
 
 
+{-| Collects errors for unused inputs or states in a `Component`.
+
+This function identifies inputs or states that are declared in the `inputs` or `states` fields of a `Component`
+but are not referenced in any of the `outputs`. These unused inputs or states are returned as a list of `Error`.
+
+-}
 collectUnusedInputStateErrors : Component -> List Error
 collectUnusedInputStateErrors comp =
     let

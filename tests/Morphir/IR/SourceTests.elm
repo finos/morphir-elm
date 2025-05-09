@@ -176,6 +176,10 @@ sampleDistro =
                                                   , listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "sample", "state", "record" ]) [])
                                                   , listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "sample", "state", "record" ]) [])
                                                   )
+                                                , ( [ "state", "data", "two" ]
+                                                  , listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "sample", "state", "two", "record" ]) [])
+                                                  , listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "sample", "state", "two", "record" ]) [])
+                                                  )
                                                 ]
                                             , outputType = listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "output", "rec" ]) [])
                                             , body = Value.Unit (Type.Unit ())
@@ -222,6 +226,9 @@ sampleComponent =
             [ ( [ "state", "one" ]
               , RowSet ( samplePackageName, [ [ "module" ] ], [ "sample", "state", "record" ] )
               )
+            , ( [ "state", "two" ]
+              , RowSet ( samplePackageName, [ [ "module" ] ], [ "sample", "state", "two", "record" ] )
+              )
             ]
     , outputs =
         Dict.fromList
@@ -231,6 +238,7 @@ sampleComponent =
                         Dict.fromList
                             [ ( [ "input", "data" ], [ "input", "one" ] )
                             , ( [ "state", "data" ], [ "state", "one" ] )
+                            , ( [ "state", "data", "two" ], [ "state", "two" ] )
                             ]
                   }
                 ]
@@ -296,6 +304,14 @@ tests =
                                                                     )
                                                                 )
                                                           )
+                                                        , ( [ "amount" ]
+                                                          , public
+                                                                (Documented ""
+                                                                    (Type.TypeAliasDefinition []
+                                                                        (Type.Reference () (fQName morphirSDKPath [ [ "basics" ] ] [ "float" ]) [])
+                                                                    )
+                                                                )
+                                                          )
                                                         , ( [ "used", "output" ]
                                                           , public
                                                                 (Documented ""
@@ -348,6 +364,20 @@ tests =
                                                                     )
                                                                 )
                                                           )
+                                                        , ( [ "sample", "state", "two", "record" ]
+                                                          , public
+                                                                (Documented ""
+                                                                    (Type.TypeAliasDefinition []
+                                                                        (Type.Record ()
+                                                                            [ Type.Field [ "field", "1" ]
+                                                                                (Type.Reference () (fQName samplePackageName [ [ "types" ] ] [ "amount" ]) [])
+                                                                            , Type.Field [ "field", "2" ]
+                                                                                (Type.Reference () (fQName morphirSDKPath [ [ "string" ] ] [ "string" ]) [])
+                                                                            ]
+                                                                        )
+                                                                    )
+                                                                )
+                                                          )
                                                         , ( [ "output", "rec" ]
                                                           , public
                                                                 (Documented ""
@@ -370,6 +400,10 @@ tests =
                                                                         , ( [ "state", "data" ]
                                                                           , listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "sample", "state", "record" ]) [])
                                                                           , listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "sample", "state", "record" ]) [])
+                                                                          )
+                                                                        , ( [ "state", "data", "two" ]
+                                                                          , listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "sample", "state", "two", "record" ]) [])
+                                                                          , listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "sample", "state", "two", "record" ]) [])
                                                                           )
                                                                         ]
                                                                     , outputType = listTpe (Type.Reference () (fQName samplePackageName [ [ "module" ] ] [ "output", "rec" ]) [])
@@ -401,6 +435,9 @@ tests =
                                 [ ( [ "state", "one" ]
                                   , listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateRecord") [])
                                   )
+                                , ( [ "state", "two" ]
+                                  , listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateTwoRecord") [])
+                                  )
                                 ]
                         , outputs =
                             Dict.fromList
@@ -418,25 +455,40 @@ tests =
                                             [ Value.Apply (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "OutputRec") []))
                                                 (Value.Apply
                                                     (Type.Function ()
-                                                        (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateRecord") []))
+                                                        (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateTwoRecord") []))
                                                         (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "OutputRec") []))
                                                     )
-                                                    (Value.Reference
+                                                    (Value.Apply
                                                         (Type.Function ()
-                                                            (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleInputRecord") []))
+                                                            (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateRecord") []))
                                                             (Type.Function ()
-                                                                (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateRecord") []))
+                                                                (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateTwoRecord") []))
                                                                 (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "OutputRec") []))
                                                             )
                                                         )
-                                                        (fqn "SamplePackage" "Module" "OutputFunction")
+                                                        (Value.Reference
+                                                            (Type.Function ()
+                                                                (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleInputRecord") []))
+                                                                (Type.Function ()
+                                                                    (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateRecord") []))
+                                                                    (Type.Function ()
+                                                                        (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateTwoRecord") []))
+                                                                        (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "OutputRec") []))
+                                                                    )
+                                                                )
+                                                            )
+                                                            (fqn "SamplePackage" "Module" "OutputFunction")
+                                                        )
+                                                        (Value.Variable (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleInputRecord") []))
+                                                            [ "input", "one" ]
+                                                        )
                                                     )
-                                                    (Value.Variable (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleInputRecord") []))
-                                                        [ "input", "one" ]
+                                                    (Value.Variable (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateRecord") []))
+                                                        [ "state", "one" ]
                                                     )
                                                 )
-                                                (Value.Variable (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateRecord") []))
-                                                    [ "state", "one" ]
+                                                (Value.Variable (listTpe (Type.Reference () (fqn "SamplePackage" "Module" "SampleStateTwoRecord") []))
+                                                    [ "state", "two" ]
                                                 )
                                             ]
                                         )
