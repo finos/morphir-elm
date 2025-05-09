@@ -30,10 +30,9 @@ import Dict exposing (Dict)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Morphir.IR.FQName as FQName
-import Morphir.IR.Literal.Codec as Literal
 import Morphir.IR.Name as Name
 import Morphir.IR.Path as Path
-import Morphir.IR.Source exposing (..)
+import Morphir.IR.Source as Source exposing (..)
 
 
 encodeComponent : Component -> Encode.Value
@@ -78,8 +77,33 @@ encodeDataType dataType =
         Literal literal ->
             Encode.list identity
                 [ Encode.string "Literal"
-                , Literal.encodeLiteral literal
+                , encodeLiteral literal
                 ]
+
+
+encodeLiteral : Source.Literal -> Encode.Value
+encodeLiteral literal =
+    case literal of
+        BoolLiteral ->
+            Encode.string "Boolean"
+
+        StringLiteral ->
+            Encode.string "String"
+
+        WholeNumberLiteral ->
+            Encode.string "Integer"
+
+        FloatLiteral ->
+            Encode.string "Float"
+
+        DecimalLiteral ->
+            Encode.string "Decimal"
+
+        LocalDateLiteral ->
+            Encode.string "LocalDate"
+
+        LocalTimeLiteral ->
+            Encode.string "LocalTime"
 
 
 decodeDataType : Decode.Decoder DataType
@@ -95,13 +119,45 @@ decodeDataType =
                                 |> Decode.map (fqnFromString >> RowSet)
 
                         "Literal" ->
-                            Decode.index 1 Literal.decodeLiteral
+                            Decode.index 1 decodeLiteral
                                 |> Decode.map Literal
 
                         _ ->
                             Decode.fail ("Unknown data type: " ++ tag)
                 )
         ]
+
+
+decodeLiteral : Decode.Decoder Source.Literal
+decodeLiteral =
+    Decode.string
+        |> Decode.andThen
+            (\tag ->
+                case tag of
+                    "Boolean" ->
+                        Decode.succeed BoolLiteral
+
+                    "String" ->
+                        Decode.succeed StringLiteral
+
+                    "Integer" ->
+                        Decode.succeed WholeNumberLiteral
+
+                    "Float" ->
+                        Decode.succeed FloatLiteral
+
+                    "Decimal" ->
+                        Decode.succeed DecimalLiteral
+
+                    "LocalDate" ->
+                        Decode.succeed LocalDateLiteral
+
+                    "LocalTime" ->
+                        Decode.succeed LocalTimeLiteral
+
+                    _ ->
+                        Decode.fail ("Unknown literal type: " ++ tag)
+            )
 
 
 encodeOutputSource : OutputSource -> Encode.Value
