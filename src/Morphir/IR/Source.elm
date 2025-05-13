@@ -16,10 +16,10 @@
 
 
 module Morphir.IR.Source exposing
-    ( Component, ComponentName, DataSourceName, OutputName, OutputSource, DataType(..), Literal(..), Error(..)
+    ( Component, ComponentName, DataSourceName, OutputName, OutputSource, DataType(..), Error(..)
     , component, outputSource
     , toDistributionComponent
-    , ParameterName
+    , LiteralType(..), ParameterName
     )
 
 {-| This module defines a JSON Source format for producing a new kind of Morphir IR defined in
@@ -87,19 +87,19 @@ type alias DataSourceName =
     Name
 
 
-{-| Represents a Literal type.
-The fields of a Literal are:
+{-| Represents a Literal type that can be specified as part of Input or State declaration.
+The supported types are:
 
   - BoolLiteral: A boolean literal
   - StringLiteral: A string literal
-  - WholeNumberLiteral: A whole number literal
+  - WholeNumberLiteral: A whole number or integer literal
   - FloatLiteral: A float literal
   - DecimalLiteral: A decimal literal
   - LocalDateLiteral: A local date literal
   - LocalTimeLiteral: A local time literal
 
 -}
-type Literal
+type LiteralType
     = BoolLiteral
     | StringLiteral
     | WholeNumberLiteral
@@ -113,7 +113,7 @@ type Literal
 -}
 type DataType
     = RowSet FQName
-    | Literal Literal
+    | Literal LiteralType
 
 
 {-| Represents an Output name.

@@ -65,6 +65,15 @@ decodeComponentName =
     Decode.map Path.fromString Decode.string
 
 
+{-| Encodes a `Source.DataType` into a JSON string representation.
+This encoder always serializes a `Source.DataType` as a JSON array with two elements.
+The first element is a string that indicates the type of data (eg "RowSet" or "Literal").
+The second element is either a fully qualified name of a row set or a string representation of a literal type.
+
+  - RowSet ([["foo"]], [["bar"]], ["baz"]) -> `["RowSet", "Foo:Bar:Baz"]`
+  - Literal StringLiteral -> `["Literal", "String"]`
+
+-}
 encodeDataType : DataType -> Encode.Value
 encodeDataType dataType =
     case dataType of
@@ -81,7 +90,19 @@ encodeDataType dataType =
                 ]
 
 
-encodeLiteral : Source.Literal -> Encode.Value
+{-| Encodes a `Source.LiteralType` into a JSON string representation.
+The mapping between `Source.LiteralType` and its string representation is as follows:
+
+  - `BoolLiteral` -> `"Boolean"`
+  - `StringLiteral` -> `"String"`
+  - `WholeNumberLiteral` -> `"Integer"`
+  - `FloatLiteral` -> `"Float"`
+  - `DecimalLiteral` -> `"Decimal"`
+  - `LocalDateLiteral` -> `"LocalDate"`
+  - `LocalTimeLiteral` -> `"LocalTime"`
+
+-}
+encodeLiteral : Source.LiteralType -> Encode.Value
 encodeLiteral literal =
     case literal of
         BoolLiteral ->
@@ -106,6 +127,15 @@ encodeLiteral literal =
             Encode.string "LocalTime"
 
 
+{-| Decodes a `Source.DataType` from a JSON string representation.
+The decoder expects a JSON value that is either a JSON array with two elements or a single String.
+
+  - If the the value is a JSON array,
+      - Then the first element should be a string that indicates the type of data (eg "RowSet" or "Literal").
+      - The second element is also a string that could be a fully qualified name of a row set or a literal type.
+  - If the value is a single string, it is treated as a fully qualified name to a `RowSet`
+
+-}
 decodeDataType : Decode.Decoder DataType
 decodeDataType =
     Decode.oneOf
@@ -128,7 +158,10 @@ decodeDataType =
         ]
 
 
-decodeLiteral : Decode.Decoder Source.Literal
+{-| Decodes a `Source.LiteralType` from a JSON string representation.
+The mapping between the string representation and `Source.LiteralType` is documented in [encodeLiteral](#encodeLiteral).
+-}
+decodeLiteral : Decode.Decoder Source.LiteralType
 decodeLiteral =
     Decode.string
         |> Decode.andThen
