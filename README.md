@@ -36,7 +36,7 @@ npm install -g morphir-elm
 All the features can be accessed through sub-commands within the `morphir-elm` command:
 
 ```
-Usage: morphir-elm [options] [command]
+Usage: morphir-elm -f [options] [command]
 
 Options:
   -v, --version  output the version number
@@ -64,6 +64,7 @@ Options:
   -p, --project-dir <path>  Root directory of the project where morphir.json is located. (default: ".")
   -o, --output <path>       Target file location where the Morphir IR will be saved. (default: "morphir-ir.json")
   -h, --help                output usage information
+  -f, --fallback-cli        Use old cli make function - recommended (default: false)
 ```
 
 **Important**: The command requires a configuration file called `morphir.json` located in the project
