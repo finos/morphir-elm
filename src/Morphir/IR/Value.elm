@@ -22,7 +22,7 @@ module Morphir.IR.Value exposing
     , Pattern(..), wildcardPattern, asPattern, tuplePattern, unitPattern, constructorPattern, emptyListPattern, headTailPattern, literalPattern
     , Specification, mapSpecificationAttributes
     , Definition, mapDefinition, mapDefinitionAttributes
-    , definitionToSpecification, typeAndValueToDefinition, uncurryApply, collectVariables, collectReferences, collectDefinitionAttributes, collectPatternAttributes
+    , definitionToSpecification, typeAndValueToDefinition, uncurryApply, collectVariables, collectReferences, collectTypeReferences, collectDefinitionAttributes, collectPatternAttributes
     , collectValueAttributes, indexedMapPattern, indexedMapValue, mapPatternAttributes, patternAttribute, valueAttribute
     , definitionToValue, rewriteValue, toRawValue, countValueNodes, collectPatternVariables, isData, toString
     , generateUniqueName
@@ -113,7 +113,7 @@ which is just the specification of those. Value definitions can be typed or unty
 
 # Utilities
 
-@docs definitionToSpecification, typeAndValueToDefinition, uncurryApply, collectVariables, collectReferences, collectDefinitionAttributes, collectPatternAttributes
+@docs definitionToSpecification, typeAndValueToDefinition, uncurryApply, collectVariables, collectReferences, collectTypeReferences, collectDefinitionAttributes, collectPatternAttributes
 @docs collectValueAttributes, indexedMapPattern, indexedMapValue, mapPatternAttributes, patternAttribute, valueAttribute
 @docs definitionToValue, rewriteValue, toRawValue, countValueNodes, collectPatternVariables, isData, toString
 @docs generateUniqueName
@@ -1053,6 +1053,94 @@ collectReferences value =
         UpdateRecord _ valueToUpdate fieldsToUpdate ->
             collectUnion (fieldsToUpdate |> Dict.values)
                 |> Set.union (collectReferences valueToUpdate)
+
+        _ ->
+            Set.empty
+
+
+{-| Collect all Type references in a typed value recursively.
+-}
+collectTypeReferences : TypedValue -> Set FQName
+collectTypeReferences typedValue =
+    let
+        collectTypeReferencesFromDefinition : Definition () (Type ()) -> Set FQName
+        collectTypeReferencesFromDefinition def =
+            collectTypeReferences def.body
+                |> Set.union
+                    (def.inputTypes
+                        |> List.foldl
+                            (\( _, _, pTpe ) refCollected ->
+                                Set.union refCollected (Type.collectReferences pTpe)
+                            )
+                            Set.empty
+                    )
+                |> Set.union (Type.collectReferences def.outputType)
+
+        collectUnionFromValues : List TypedValue -> Set FQName
+        collectUnionFromValues values =
+            values
+                |> List.map collectTypeReferences
+                |> List.foldl Set.union Set.empty
+    in
+    case typedValue of
+        Tuple tpe elements ->
+            collectUnionFromValues elements
+                |> Set.union (Type.collectReferences tpe)
+
+        List tpe items ->
+            collectUnionFromValues items
+                |> Set.union (Type.collectReferences tpe)
+
+        Record tpe fields ->
+            collectUnionFromValues (Dict.values fields)
+                |> Set.union (Type.collectReferences tpe)
+
+        Reference tpe _ ->
+            Type.collectReferences tpe
+
+        Field tpe subjectValue _ ->
+            collectTypeReferences subjectValue
+                |> Set.union (Type.collectReferences tpe)
+
+        Apply _ function argument ->
+            collectUnionFromValues [ function, argument ]
+
+        Lambda tpe _ body ->
+            collectTypeReferences body
+                |> Set.union (Type.collectReferences tpe)
+
+        LetDefinition _ _ valueDefinition inValue ->
+            collectTypeReferencesFromDefinition valueDefinition
+                |> Set.union (collectTypeReferences inValue)
+
+        LetRecursion _ valueDefinitions inValue ->
+            List.foldl Set.union
+                Set.empty
+                (valueDefinitions
+                    |> Dict.toList
+                    |> List.map
+                        (\( _, def ) ->
+                            collectTypeReferencesFromDefinition def
+                        )
+                    |> List.append [ collectTypeReferences inValue ]
+                )
+
+        Destructure tpe _ valueToDestruct inValue ->
+            collectUnionFromValues [ valueToDestruct, inValue ]
+                |> Set.union (Type.collectReferences tpe)
+
+        IfThenElse _ condition thenBranch elseBranch ->
+            -- type of IfThenElse is same as any of it's branches
+            collectUnionFromValues [ condition, thenBranch, elseBranch ]
+
+        PatternMatch _ branchOutOn cases ->
+            -- type of PatternMatch is same as any of it's cases
+            collectUnionFromValues (cases |> List.map Tuple.second)
+                |> Set.union (collectTypeReferences branchOutOn)
+
+        UpdateRecord _ valueToUpdate fieldsToUpdate ->
+            collectUnionFromValues (fieldsToUpdate |> Dict.values)
+                |> Set.union (collectTypeReferences valueToUpdate)
 
         _ ->
             Set.empty
