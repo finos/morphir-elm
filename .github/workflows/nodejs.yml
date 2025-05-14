@@ -4,15 +4,15 @@ name: Node.js CI
 on:
   push:
     branches: [main]
-  pull_request_target:
-    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
 
 env:
   SonatypeUrl: "https://finos.sonatype.app/platform/"
   SonatypeAppId: "morphir-elm"
   SonatypeScanTarget: "."
   ExcludeDirectory: "**/docs/ **/.*'"
-      
+
 jobs:
   # building project
   build:
@@ -57,34 +57,10 @@ jobs:
       - name: Running Test
         run: npm test
 
-      ###########################
-      ## Sonatype SCA Scanning ##
-      ###########################
-      # - name: Sonatype Lifecycle SCA Scan
-      #   if: github.repository_owner == 'finos'
-      #   id: evaluate
-      #   uses: sonatype/actions/evaluate@v1
-      #   with:
-      #     iq-server-url: ${{ env.SonatypeUrl }}
-      #     username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
-      #     password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
-      #     application-id: ${{ env.SonatypeAppId }}
-      #     stage: "build"
-      #     scan-targets: ${{ env.SonatypeScanTarget }}
-      #     module-exclude: ${{ env.ExcludeDirectory }}
-
-      # - name: Save Sonatype SBOM
-      #   uses: sonatype/actions/fetch-sbom@v1
-      #   if: always() && steps.evaluate.outputs.scan-id
-      #   with:
-      #     iq-server-url: ${{ env.SonatypeUrl }}
-      #     username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
-      #     password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
-      #     application-id: ${{ env.SonatypeAppId }}
-      #     scan-id: ${{ steps.evaluate.outputs.scan-id }}
-      #     sbom-standard: spdx
-      #     sbom-version: 2.3
-      #     artifact-name: ${{ env.SonatypeAppId }}-bom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
 
   # CVE scanning
   # cvescan:
