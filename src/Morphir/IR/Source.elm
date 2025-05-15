@@ -17,9 +17,9 @@
 
 module Morphir.IR.Source exposing
     ( Component, ComponentName, DataSourceName, OutputName, OutputSource, DataType(..), Error(..)
+    , LiteralType(..), ParameterName
     , component, outputSource
     , toDistributionComponent
-    , LiteralType(..), ParameterName
     )
 
 {-| This module defines a JSON Source format for producing a new kind of Morphir IR defined in
@@ -29,7 +29,8 @@ allows for the production of an encapsulated and tree-shaken component that has 
 
 # Types
 
-@docs Component, ComponentName, DataSourceName, OutputName, ArgumentName, OutputSource, DataType, Literal, Error
+@docs Component, ComponentName, DataSourceName, OutputName, OutputSource, DataType, Error
+@docs LiteralType, ParameterName
 
 
 # Creation
