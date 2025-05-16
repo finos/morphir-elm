@@ -62,23 +62,6 @@ jobs:
           name: package-lock
           path: package-lock.json
 
-  # CVE scanning
-  # cvescan:
-  #   name: CVE Scanning
-  #   runs-on: ubuntu-latest
-  #   needs: [build]
-  #   strategy:
-  #     matrix:
-  #       node-version: [18.x]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Use Node.js ${{ matrix.node-version }}
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: ${{ matrix.node-version }}
-  #     - run: npm ci
-  #     - run: npx --yes auditjs ossi --whitelist allow-list.json
-
   # Semgrep static code analysis
   semgrep:
     name: Semgrep
