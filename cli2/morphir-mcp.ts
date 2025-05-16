@@ -38,20 +38,6 @@ server.tool("verifyElmCode",
     }
 );
 
-server.prompt(
-    "review-code",
-    { code: z.string() },
-    ({ code }) => ({
-        messages: [{
-            role: "user",
-            content: {
-                type: "text",
-                text: `Please review this code:\n\n${code}`
-            }
-        }]
-    })
-);
-
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
 
