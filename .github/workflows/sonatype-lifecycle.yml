@@ -8,7 +8,7 @@ on:
     workflows: ["Node.js CI"]
     types:
       - completed
-      
+
 env:
   SonatypeUrl: "https://finos.sonatype.app/platform/"
   SonatypeAppId: "morphir-elm"
@@ -18,7 +18,7 @@ env:
     
 jobs:
   scan:
-    name: Build
+    name: Scan
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
