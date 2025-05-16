@@ -33,6 +33,9 @@ jobs:
         with:
           name: package-lock
           path: ./target
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Sonatype Lifecycle SCA Scan
         id: evaluate
