@@ -58,3 +58,12 @@ jobs:
           sbom-standard: spdx
           sbom-version: 2.3
           artifact-name: ${{ env.SonatypeAppId }}-bom
+
+      - name: Set PR Status to Failed if SCA Scan Fails
+        if: failure()
+        run: |
+          gh api repos/${{ github.repository }}/statuses/${{ github.sha }} \
+            -f state=failure \
+            -f context="Sonatype Lifecycle SCA Scan" \
+            -f description="SCA Scan failed. Review the results: ${{ steps.evaluate.outputs.report-url }}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}"
