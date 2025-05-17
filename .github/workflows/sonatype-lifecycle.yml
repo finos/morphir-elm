@@ -70,3 +70,5 @@ jobs:
             -f context="Sonatype Lifecycle SCA Scan" \
             -f description="SCA Scan failed. Review the results: ${{ steps.evaluate.outputs.report-url }}" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
