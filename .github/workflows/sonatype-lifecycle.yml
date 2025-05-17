@@ -1,0 +1,72 @@
+name: Sonatype Lifecycle Evaluation
+permissions:
+  actions: write
+  contents: write
+
+on:
+  workflow_run:
+    workflows: ["Node.js CI"]
+    types:
+      - completed
+
+env:
+  SonatypeUrl: "https://finos.sonatype.app/platform/"
+  SonatypeAppId: "morphir-elm"
+  SonatypeScanTarget: "./package-lock.json"
+  ExcludeDirectory: "**/docs/ **/.*'"
+  ArtifactName: ""
+    
+jobs:
+  scan:
+    name: Scan
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Check GITHUB_TOKEN Permissions
+        run: |
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: package-lock
+          path: ./target
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Sonatype Lifecycle SCA Scan
+        id: evaluate
+        uses: sonatype/actions/evaluate@v1
+        with:
+          iq-server-url: ${{ env.SonatypeUrl }}
+          username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
+          password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
+          application-id: ${{ env.SonatypeAppId }}
+          stage: "build"
+          scan-targets: target/
+          module-exclude: ${{ env.ExcludeDirectory }}
+      
+      - name: Save Sonatype SBOM
+        uses: sonatype/actions/fetch-sbom@v1
+        if: steps.evaluate.outputs.scan-id
+        with:
+          iq-server-url: ${{ env.SonatypeUrl }}
+          username: ${{ secrets.SONATYPE_SCANNER_USERNAME }}
+          password: ${{ secrets.SONATYPE_SCANNER_PASSWORD }}
+          application-id: ${{ env.SonatypeAppId }}
+          scan-id: ${{ steps.evaluate.outputs.scan-id }}
+          sbom-standard: spdx
+          sbom-version: 2.3
+          artifact-name: ${{ env.SonatypeAppId }}-bom
+
+      - name: Set PR Status to Failed if SCA Scan Fails
+        if: failure()
+        run: |
+          gh api repos/${{ github.repository }}/statuses/${{ github.sha }} \
+            -f state=failure \
+            -f context="Sonatype Lifecycle SCA Scan" \
+            -f description="SCA Scan failed. Review the results: ${{ steps.evaluate.outputs.report-url }}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}"

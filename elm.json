@@ -30,6 +30,7 @@
         "Morphir.IR.FQName",
         "Morphir.IR.AccessControlled",
         "Morphir.IR.Documented",
+        "Morphir.IR.Source",
         "Morphir.IR.Type",
         "Morphir.IR.Value",
         "Morphir.IR.Literal",

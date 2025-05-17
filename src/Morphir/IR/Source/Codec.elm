@@ -30,10 +30,9 @@ import Dict exposing (Dict)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Morphir.IR.FQName as FQName
-import Morphir.IR.Literal.Codec as Literal
 import Morphir.IR.Name as Name
 import Morphir.IR.Path as Path
-import Morphir.IR.Source exposing (..)
+import Morphir.IR.Source as Source exposing (..)
 
 
 encodeComponent : Component -> Encode.Value
@@ -66,6 +65,15 @@ decodeComponentName =
     Decode.map Path.fromString Decode.string
 
 
+{-| Encodes a `Source.DataType` into a JSON string representation.
+This encoder always serializes a `Source.DataType` as a JSON array with two elements.
+The first element is a string that indicates the type of data (eg "RowSet" or "Literal").
+The second element is either a fully qualified name of a row set or a string representation of a literal type.
+
+  - RowSet ([["foo"]], [["bar"]], ["baz"]) -> `["RowSet", "Foo:Bar:Baz"]`
+  - Literal StringLiteral -> `["Literal", "String"]`
+
+-}
 encodeDataType : DataType -> Encode.Value
 encodeDataType dataType =
     case dataType of
@@ -78,10 +86,56 @@ encodeDataType dataType =
         Literal literal ->
             Encode.list identity
                 [ Encode.string "Literal"
-                , Literal.encodeLiteral literal
+                , encodeLiteral literal
                 ]
 
 
+{-| Encodes a `Source.LiteralType` into a JSON string representation.
+The mapping between `Source.LiteralType` and its string representation is as follows:
+
+  - `BoolLiteral` -> `"Boolean"`
+  - `StringLiteral` -> `"String"`
+  - `WholeNumberLiteral` -> `"Integer"`
+  - `FloatLiteral` -> `"Float"`
+  - `DecimalLiteral` -> `"Decimal"`
+  - `LocalDateLiteral` -> `"LocalDate"`
+  - `LocalTimeLiteral` -> `"LocalTime"`
+
+-}
+encodeLiteral : Source.LiteralType -> Encode.Value
+encodeLiteral literal =
+    case literal of
+        BoolLiteral ->
+            Encode.string "Boolean"
+
+        StringLiteral ->
+            Encode.string "String"
+
+        WholeNumberLiteral ->
+            Encode.string "Integer"
+
+        FloatLiteral ->
+            Encode.string "Float"
+
+        DecimalLiteral ->
+            Encode.string "Decimal"
+
+        LocalDateLiteral ->
+            Encode.string "LocalDate"
+
+        LocalTimeLiteral ->
+            Encode.string "LocalTime"
+
+
+{-| Decodes a `Source.DataType` from a JSON string representation.
+The decoder expects a JSON value that is either a JSON array with two elements or a single String.
+
+  - If the the value is a JSON array,
+      - Then the first element should be a string that indicates the type of data (eg "RowSet" or "Literal").
+      - The second element is also a string that could be a fully qualified name of a row set or a literal type.
+  - If the value is a single string, it is treated as a fully qualified name to a `RowSet`
+
+-}
 decodeDataType : Decode.Decoder DataType
 decodeDataType =
     Decode.oneOf
@@ -95,13 +149,48 @@ decodeDataType =
                                 |> Decode.map (fqnFromString >> RowSet)
 
                         "Literal" ->
-                            Decode.index 1 Literal.decodeLiteral
+                            Decode.index 1 decodeLiteral
                                 |> Decode.map Literal
 
                         _ ->
                             Decode.fail ("Unknown data type: " ++ tag)
                 )
         ]
+
+
+{-| Decodes a `Source.LiteralType` from a JSON string representation.
+The mapping between the string representation and `Source.LiteralType` is documented in [encodeLiteral](#encodeLiteral).
+-}
+decodeLiteral : Decode.Decoder Source.LiteralType
+decodeLiteral =
+    Decode.string
+        |> Decode.andThen
+            (\tag ->
+                case tag of
+                    "Boolean" ->
+                        Decode.succeed BoolLiteral
+
+                    "String" ->
+                        Decode.succeed StringLiteral
+
+                    "Integer" ->
+                        Decode.succeed WholeNumberLiteral
+
+                    "Float" ->
+                        Decode.succeed FloatLiteral
+
+                    "Decimal" ->
+                        Decode.succeed DecimalLiteral
+
+                    "LocalDate" ->
+                        Decode.succeed LocalDateLiteral
+
+                    "LocalTime" ->
+                        Decode.succeed LocalTimeLiteral
+
+                    _ ->
+                        Decode.fail ("Unknown literal type: " ++ tag)
+            )
 
 
 encodeOutputSource : OutputSource -> Encode.Value
