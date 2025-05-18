@@ -93,7 +93,11 @@ view config viewDefinitionBody viewValue functionValue argValues applyValue =
                         )
 
                 _ ->
-                    Element.row [] (viewValue constr :: (argValues |> List.map viewValue))
+                    Element.row [ spacing <| Theme.mediumSpacing config.state.theme ]
+                        [ viewValue constr
+                        , Element.row [ spacing <| Theme.smallSpacing config.state.theme ]
+                            (argValues |> List.map viewValue)
+                        ]
 
         ( Value.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "negate" ] ), [ argValue ] ) ->
             row binaryOperatorStyles
@@ -175,7 +179,7 @@ view config viewDefinitionBody viewValue functionValue argValues applyValue =
                 case Dict.get functionName inlineBinaryOperators of
                     Just string ->
                         row
-                            ((smallPadding config.state.theme |> padding) :: styles)
+                            styles
                             [ viewValue argValues1
                             , text string
                             , viewValue argValues2
