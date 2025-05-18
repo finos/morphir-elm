@@ -17,9 +17,8 @@ import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (Pattern(..), RawValue, Value(..))
 import Morphir.Type.Infer as Infer exposing (TypeError)
 import Morphir.Visual.BoolOperatorTree as BoolOperatorTree exposing (BoolOperatorTree)
-import Morphir.Visual.Common exposing (nameToText)
+import Morphir.Visual.Common exposing (nameToText, nameToTitleText)
 import Morphir.Visual.Components.AritmeticExpressions as ArithmeticOperatorTree exposing (ArithmeticOperatorTree)
-import Morphir.Visual.Components.DecisionTree as DecisionTree
 import Morphir.Visual.Components.DrillDownPanel as DrillDownPanel
 import Morphir.Visual.Config as Config exposing (Config, DrillDownFunctions(..), drillDownContains)
 import Morphir.Visual.EnrichedValue exposing (EnrichedValue, fromRawValue, fromTypedValue, getId)
@@ -35,6 +34,7 @@ import Morphir.Visual.ViewLiteral as ViewLiteral
 import Morphir.Visual.ViewPatternMatch as ViewPatternMatch
 import Morphir.Visual.ViewRecord as ViewRecord
 import Morphir.Visual.XRayView as XRayView
+import Svg.Attributes exposing (fontWeight)
 
 
 definition : Config msg -> String -> Element msg -> Element msg
@@ -124,10 +124,10 @@ viewValueByLanguageFeature config value =
 
                         _ ->
                             Element.row
-                                [ smallSpacing config.state.theme |> spacing
+                                [ Font.bold
                                 , onClick (config.handlers.onReferenceClicked fQName (getId functionvalue) config.nodePath)
                                 ]
-                                [ text (nameToText localName) ]
+                                [ text (nameToTitleText localName) ]
 
                 Value.Tuple _ elems ->
                     column
@@ -173,6 +173,8 @@ viewValueByLanguageFeature config value =
                                 , htmlAttribute (style "z-index" (String.fromInt config.state.zIndex))
                                 , center
                                 , Element.below (viewPopup config ((config.state.popupVariables.variableIndex == index) && (config.state.popupVariables.nodePath == config.nodePath)))
+                                , Font.color config.state.theme.colors.variableFont
+                                , Font.bold
                                 ]
                                 (text (nameToText name))
 
@@ -208,8 +210,11 @@ viewValueByLanguageFeature config value =
                     let
                         readableFieldName : Name -> Element msg
                         readableFieldName f =
-                            el [ Background.color config.state.theme.colors.backgroundColor ] <|
-                                text (" " ++ (f |> toHumanWords |> String.join " ") ++ " ")
+                            el
+                                [ Font.color config.state.theme.colors.variableFont
+                                , Font.bold
+                                ]
+                                (text (f |> toHumanWords |> String.join " "))
 
                         defaultFieldDisplay : Name -> Element msg
                         defaultFieldDisplay f =
@@ -226,21 +231,8 @@ viewValueByLanguageFeature config value =
                                 variableValue : Maybe RawValue
                                 variableValue =
                                     Dict.get variableName config.state.variables
-
-                                singularOrPlural : List String -> String
-                                singularOrPlural vname =
-                                    let
-                                        lastChar : Name -> Char
-                                        lastChar s =
-                                            (s |> List.Extra.last |> Maybe.map (String.toList >> List.Extra.last >> Maybe.withDefault '_')) |> Maybe.withDefault '_'
-                                    in
-                                    if (vname |> lastChar) == 's' then
-                                        "' "
-
-                                    else
-                                        "'s "
                             in
-                            row
+                            el
                                 [ onMouseEnter (config.handlers.onHoverOver index config.nodePath variableValue)
                                 , onMouseLeave (config.handlers.onHoverLeave index config.nodePath)
                                 , htmlAttribute (style "z-index" (String.fromInt config.state.zIndex))
@@ -248,13 +240,7 @@ viewValueByLanguageFeature config value =
                                     (viewPopup config ((config.state.popupVariables.variableIndex == index) && (config.state.popupVariables.nodePath == config.nodePath)))
                                 , center
                                 ]
-                                [ String.concat
-                                    [ nameToText variableName
-                                    , singularOrPlural variableName
-                                    ]
-                                    |> text
-                                , readableFieldName fieldName
-                                ]
+                                (readableFieldName fieldName)
 
                         _ ->
                             defaultFieldDisplay fieldName
@@ -264,12 +250,11 @@ viewValueByLanguageFeature config value =
                         ( function, args ) =
                             Value.uncurryApply fun arg
                     in
-
-                    case (function, args) of
+                    case ( function, args ) of
                         ( Value.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "decimal" ] ], [ "from", "float" ] ), [ argValue ] ) ->
                             viewValue config argValue
-                        
-                        ( Value.Reference _ (  [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "date" ] ], [ "from", "i", "s", "o" ]  ), [ argValue ] ) ->
+
+                        ( Value.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "local", "date" ] ], [ "from", "i", "s", "o" ] ), [ argValue ] ) ->
                             viewValue config argValue
 
                         _ ->
@@ -349,7 +334,7 @@ viewValueByLanguageFeature config value =
 
                 Value.UpdateRecord _ record newFields ->
                     Element.column [ Background.color config.state.theme.colors.lightest, Theme.borderRounded config.state.theme ]
-                        [ Element.row [ smallPadding config.state.theme |> padding ] [ text "updating the following fields of ", viewValue config record]
+                        [ Element.row [ smallPadding config.state.theme |> padding ] [ text "updating the following fields of ", viewValue config record ]
                         , ViewRecord.view config (viewValue config) newFields
                         ]
 
