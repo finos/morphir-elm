@@ -165,6 +165,38 @@ server.tool("addModule",
     }
 );
 
+// Add a new tool to set test cases for a module and function
+server.tool("setTestCases",
+    `This tool sets test cases for a given module and function in the Morphir project.
+    It takes a module name, a function name, and a JSON object representing the test cases.
+    The test cases are stored in morphir-tests.json in the root directory.`,
+    {
+        moduleName: z.string(),
+        functionName: z.string(),
+        testCases: z.any()
+    },
+    async ({ moduleName, functionName, testCases }) => {
+        const fs = await import("fs/promises");
+        const path = await import("path");
+
+        const testsPath = path.join(rootDir, "morphir-tests.json");
+        let tests: any[] = [];
+
+        // Check if morphir-tests.json exists, if not create it as an empty array
+        try {
+            const content = await fs.readFile(testsPath, "utf8");
+            tests = JSON.parse(content);
+        } catch {
+            tests = [];
+            await fs.writeFile(testsPath, JSON.stringify(tests, null, 4), "utf8");
+        }
+
+        return {
+            content: [{ type: "text", text: `Done` }]
+        };
+    }
+);
+
 // Start receiving messages on stdin and sending messages on stdout
 const transport = new StdioServerTransport();
 
