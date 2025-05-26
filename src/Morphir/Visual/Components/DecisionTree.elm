@@ -38,19 +38,10 @@ type Direction
 highlightStateToColor : Config msg -> Bool -> Color
 highlightStateToColor config highlighted =
     if highlighted then
-        config.state.theme.colors.highlighted
+        config.state.theme.colors.primaryHighlight
 
     else
         config.state.theme.colors.notHighlighted
-
-
-highlightStateToBorderWidth : Bool -> Int
-highlightStateToBorderWidth highlighted =
-    if highlighted then
-        4
-
-    else
-        2
 
 
 highlightStateToFontWeight : Bool -> Attribute msg
@@ -60,6 +51,32 @@ highlightStateToFontWeight highlighted =
 
     else
         Font.regular
+
+
+elWithHighlight : Config msg -> Bool -> List (Attribute msg) -> Element msg -> Element msg
+elWithHighlight config highlighted attributes element =
+    let
+        highlightAttributes : List (Element.Attribute msg)
+        highlightAttributes =
+            if highlighted then
+                [ Border.color config.state.theme.colors.primaryHighlight
+                , Border.shadow
+                    { offset = ( 0, 0 )
+                    , size = 0
+                    , blur = 3
+                    , color = config.state.theme.colors.primaryHighlight
+                    }
+                , Border.width 2
+                ]
+
+            else
+                [ Border.color (highlightStateToColor config highlighted)
+                , Border.width 2
+                ]
+    in
+    el
+        (attributes ++ highlightAttributes)
+        element
 
 
 toCssColor : Color -> String
@@ -121,11 +138,10 @@ layoutHelp currentDirection config highlightState viewValue rootNode =
 
                 conditionElement : Element msg
                 conditionElement =
-                    el
-                        [ conditionState |> highlightStateToBorderWidth |> Border.width
-                        , Border.rounded 6
-                        , Border.color (conditionState |> highlightStateToColor config)
-                        , smallPadding config.state.theme |> padding
+                    elWithHighlight config
+                        conditionState
+                        [ Border.rounded 6
+                        , mediumPadding config.state.theme |> padding
                         , width fill
                         ]
                         (el [ centerX, centerY ] (viewValue { config | state = { stateConfig | highlightState = Just <| branchHighlightToConfigHighLight conditionState } } branch.condition))
@@ -218,11 +234,10 @@ layoutHelp currentDirection config highlightState viewValue rootNode =
                     (thenBranchWithDirection currentDirection)
 
         Leaf variables value ->
-            el
-                [ highlightState |> highlightStateToBorderWidth |> Border.width
-                , Border.rounded 6
-                , Border.color (highlightState |> highlightStateToColor config)
-                , smallPadding config.state.theme |> padding
+            elWithHighlight config
+                highlightState
+                [ Border.rounded 6
+                , mediumPadding config.state.theme |> padding
                 ]
                 (viewValue { config | state = { stateConfig | highlightState = Just <| branchHighlightToConfigHighLight highlightState, variables = variables } } value)
 
@@ -344,7 +359,7 @@ rightArrow config highlightState =
                 ]
                 [ Html.tr []
                     [ Html.td
-                        [ Html.Attributes.style "border-bottom" (String.concat [ "solid ", highlightState |> highlightStateToBorderWidth |> String.fromInt, "px ", highlightState |> highlightStateToColor config |> toCssColor ])
+                        [ Html.Attributes.style "border-bottom" (String.concat [ "solid 2px ", highlightState |> highlightStateToColor config |> toCssColor ])
                         , Html.Attributes.style "width" "100%"
                         ]
                         []
@@ -377,7 +392,7 @@ downArrow config highlightState =
                 , Html.Attributes.style "height" "100%"
                 ]
                 [ Html.tr [ Html.Attributes.style "height" "100%" ]
-                    [ Html.td [ Html.Attributes.style "border-right" (String.concat [ "solid ", highlightState |> highlightStateToBorderWidth |> String.fromInt, "px ", highlightState |> highlightStateToColor config |> toCssColor ]) ] []
+                    [ Html.td [ Html.Attributes.style "border-right" (String.concat [ "solid 2px ", highlightState |> highlightStateToColor config |> toCssColor ]) ] []
                     , Html.td [] []
                     ]
                 , Html.tr []
@@ -442,5 +457,6 @@ branchHighlightToConfigHighLight : Bool -> Morphir.Visual.Config.HighlightState
 branchHighlightToConfigHighLight branchHL =
     if branchHL then
         Matched Dict.empty
+
     else
         Unmatched
