@@ -81,7 +81,8 @@ tableCellBackgroundColor config =
 tableHelp : Config msg -> (Config msg -> EnrichedValue -> Element msg) -> List EnrichedValue -> List Rule -> Element msg
 tableHelp config viewValue headerFunctions rows =
     table
-        [ Border.solid
+        [ width shrink
+        , Border.solid
         , Border.width 1
         , mediumPadding config.state.theme |> Border.rounded
         , Border.color (tableBorderColor config)

@@ -80,8 +80,8 @@ import Element
         , minimum
         , moveDown
         , none
-        , paddingEach
         , padding
+        , paddingEach
         , paddingXY
         , pointer
         , px
@@ -282,9 +282,9 @@ view theme config priorityElements generalElements =
 
         inputElementAttributes : List (Element.Attribute msg)
         inputElementAttributes =
-            [ width (shrink |> minimum (theme.fontSize * 14) |> maximum (theme.fontSize * 20))
+            [ width (fill |> minimum (theme.fontSize * 14) |> maximum (theme.fontSize * 20))
             , paddingXY (theme |> Theme.mediumPadding) (theme |> Theme.smallPadding)
-            , height fill
+            , height shrink
             , Border.width 1
             , theme |> Theme.borderRounded
             , Border.color (grey 201)
