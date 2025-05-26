@@ -1,4 +1,4 @@
-module Morphir.Visual.ViewValue exposing (viewDefinition, viewValue)
+module Morphir.Visual.ViewValue exposing (viewDefinition, viewDefinitionBody, viewValue)
 
 import Dict
 import Element exposing (Element, column, el, fill, htmlAttribute, padding, paddingEach, pointer, rgb, rgba, row, spacing, text, width)
@@ -7,7 +7,6 @@ import Element.Border as Border
 import Element.Events exposing (onClick, onMouseEnter, onMouseLeave)
 import Element.Font as Font exposing (..)
 import Html.Attributes exposing (style)
-import List.Extra
 import Morphir.IR.Distribution as Distribution
 import Morphir.IR.FQName exposing (FQName, getLocalName)
 import Morphir.IR.Name exposing (Name, toCamelCase, toHumanWords)
@@ -34,7 +33,6 @@ import Morphir.Visual.ViewLiteral as ViewLiteral
 import Morphir.Visual.ViewPatternMatch as ViewPatternMatch
 import Morphir.Visual.ViewRecord as ViewRecord
 import Morphir.Visual.XRayView as XRayView
-import Svg.Attributes exposing (fontWeight)
 
 
 definition : Config msg -> String -> Element msg -> Element msg
@@ -49,8 +47,8 @@ definition config header body =
         ]
 
 
-definitionBody : Config msg -> Value.Definition () (Type ()) -> Element msg
-definitionBody config valueDef =
+viewDefinitionBody : Config msg -> Value.Definition () (Type ()) -> Element msg
+viewDefinitionBody config valueDef =
     viewValue config (valueDef.body |> fromTypedValue)
 
 
@@ -63,7 +61,7 @@ viewDefinition config ( packageName, moduleName, valueName ) valueDef =
         definitionElem =
             definition config
                 (nameToText valueName)
-                (definitionBody config visualValueDef)
+                (viewDefinitionBody config visualValueDef)
     in
     Element.column [ mediumSpacing config.state.theme |> spacing, padding 1 ]
         [ definitionElem ]
@@ -258,7 +256,7 @@ viewValueByLanguageFeature config value =
                             viewValue config argValue
 
                         _ ->
-                            ViewApply.view config definitionBody (viewValue config) function args applyValue
+                            ViewApply.view config viewDefinitionBody (viewValue config) function args applyValue
 
                 Value.LetDefinition _ _ _ _ ->
                     let
@@ -462,7 +460,7 @@ viewDrillDown config value fQName letDefOpenElement =
         openElement =
             case drillDown config.state.drillDownFunctions config.nodePath of
                 Just valueDef ->
-                    definitionBody { config | nodePath = config.nodePath ++ [ id ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
+                    viewDefinitionBody { config | nodePath = config.nodePath ++ [ id ] } { valueDef | body = Value.rewriteMaybeToPatternMatch valueDef.body }
 
                 Nothing ->
                     letDefOpenElement |> Maybe.withDefault Element.none
