@@ -40,6 +40,43 @@ const server = new McpServer(
 );
 
 
+// Utility function to ensure elm.json exists, creates it if missing
+async function ensureElmJson(rootDir: string, sourceDirectory: string): Promise<{ existed: boolean }> {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const elmJsonPath = path.join(rootDir, "elm.json");
+    let existed = true;
+    try {
+        await fs.access(elmJsonPath);
+    } catch {
+        existed = false;
+        const elmJsonContent = JSON.stringify({
+            type: "application",
+            "source-directories": [sourceDirectory],
+            "elm-version": "0.19.1",
+            dependencies: {
+                direct: {
+                    "elm/browser": "1.0.2",
+                    "elm/core": "1.0.5",
+                    "elm/html": "1.0.0"
+                },
+                indirect: {
+                    "elm/json": "1.1.3",
+                    "elm/time": "1.0.0",
+                    "elm/url": "1.0.0",
+                    "elm/virtual-dom": "1.0.3"
+                }
+            },
+            "test-dependencies": {
+                direct: {},
+                indirect: {}
+            }
+        }, null, 4);
+        await fs.writeFile(elmJsonPath, elmJsonContent, "utf8");
+    }
+    return { existed };
+}
+
 // Add a new tool to add a module to the Morphir project
 server.tool("addModule",
     `This tool adds a module to the Morphir project. A module can contain types and 
@@ -79,18 +116,35 @@ server.tool("addModule",
             throw new Error("name is not defined in morphir.json.");
         }
 
+        // Prepend the module declaration to the content
+        const moduleDeclaration = `module ${projectName}.${moduleName} exposing (..)\n\n`;
+        const fullContent = moduleDeclaration + content;
+
         // Construct the full path for the module
         const modulePath = path.join(rootDir, sourceDirectory, projectName, `${moduleName}.elm`);
 
         // Ensure the directory exists
         await fs.mkdir(path.dirname(modulePath), { recursive: true });
 
-        // Prepend the module declaration to the content
-        const moduleDeclaration = `module ${projectName}.${moduleName} exposing (..)\n\n`;
-        const fullContent = moduleDeclaration + content;
-
         // Write the module file
         await fs.writeFile(modulePath, fullContent, "utf8");
+
+        // Ensure elm.json exists in the root directory, create if missing
+        const { existed: elmJsonExisted } = await ensureElmJson(rootDir, sourceDirectory);
+
+        // Run "elm make" on the saved module file
+        try {
+            await execAsync(`${elmCommand} make ${modulePath}`, { cwd: rootDir });
+        } catch (error) {
+            await fs.unlink(modulePath).catch(() => { });
+            if (!elmJsonExisted) {
+                const elmJsonPath = path.join(rootDir, "elm.json");
+                await fs.unlink(elmJsonPath).catch(() => { });
+            }
+            return {
+                content: [{ type: "text", text: `Elm compile error:\n${(error as any).stderr || (error as any).message}` }]
+            };
+        }
 
         // Run "morphir make" in the root directory
         try {
@@ -99,10 +153,11 @@ server.tool("addModule",
                 content: [{ type: "text", text: `Module ${moduleName} added successfully.\n${stdout}` }]
             };
         } catch (error) {
-            // Delete the module file if the command fails
-            await fs.unlink(modulePath).catch(() => {
-                // Ignore errors if the file cannot be deleted
-            });
+            await fs.unlink(modulePath).catch(() => { });
+            if (!elmJsonExisted) {
+                const elmJsonPath = path.join(rootDir, "elm.json");
+                await fs.unlink(elmJsonPath).catch(() => { });
+            }
             return {
                 content: [{ type: "text", text: `Failed to run "morphir make":\n${(error as any).stderr || (error as any).message}` }]
             };
