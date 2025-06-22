@@ -1,0 +1,1 @@
+npx -p @modelcontextprotocol/inspector -p ts-node -- ts-node D:/ws/AttilaMihaly/morphir-elm/cli2/morphir-mcp.ts --elm-command  "C:\nvm4w\nodejs\elm.cmd" --root-dir "D:\ws\AttilaMihaly\amplify-ai\test-1"

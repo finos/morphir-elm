@@ -77,6 +77,7 @@ async function ensureElmJson(rootDir: string, sourceDirectory: string): Promise<
     return { existed };
 }
 
+
 // Add a new tool to add a module to the Morphir project
 server.tool("addModule",
     `This tool adds a module to the Morphir project. A module can contain types and 
@@ -88,6 +89,13 @@ server.tool("addModule",
     Imports are supported, but should be limited to the elm/core library.
 
     Every module name will implicitly be prefixed with "MorphirMCP.".
+
+    Follow these rules when implementing the Elm logic:
+    - Exclude the module declaration.
+    - Only use imports from elm/core library.
+    - When defining custom types prefer to use positional argument over record structures as arguments.
+    - Implement only what the user asked for, do not add extra utility or testing functions.
+    
     `,
     {
         moduleName: z.string(),
@@ -169,30 +177,55 @@ server.tool("addModule",
 server.tool("setTestCases",
     `This tool sets test cases for a given module and function in the Morphir project.
     It takes a module name, a function name, and a JSON object representing the test cases.
-    The test cases are stored in morphir-tests.json in the root directory.`,
+    
+    Each test case should have the following structure:
+    {
+      "inputs": [value1, value2, ...], // Array of input values (can be null for optional inputs)
+      "expectedOutput": value,         // The expected output value
+      "description": "string"          // Description of the test case
+    }
+    
+    Where value can be any valid Elm value, including null for optional inputs. Use the following rules to turn values into JSON:
+    - Constructors are represented as arrays where the first item is the name of the constructor as a string and the remaining items are the arguments.
+    - Zero argument constructors are represented as a single element array with the name of the constructor. (e.g., ["Just"] for Maybe Just constructor)
+    `,
     {
         moduleName: z.string(),
         functionName: z.string(),
-        testCases: z.any()
+        testCases: z.array(z.object({
+            inputs: z.array(z.any()),
+            expectedOutput: z.any(),
+            description: z.string()
+        }))
     },
     async ({ moduleName, functionName, testCases }) => {
         const fs = await import("fs/promises");
         const path = await import("path");
 
         const testsPath = path.join(rootDir, "morphir-tests.json");
-        let tests: any[] = [];
+        let testSuite: [any, any][] = [];
 
-        // Check if morphir-tests.json exists, if not create it as an empty array
+        // Check if morphir-tests.json exists, if not create it as an empty object
         try {
             const content = await fs.readFile(testsPath, "utf8");
-            tests = JSON.parse(content);
+            testSuite = JSON.parse(content);
         } catch {
-            tests = [];
-            await fs.writeFile(testsPath, JSON.stringify(tests, null, 4), "utf8");
+            testSuite = [];
         }
 
+        const fqName = [[["morphir", "m", "c", "p"]], [stringToName(moduleName)], stringToName(functionName)];
+
+        // Update or add the test cases for this function
+        testSuite.push([fqName, testCases]);
+
+        // Write the updated test suite back to the file
+        await fs.writeFile(testsPath, JSON.stringify(testSuite, null, 4), "utf8");
+
         return {
-            content: [{ type: "text", text: `Done` }]
+            content: [{
+                type: "text",
+                text: `Test cases for ${fqName} have been added successfully.`
+            }]
         };
     }
 );
@@ -206,3 +239,12 @@ server.connect(transport).then(() => {
 }).catch((error) => {
     console.error("Failed to connect server:", error);
 });
+
+// Convert a camel-case string to an array of lowercase words (name)
+function stringToName(str: string): string[] {
+    return str
+        .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space before uppercase letters
+        .split(' ') // Split by spaces
+        .map(word => word.toLowerCase()); // Convert to lowercase
+}
+
