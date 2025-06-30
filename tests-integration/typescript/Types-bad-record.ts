@@ -1,6 +1,6 @@
 // `tsc` should report 3 compile errors for this file.
 
-import type { FooBarBazRecord } from '../generated/refModel/src/typescript/morphir/reference/model/Types'
+import type { FooBarBazRecord } from '../generated/refModel/src/typescript/morphir/reference/model/types'
 
 const badRecord_WrongTypes: FooBarBazRecord = {
     Foo: -1,

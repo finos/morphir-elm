@@ -35,6 +35,7 @@ import Element
         , pointer
         , px
         , rgb
+        , rgb255
         , rgba
         , row
         , scrollbars
@@ -50,6 +51,7 @@ import Element.Font as Font
 import Element.Input
 import Element.Keyed
 import FontAwesome.Styles as Icon
+import Html.Events exposing (onMouseOver)
 import Http exposing (emptyBody, jsonBody)
 import List.Extra
 import Loading
@@ -70,6 +72,7 @@ import Morphir.IR.SDK as SDK
 import Morphir.IR.Type as Type exposing (Type(..))
 import Morphir.IR.Value as Value exposing (RawValue, Value(..))
 import Morphir.SDK.Dict as SDKDict
+import Morphir.SDK.Json.Decode exposing (value)
 import Morphir.TestCoverage.Backend exposing (getValueBranchCoverage)
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Error exposing (Error)
@@ -94,6 +97,7 @@ import Morphir.Visual.XRayView as XRayView
 import Morphir.Web.Graph.DependencyGraph exposing (dependencyGraph)
 import Ordering
 import Set exposing (Set)
+import Svg.Attributes exposing (in_)
 import Url exposing (Url)
 import Url.Parser as UrlParser exposing (..)
 import Url.Parser.Query as Query
@@ -234,7 +238,7 @@ init flags url key =
             , selectedTestcaseIndex = -1
             , testDescription = ""
             , activeTabIndex = 0
-            , openSections = Set.fromList [ 1 ]
+            , openSections = Set.fromList [ 1, 2, 3 ]
             , isModalOpen = False
             , modalContent = none
             , version = flags.version
@@ -862,7 +866,7 @@ updateHomeState pack mod def filterState =
                 , argStates = initialArgState
                 , selectedTestcaseIndex = -1
                 , testDescription = ""
-                , openSections = Set.fromList [ 1 ]
+                , openSections = Set.fromList [ 1, 2, 3 ]
                 , typeBuilderState = TypeBuilder.init (newState.selectedModule |> Maybe.map Tuple.second) model.unsavedChanges
             }
 
@@ -2191,335 +2195,6 @@ definitionName definition =
 -}
 viewDefinitionDetails : Model -> Element Msg
 viewDefinitionDetails model =
-    let
-        insightViewConfig : Distribution -> Morphir.Visual.Config.Config Msg
-        insightViewConfig ir =
-            let
-                referenceClicked : FQName -> Int -> List Int -> Msg
-                referenceClicked fQName id nodePath =
-                    Insight (ExpandReference fQName id nodePath)
-
-                referenceClosed : FQName -> Int -> List Int -> Msg
-                referenceClosed fQName int nodePath =
-                    Insight (ShrinkReference fQName int nodePath)
-
-                hoverOver : Int -> List Int -> Maybe RawValue -> Msg
-                hoverOver index nodePath value =
-                    Insight (ExpandVariable index nodePath value)
-
-                hoverLeave : Int -> List Int -> Msg
-                hoverLeave index nodePath =
-                    Insight (ShrinkVariable index nodePath)
-            in
-            Morphir.Visual.Config.fromIR
-                ir
-                model.insightViewState
-                { onReferenceClicked = referenceClicked
-                , onReferenceClose = referenceClosed
-                , onHoverOver = hoverOver
-                , onHoverLeave = hoverLeave
-                }
-
-        viewArgumentEditors : Distribution -> InsightArgumentState -> List ( Name, a, Type () ) -> Element Msg
-        viewArgumentEditors ir argState inputTypes =
-            inputTypes
-                |> List.map
-                    (\( argName, _, argType ) ->
-                        ( argName
-                        , ValueEditor.view model.theme
-                            ir
-                            argType
-                            (Insight << ArgValueUpdated argName)
-                            (argState |> Dict.get argName |> Maybe.withDefault (ValueEditor.initEditorState ir argType Nothing))
-                        )
-                    )
-                |> FieldList.view model.theme
-
-        buttonStyles : List (Element.Attribute msg)
-        buttonStyles =
-            [ padding 7
-            , model.theme |> Theme.borderRounded
-            , Background.color model.theme.colors.darkest
-            , Font.color model.theme.colors.lightest
-            , Font.bold
-            , Font.size model.theme.fontSize
-            ]
-
-        saveTestCaseButton : FQName -> Maybe TestCase -> Element Msg
-        saveTestCaseButton fqName testCase =
-            let
-                message : Msg
-                message =
-                    Testing
-                        (case testCase of
-                            Just tc ->
-                                SaveTestSuite fqName tc
-
-                            Nothing ->
-                                ShowSaveTestError
-                        )
-            in
-            Element.Input.button
-                buttonStyles
-                { onPress = Just message
-                , label = row [ spacing (model.theme |> Theme.scaled -6) ] [ text "Save as new testcase" ]
-                }
-
-        updateTestCaseButton : FQName -> TestCase -> Element Msg
-        updateTestCaseButton fqName testCase =
-            let
-                updateMsg : Msg
-                updateMsg =
-                    Testing (UpdateTestCase fqName testCase)
-            in
-            Element.Input.button
-                buttonStyles
-                { onPress = Just updateMsg
-                , label = row [ spacing (model.theme |> Theme.scaled -6) ] [ text <| "Update testcase #" ++ String.fromInt (model.selectedTestcaseIndex + 1) ]
-                }
-
-        descriptionInput : Element Msg
-        descriptionInput =
-            InputComponent.textInput
-                model.theme
-                [ padding (model.theme |> Theme.scaled -2)
-                ]
-                { onChange = Testing << UpdateDescription
-                , text = model.testDescription
-                , placeholder = Just (Element.Input.placeholder [] (text "Write a test description here..."))
-                , label = Element.Input.labelHidden "Description"
-                }
-                Nothing
-
-        viewActualOutput : Theme -> Distribution -> TestCase -> FQName -> Element Msg
-        viewActualOutput theme ir testCase fQName =
-            if List.isEmpty testCase.inputs then
-                none
-
-            else
-                column [ spacing (theme |> Theme.scaled 1), padding (theme |> Theme.scaled -2) ]
-                    (case evaluateOutput ir testCase.inputs fQName of
-                        Ok rawValue ->
-                            case rawValue of
-                                Value.Unit () ->
-                                    [ text "Not enough information. Maybe the output depends on an input you have not set yet?" ]
-
-                                expectedOutput ->
-                                    [ row [ width fill ] [ el [ Font.bold, Font.size (theme |> Theme.scaled 2) ] (text "Output value: "), el [ Font.heavy, Font.color theme.colors.darkest ] (viewRawValue (insightViewConfig ir) ir rawValue) ]
-                                    , column [ width fill, spacing (theme |> Theme.scaled 1) ]
-                                        [ descriptionInput
-                                        , saveTestCaseButton fQName (Just { testCase | expectedOutput = expectedOutput })
-                                        , if Dict.isEmpty model.argStates && model.showSaveTestError then
-                                            el [ Font.color model.theme.colors.negative ] <| text " Invalid or missing inputs. Please make sure that every non-optional input is set."
-
-                                          else
-                                            none
-                                        , if model.selectedTestcaseIndex < 0 then
-                                            none
-
-                                          else
-                                            updateTestCaseButton fQName { testCase | expectedOutput = expectedOutput }
-                                        ]
-                                    ]
-
-                        Err _ ->
-                            [ row [ width fill ] [ el [ Font.bold, Font.size (theme |> Theme.scaled 2) ] (text "Output value: "), text " Unable to compute " ]
-                            , column [ width fill, spacing (theme |> Theme.scaled 1) ]
-                                [ descriptionInput
-                                , saveTestCaseButton fQName Nothing
-                                , if model.showSaveTestError then
-                                    el [ Font.color model.theme.colors.negative ] <| text " Invalid or missing inputs. Please make sure that every non-optional input is set."
-
-                                  else
-                                    none
-                                ]
-                            ]
-                    )
-
-        evaluateOutput : Distribution -> List (Maybe RawValue) -> FQName -> Result Error RawValue
-        evaluateOutput ir inputs fQName =
-            evaluateFunctionValue SDK.nativeFunctions ir fQName inputs
-
-        viewRawValue : Morphir.Visual.Config.Config Msg -> Distribution -> RawValue -> Element Msg
-        viewRawValue config ir rawValue =
-            case fromRawValue ir rawValue of
-                Ok typedValue ->
-                    el [ centerY ] (ViewValue.viewValue config typedValue)
-
-                Err error ->
-                    el [ centerX, centerY ] (text (Infer.typeErrorToMessage error))
-
-        testCoverageMetrics : Distribution -> FQName -> Element Msg
-        testCoverageMetrics distro fqName =
-            let
-                testCases =
-                    model.testSuite
-                        |> Dict.get fqName
-                        |> Maybe.map Array.toList
-                        |> Maybe.withDefault []
-
-                maybeValueDef =
-                    Distribution.lookupValueDefinition fqName distro
-            in
-            maybeValueDef
-                |> Maybe.map (\valueDef -> getValueBranchCoverage valueDef testCases distro)
-                |> Maybe.map
-                    (\{ numberOfBranches, numberOfCoveredBranches } ->
-                        row
-                            [ Border.width 1
-                            , Border.color model.theme.colors.darkest
-                            , Border.roundEach { topLeft = 5, bottomLeft = 5, topRight = 5, bottomRight = 5 }
-                            , padding (model.theme |> Theme.scaled 3)
-                            ]
-                            [ column []
-                                [ row [ Font.bold, Font.size 22, paddingXY 0 10 ] [ text "Test Coverage Percentage - ", text <| String.fromInt (Basics.floor ((toFloat numberOfCoveredBranches / toFloat numberOfBranches) * 100)) ++ "%" ]
-                                , row [ Font.bold, Font.size 15, paddingXY 0 10 ] [ text "Break down" ]
-                                , row [ Font.bold, Font.size 15, paddingXY 0 10 ] [ text "Number of branches - ", text <| String.fromInt numberOfBranches ]
-                                , row [ Font.bold, Font.size 15, paddingXY 0 10 ] [ text "Number of covered branches - ", text <| String.fromInt numberOfCoveredBranches ]
-                                ]
-                            ]
-                    )
-                |> Maybe.withDefault (text "")
-
-        scenarios : FQName -> Distribution -> List ( Name, a, Type () ) -> Element Msg
-        scenarios fQName ir inputTypes =
-            let
-                listOfTestcases : Array TestCase
-                listOfTestcases =
-                    Dict.get fQName model.testSuite |> Maybe.withDefault Array.empty
-
-                displayValue : RawValue -> Element Msg
-                displayValue t =
-                    viewRawValue (insightViewConfig ir) ir t
-
-                inputNameList : List ( Int, String )
-                inputNameList =
-                    List.indexedMap (\i ( n, _, _ ) -> ( i, nameToText n )) inputTypes
-
-                evaluate : TestCase -> Element.Color
-                evaluate testCase =
-                    case evaluateOutput ir testCase.inputs fQName of
-                        Ok rawValue ->
-                            if rawValue == testCase.expectedOutput then
-                                model.theme.colors.positiveLight
-
-                            else
-                                model.theme.colors.negativeLight
-
-                        Err _ ->
-                            model.theme.colors.negative
-
-                testsTable : Element Msg
-                testsTable =
-                    let
-                        deleteButton : Int -> Element Msg
-                        deleteButton index =
-                            Element.Input.button
-                                [ Border.width 1
-                                , mouseOver [ Border.color model.theme.colors.darkest ]
-                                , Background.color model.theme.colors.negativeLight
-                                , Font.color model.theme.colors.lightest
-                                , Font.size (model.theme |> Theme.scaled 5)
-                                , pointer
-                                , height fill
-                                , Border.roundEach { topLeft = 0, bottomLeft = 0, topRight = 3, bottomRight = 3 }
-                                ]
-                                { onPress = Just <| Testing (DeleteTestCase fQName index)
-                                , label = el [ centerX, centerY ] (text " 🗑 ")
-                                }
-
-                        myTooltip : String -> Element msg
-                        myTooltip tooltipText =
-                            if tooltipText == "" then
-                                none
-
-                            else
-                                el
-                                    [ Background.color model.theme.colors.darkest
-                                    , Font.color model.theme.colors.lightest
-                                    , padding (model.theme |> Theme.scaled -2)
-                                    , model.theme |> Theme.borderRounded
-                                    , Font.size model.theme.fontSize
-                                    , Font.bold
-                                    , Border.shadow
-                                        { offset = ( 0, 3 ), blur = 6, size = 0, color = rgba 0 0 0 0.32 }
-                                    ]
-                                    (text tooltipText)
-
-                        testRow : Int -> Int -> Int -> TestCase -> Element Msg
-                        testRow columnIndex selfIndex maxIndex test =
-                            let
-                                loadTestCaseMsg : Msg
-                                loadTestCaseMsg =
-                                    Testing (LoadTestCase (List.map (\( name, _, tpe ) -> ( name, tpe )) inputTypes) test.inputs test.description selfIndex)
-
-                                styles : List (Element.Attr () Msg)
-                                styles =
-                                    [ Background.color <| evaluate test
-                                    , height fill
-                                    , Border.widthXY 0 1
-                                    , paddingXY (model.theme |> Theme.scaled -1) (model.theme |> Theme.scaled -5)
-                                    , Border.color model.theme.colors.lightest
-                                    , pointer
-                                    , onClick loadTestCaseMsg
-                                    , tooltip above (myTooltip test.description)
-                                    ]
-
-                                rowCell : Element Msg
-                                rowCell =
-                                    (Array.get columnIndex <| Array.fromList test.inputs) |> Maybe.withDefault Nothing |> Maybe.withDefault (Value.Unit ()) |> displayValue
-                            in
-                            -- first cell's left border should be rounded
-                            if columnIndex == 0 then
-                                el (styles ++ [ Border.roundEach { topLeft = 3, bottomLeft = 3, topRight = 0, bottomRight = 0 } ]) rowCell
-
-                            else if columnIndex < maxIndex then
-                                el styles rowCell
-                                -- last cell's right border should be rounded, and should have the delete button
-
-                            else
-                                row [ width fill, height fill ]
-                                    [ el (styles ++ [ paddingEach { right = model.theme |> Theme.scaled 7, left = 0, top = 0, bottom = 0 } ])
-                                        (test.expectedOutput |> displayValue)
-                                    , deleteButton selfIndex
-                                    ]
-
-                        columns : List (Element.IndexedColumn TestCase Msg)
-                        columns =
-                            let
-                                maxIndex : Int
-                                maxIndex =
-                                    List.length inputNameList + 1
-
-                                styles : List (Element.Attribute msg)
-                                styles =
-                                    [ paddingXY (model.theme |> Theme.scaled -2) (model.theme |> Theme.scaled -5), Background.color <| rgb 0.9 0.9 0.9, width fill ]
-                            in
-                            List.map
-                                (\( columnIndex, columnName ) ->
-                                    { header =
-                                        if columnIndex == maxIndex then
-                                            el (Font.bold :: styles) <| Theme.ellipseText columnName
-
-                                        else
-                                            el styles <| Theme.ellipseText columnName
-                                    , width = Element.shrink
-                                    , view =
-                                        \index test ->
-                                            testRow columnIndex index maxIndex test
-                                    }
-                                )
-                                (inputNameList ++ [ ( maxIndex, "exp. output" ) ])
-                    in
-                    Element.indexedTable
-                        [ padding (model.theme |> Theme.scaled -2)
-                        ]
-                        { data = Array.toList listOfTestcases
-                        , columns = columns
-                        }
-            in
-            testsTable
-    in
     case model.irState of
         IRLoaded ((Library packageName _ packageDef) as distribution) ->
             case model.homeState.selectedDefinition of
@@ -2538,10 +2213,6 @@ viewDefinitionDetails model =
                                                     fullyQualifiedName : ( PackageName, ModuleName, Name )
                                                     fullyQualifiedName =
                                                         ( packageName, moduleName, valueName )
-
-                                                    inputs : List (Maybe RawValue)
-                                                    inputs =
-                                                        valueDef.inputTypes |> List.map (\( argName, _, _ ) -> Dict.get argName model.insightViewState.variables)
                                                 in
                                                 Just <|
                                                     TabsComponent.view model.theme
@@ -2550,47 +2221,7 @@ viewDefinitionDetails model =
                                                         , tabs =
                                                             Array.fromList
                                                                 [ { name = "Insight View"
-                                                                  , content =
-                                                                        \_ ->
-                                                                            column [ spacing (model.theme |> Theme.scaled 5), paddingXY (model.theme |> Theme.scaled 1) 0 ]
-                                                                                [ SectionComponent.view model.theme
-                                                                                    { title = "Insight view"
-                                                                                    , onToggle = UI (ToggleSection 1)
-                                                                                    , isOpen = Set.member 1 model.openSections
-                                                                                    , content = \_ -> el [ Theme.borderRounded model.theme, Border.width 1, Border.color model.theme.colors.gray ] <| ViewValue.viewDefinition (insightViewConfig distribution) fullyQualifiedName valueDef
-                                                                                    }
-                                                                                , SectionComponent.view model.theme
-                                                                                    { title = "Inputs & Output"
-                                                                                    , onToggle = UI (ToggleSection 2)
-                                                                                    , isOpen = Set.member 2 model.openSections
-                                                                                    , content =
-                                                                                        \_ ->
-                                                                                            column
-                                                                                                [ spacing
-                                                                                                    (model.theme
-                                                                                                        |> Theme.scaled 4
-                                                                                                    )
-                                                                                                ]
-                                                                                                [ el [ borderBottom 2, paddingXY 0 5, Border.color model.theme.colors.gray ] (viewArgumentEditors distribution model.argStates valueDef.inputTypes)
-                                                                                                , viewActualOutput
-                                                                                                    model.theme
-                                                                                                    distribution
-                                                                                                    { description = "", expectedOutput = Value.toRawValue <| Value.Tuple () [], inputs = inputs }
-                                                                                                    fullyQualifiedName
-                                                                                                ]
-                                                                                    }
-                                                                                , SectionComponent.view model.theme
-                                                                                    { title = "Test Cases"
-                                                                                    , onToggle = UI (ToggleSection 3)
-                                                                                    , isOpen = Set.member 3 model.openSections
-                                                                                    , content =
-                                                                                        \_ ->
-                                                                                            column [ spacing (model.theme |> Theme.scaled 4) ]
-                                                                                                [ testCoverageMetrics distribution fullyQualifiedName
-                                                                                                , scenarios fullyQualifiedName distribution valueDef.inputTypes
-                                                                                                ]
-                                                                                    }
-                                                                                ]
+                                                                  , content = \_ -> viewInsightTab model distribution fullyQualifiedName valueDef
                                                                   }
                                                                 , { name = "XRay View"
                                                                   , content = \_ -> XRayView.viewValueDefinition (XRayView.viewType <| pathToUrl) valueDef
@@ -2667,6 +2298,504 @@ viewDefinitionDetails model =
 
         _ ->
             none
+
+
+viewInsightTab : Model -> Distribution -> FQName -> Value.Definition () (Type ()) -> Element Msg
+viewInsightTab model distribution fullyQualifiedName valueDef =
+    let
+        buttonStyles : List (Element.Attribute msg)
+        buttonStyles =
+            [ padding 7
+            , model.theme |> Theme.borderRounded
+            , Background.color model.theme.colors.darkest
+            , Font.color model.theme.colors.lightest
+            , Font.bold
+            , Font.size model.theme.fontSize
+            ]
+
+        viewRawValue : Morphir.Visual.Config.Config Msg -> Distribution -> RawValue -> Element Msg
+        viewRawValue config ir rawValue =
+            case fromRawValue ir rawValue of
+                Ok typedValue ->
+                    el [ centerY ] (ViewValue.viewValue config typedValue)
+
+                Err error ->
+                    el [ centerX, centerY ] (text (Infer.typeErrorToMessage error))
+
+        testCoverageMetrics : Distribution -> FQName -> Element Msg
+        testCoverageMetrics distro fqName =
+            let
+                testCases =
+                    model.testSuite
+                        |> Dict.get fqName
+                        |> Maybe.map Array.toList
+                        |> Maybe.withDefault []
+
+                maybeValueDef =
+                    Distribution.lookupValueDefinition fqName distro
+            in
+            maybeValueDef
+                |> Maybe.map (\valueDefinition -> getValueBranchCoverage valueDefinition testCases distro)
+                |> Maybe.map
+                    (\{ numberOfBranches, numberOfCoveredBranches } ->
+                        let
+                            percentage : Int
+                            percentage =
+                                if numberOfBranches == 0 then
+                                    100
+
+                                else
+                                    Basics.floor ((toFloat numberOfCoveredBranches / toFloat numberOfBranches) * 100)
+
+                            branchCoverageText : String
+                            branchCoverageText =
+                                if numberOfBranches == 0 then
+                                    "No branches to cover."
+
+                                else
+                                    String.concat
+                                        [ String.fromInt percentage
+                                        , "% ("
+                                        , String.fromInt numberOfCoveredBranches
+                                        , " out of "
+                                        , String.fromInt numberOfBranches
+                                        , ")"
+                                        ]
+                        in
+                        row
+                            [ padding (model.theme |> Theme.scaled 3)
+                            ]
+                            [ text "Branch coverage is "
+                            , text branchCoverageText
+                            ]
+                    )
+                |> Maybe.withDefault (text "")
+
+        scenarios : FQName -> Distribution -> List ( Name, a, Type () ) -> Element Msg
+        scenarios fQName ir inputTypes =
+            let
+                listOfTestcases : Array TestCase
+                listOfTestcases =
+                    Dict.get fQName model.testSuite |> Maybe.withDefault Array.empty
+
+                displayValue : RawValue -> Element Msg
+                displayValue t =
+                    viewRawValue (insightViewConfig ir) ir t
+
+                inputNameList : List String
+                inputNameList =
+                    inputTypes
+                        |> List.map
+                            (\( argName, _, _ ) ->
+                                nameToText argName
+                            )
+
+                evaluate : TestCase -> Element.Color
+                evaluate testCase =
+                    case evaluateOutput ir testCase.inputs fQName of
+                        Ok rawValue ->
+                            if rawValue == testCase.expectedOutput then
+                                model.theme.colors.positiveLight
+
+                            else
+                                model.theme.colors.negativeLight
+
+                        Err _ ->
+                            model.theme.colors.negative
+
+                testsTable : Element Msg
+                testsTable =
+                    let
+                        deleteButton : Int -> Element Msg
+                        deleteButton index =
+                            Element.Input.button
+                                [ mouseOver [ Border.color model.theme.colors.darkest ]
+                                , Font.size (model.theme |> Theme.scaled 5)
+                                , pointer
+                                ]
+                                { onPress = Just <| Testing (DeleteTestCase fQName index)
+                                , label = el [ centerX, centerY ] (text "🗑")
+                                }
+
+                        myTooltip : String -> Element msg
+                        myTooltip tooltipText =
+                            if tooltipText == "" then
+                                none
+
+                            else
+                                el
+                                    [ Background.color model.theme.colors.darkest
+                                    , Font.color model.theme.colors.lightest
+                                    , padding (model.theme |> Theme.scaled -2)
+                                    , model.theme |> Theme.borderRounded
+                                    , Font.size model.theme.fontSize
+                                    , Font.bold
+                                    , Border.shadow
+                                        { offset = ( 0, 3 ), blur = 6, size = 0, color = rgba 0 0 0 0.32 }
+                                    ]
+                                    (text tooltipText)
+
+                        loadTestCase : Int -> TestCase -> Msg
+                        loadTestCase testIndex test =
+                            Testing
+                                (LoadTestCase
+                                    (List.map
+                                        (\( name, _, tpe ) ->
+                                            ( name, tpe )
+                                        )
+                                        inputTypes
+                                    )
+                                    test.inputs
+                                    test.description
+                                    testIndex
+                                )
+
+                        activeCell : TestCase -> Int -> Element Msg -> Element Msg
+                        activeCell test testIndex body =
+                            el
+                                [ width fill
+                                , height fill
+                                , padding (Theme.smallPadding model.theme)
+                                , onClick (loadTestCase testIndex test)
+                                , pointer
+                                ]
+                                (el
+                                    [ width fill
+
+                                    --, height fill
+                                    , Border.rounded (Theme.mediumPadding model.theme)
+                                    , padding (Theme.mediumPadding model.theme)
+                                    , Background.color model.theme.colors.lightest
+                                    , Border.solid
+                                    , Border.width 1
+                                    , Border.color (rgb255 201 201 201)
+                                    ]
+                                    (el
+                                        [ {- Background.color <| evaluate test
+                                             ,
+                                          -}
+                                          height fill
+                                        , paddingXY (model.theme |> Theme.scaled -1) (model.theme |> Theme.scaled -5)
+                                        , Border.color model.theme.colors.lightest
+                                        , tooltip above (myTooltip test.description)
+                                        ]
+                                        body
+                                    )
+                                )
+
+                        inputColumns : List (Element.IndexedColumn TestCase Msg)
+                        inputColumns =
+                            inputNameList
+                                |> List.indexedMap
+                                    (\columnIndex inputName ->
+                                        { header =
+                                            el [ padding (Theme.mediumPadding model.theme) ]
+                                                (Theme.ellipseText inputName)
+                                        , width = Element.shrink
+                                        , view =
+                                            \testIndex test ->
+                                                activeCell test
+                                                    testIndex
+                                                    (displayValue
+                                                        (test.inputs
+                                                            |> Array.fromList
+                                                            |> Array.get columnIndex
+                                                            |> Maybe.withDefault Nothing
+                                                            |> Maybe.withDefault (Value.Unit ())
+                                                        )
+                                                    )
+                                        }
+                                    )
+
+                        expectedOutputColumn : Element.IndexedColumn TestCase Msg
+                        expectedOutputColumn =
+                            { header =
+                                el
+                                    [ padding (Theme.mediumPadding model.theme)
+                                    ]
+                                <|
+                                    Theme.ellipseText "Expected Output"
+                            , width = Element.shrink
+                            , view =
+                                \testIndex test ->
+                                    activeCell test
+                                        testIndex
+                                        (test.expectedOutput |> displayValue)
+                            }
+
+                        arrowColumn : Element.IndexedColumn TestCase Msg
+                        arrowColumn =
+                            { header =
+                                el
+                                    [ centerX
+                                    , centerY
+                                    , Font.size 20
+                                    , Font.color model.theme.colors.mediumGray
+                                    ]
+                                    (text "🡆")
+                            , width = Element.shrink
+                            , view =
+                                \testIndex test ->
+                                    none
+                            }
+
+                        actionsColumn : Element.IndexedColumn TestCase Msg
+                        actionsColumn =
+                            { header =
+                                el
+                                    [ padding (Theme.mediumPadding model.theme)
+                                    ]
+                                    (text "Actions")
+                            , width = Element.shrink
+                            , view =
+                                \testIndex test ->
+                                    deleteButton testIndex
+                            }
+                    in
+                    Element.indexedTable
+                        [ width shrink
+                        , Border.solid
+                        , Border.width 1
+                        , Border.rounded (Theme.mediumPadding model.theme)
+                        , Border.color (rgb255 201 201 201)
+                        , Background.color model.theme.colors.lightGray
+                        ]
+                        { data = Array.toList listOfTestcases
+                        , columns =
+                            inputColumns ++ [ arrowColumn, expectedOutputColumn, actionsColumn ]
+                        }
+            in
+            testsTable
+
+        insightViewConfig : Distribution -> Morphir.Visual.Config.Config Msg
+        insightViewConfig ir =
+            let
+                referenceClicked : FQName -> Int -> List Int -> Msg
+                referenceClicked fQName id nodePath =
+                    Insight (ExpandReference fQName id nodePath)
+
+                referenceClosed : FQName -> Int -> List Int -> Msg
+                referenceClosed fQName int nodePath =
+                    Insight (ShrinkReference fQName int nodePath)
+
+                hoverOver : Int -> List Int -> Maybe RawValue -> Msg
+                hoverOver index nodePath value =
+                    Insight (ExpandVariable index nodePath value)
+
+                hoverLeave : Int -> List Int -> Msg
+                hoverLeave index nodePath =
+                    Insight (ShrinkVariable index nodePath)
+            in
+            Morphir.Visual.Config.fromIR
+                ir
+                model.insightViewState
+                { onReferenceClicked = referenceClicked
+                , onReferenceClose = referenceClosed
+                , onHoverOver = hoverOver
+                , onHoverLeave = hoverLeave
+                }
+
+        viewArgumentEditors : Distribution -> InsightArgumentState -> List ( Name, a, Type () ) -> Element Msg
+        viewArgumentEditors ir argState inputTypes =
+            inputTypes
+                |> List.map
+                    (\( argName, _, argType ) ->
+                        ( argName
+                        , ValueEditor.view model.theme
+                            ir
+                            argType
+                            (Insight << ArgValueUpdated argName)
+                            (argState |> Dict.get argName |> Maybe.withDefault (ValueEditor.initEditorState ir argType Nothing))
+                        )
+                    )
+                |> FieldList.view model.theme
+
+        currentActualOutput : Result Error RawValue
+        currentActualOutput =
+            evaluateOutput distribution inputs fullyQualifiedName
+
+        viewActualOutput : Element Msg
+        viewActualOutput =
+            if List.isEmpty inputs then
+                none
+
+            else
+                el [ padding (model.theme |> Theme.scaled -2) ]
+                    (case currentActualOutput of
+                        Ok rawValue ->
+                            case rawValue of
+                                Value.Unit () ->
+                                    text "Not enough information. Maybe the output depends on an input you have not set yet?"
+
+                                _ ->
+                                    viewRawValue (insightViewConfig distribution) distribution rawValue
+
+                        Err _ ->
+                            text "?"
+                    )
+
+        viewTestButtons : Theme -> Distribution -> TestCase -> FQName -> Element Msg
+        viewTestButtons theme ir testCase fQName =
+            if List.isEmpty testCase.inputs then
+                none
+
+            else
+                column [ spacing (theme |> Theme.scaled 1), padding (theme |> Theme.scaled -2) ]
+                    (case evaluateOutput ir testCase.inputs fQName of
+                        Ok rawValue ->
+                            case rawValue of
+                                Value.Unit () ->
+                                    [ text "Not enough information. Maybe the output depends on an input you have not set yet?" ]
+
+                                expectedOutput ->
+                                    [ column [ width fill, spacing (theme |> Theme.scaled 1) ]
+                                        [ descriptionInput
+                                        , saveTestCaseButton fQName (Just { testCase | expectedOutput = expectedOutput })
+                                        , if Dict.isEmpty model.argStates && model.showSaveTestError then
+                                            el [ Font.color model.theme.colors.negative ] <| text " Invalid or missing inputs. Please make sure that every non-optional input is set."
+
+                                          else
+                                            none
+                                        , if model.selectedTestcaseIndex < 0 then
+                                            none
+
+                                          else
+                                            updateTestCaseButton fQName { testCase | expectedOutput = expectedOutput }
+                                        ]
+                                    ]
+
+                        Err _ ->
+                            [ column [ width fill, spacing (theme |> Theme.scaled 1) ]
+                                [ descriptionInput
+                                , saveTestCaseButton fQName Nothing
+                                , if model.showSaveTestError then
+                                    el [ Font.color model.theme.colors.negative ] <| text " Invalid or missing inputs. Please make sure that every non-optional input is set."
+
+                                  else
+                                    none
+                                ]
+                            ]
+                    )
+
+        saveTestCaseButton : FQName -> Maybe TestCase -> Element Msg
+        saveTestCaseButton fqName testCase =
+            let
+                message : Msg
+                message =
+                    Testing
+                        (case testCase of
+                            Just tc ->
+                                SaveTestSuite fqName tc
+
+                            Nothing ->
+                                ShowSaveTestError
+                        )
+            in
+            Element.Input.button
+                buttonStyles
+                { onPress = Just message
+                , label = row [ spacing (model.theme |> Theme.scaled -6) ] [ text "Save as new testcase" ]
+                }
+
+        updateTestCaseButton : FQName -> TestCase -> Element Msg
+        updateTestCaseButton fqName testCase =
+            let
+                updateMsg : Msg
+                updateMsg =
+                    Testing (UpdateTestCase fqName testCase)
+            in
+            Element.Input.button
+                buttonStyles
+                { onPress = Just updateMsg
+                , label = row [ spacing (model.theme |> Theme.scaled -6) ] [ text <| "Update testcase #" ++ String.fromInt (model.selectedTestcaseIndex + 1) ]
+                }
+
+        descriptionInput : Element Msg
+        descriptionInput =
+            InputComponent.textInput
+                model.theme
+                [ padding (model.theme |> Theme.scaled -2)
+                ]
+                { onChange = Testing << UpdateDescription
+                , text = model.testDescription
+                , placeholder = Just (Element.Input.placeholder [] (text "Write a test description here..."))
+                , label = Element.Input.labelHidden "Description"
+                }
+                Nothing
+
+        evaluateOutput : Distribution -> List (Maybe RawValue) -> FQName -> Result Error RawValue
+        evaluateOutput ir inputValues fQName =
+            evaluateFunctionValue SDK.nativeFunctions ir fQName inputValues
+
+        inputs : List (Maybe RawValue)
+        inputs =
+            valueDef.inputTypes |> List.map (\( argName, _, _ ) -> Dict.get argName model.insightViewState.variables)
+
+        allInputsSpecified : Bool
+        allInputsSpecified =
+            case currentActualOutput of
+                Ok rawValue ->
+                    case rawValue of
+                        Value.Unit () ->
+                            False
+
+                        _ ->
+                            True
+
+                Err _ ->
+                    False
+
+        ioArrow : Element Msg
+        ioArrow =
+            el
+                [ centerX
+                , if allInputsSpecified then
+                    Font.color model.theme.colors.brandPrimaryLight
+
+                  else
+                    Font.color model.theme.colors.lightGray
+                , Font.size 36
+                ]
+                (text "🡆")
+    in
+    if valueDef.inputTypes == [] then
+        ViewValue.viewDefinitionBody (insightViewConfig distribution) valueDef
+
+    else
+        column
+            [ spacing (model.theme |> Theme.scaled 5)
+            , paddingXY (model.theme |> Theme.scaled 1) 0
+            ]
+            [ ViewValue.viewDefinitionBody (insightViewConfig distribution) valueDef
+            , SectionComponent.view model.theme
+                { title = "Input / Output"
+                , onToggle = UI (ToggleSection 2)
+                , isOpen = Set.member 2 model.openSections
+                , content =
+                    \_ ->
+                        row []
+                            [ viewArgumentEditors distribution model.argStates valueDef.inputTypes
+                            , ioArrow
+                            , viewActualOutput
+                            ]
+                }
+            , SectionComponent.view model.theme
+                { title = "Test Cases"
+                , onToggle = UI (ToggleSection 3)
+                , isOpen = Set.member 3 model.openSections
+                , content =
+                    \_ ->
+                        column [ spacing (model.theme |> Theme.scaled 4) ]
+                            [ viewTestButtons
+                                model.theme
+                                distribution
+                                { description = "", expectedOutput = Value.toRawValue <| Value.Tuple () [], inputs = inputs }
+                                fullyQualifiedName
+                            , scenarios fullyQualifiedName distribution valueDef.inputTypes
+                            , testCoverageMetrics distribution fullyQualifiedName
+                            ]
+                }
+            ]
 
 
 initArgumentStates : IRState -> Maybe Definition -> InsightArgumentState

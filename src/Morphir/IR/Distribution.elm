@@ -1,5 +1,5 @@
 module Morphir.IR.Distribution exposing
-    ( Distribution(..), library
+    ( Distribution(..), Component, library
     , lookupModuleSpecification, lookupTypeSpecification, lookupValueSpecification, lookupBaseTypeName, lookupValueDefinition
     , lookupPackageSpecification, lookupPackageName, typeSpecifications, lookupTypeConstructor
     , resolveAliases, resolveType, resolveRecordConstructors
@@ -18,7 +18,7 @@ information:
   - The package definition which contains all the module definitions included in the library. The package definition
     contains implementations as well, even ones that are not exposed.
 
-@docs Distribution, library
+@docs Distribution, Component, library
 
 
 # Lookups
@@ -39,8 +39,29 @@ import Morphir.IR.FQName exposing (FQName)
 import Morphir.IR.Module as Module exposing (ModuleName)
 import Morphir.IR.Name exposing (Name)
 import Morphir.IR.Package as Package exposing (PackageName, lookupModuleDefinition)
+import Morphir.IR.Path exposing (Path)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (Value)
+
+
+{-| Type that represents a complete encapsulated and tree-shaken Component.
+A component is a superset of Library. It's similar to an application because it contains all the information needed
+to run the component. The fields of a component are:
+
+  - name: The name of the component
+  - libraries: All the library dependencies with their implementation.
+  - inputs: The inputs of the component as a dictionary of the unique input name and it's Morphir type.
+  - states: The states of the component as a dictionary of the unique state name and it's Morphir type.
+  - outputs: The outputs of the component as a dictionary of unique names and their values.
+
+-}
+type alias Component =
+    { name : Path
+    , libraries : Dict PackageName (Package.Definition () (Type ()))
+    , inputs : Dict Name (Type ())
+    , states : Dict Name (Type ())
+    , outputs : Dict Name (Value () (Type ()))
+    }
 
 
 {-| Type that represents a package distribution. Currently the only distribution type we provide is a `Library`.

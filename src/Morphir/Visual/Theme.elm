@@ -1,13 +1,12 @@
 module Morphir.Visual.Theme exposing (..)
 
-import Element exposing (Attribute, Color, Element, fill, height,  none, paddingXY, rgb, rgb255, rgba, rgba255, row, spacing, table, toRgb, width)
+import Element exposing (Attribute, Color, Element, fill, height, none, paddingXY, rgb, rgb255, rgba, rgba255, row, shrink, spacing, table, toRgb, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font exposing (center)
 import Element.Input as Input
 import Html exposing (div, text)
 import Html.Attributes exposing (style)
-import Element exposing (shrink)
 
 
 type alias Theme =
@@ -40,6 +39,8 @@ type alias Colors =
     , warning : Color
     , highlighted : Color
     , notHighlighted : Color
+    , variableFont : Color
+    , literalFont : Color
     }
 
 
@@ -96,6 +97,8 @@ fromConfig maybeConfig =
             , warning = rgba255 238 210 2 0.9
             , highlighted = rgb255 0 163 255
             , notHighlighted = rgb255 120 120 120
+            , variableFont = rgb255 47 120 148
+            , literalFont = rgb255 177 108 60
             }
 
         defaultIcons : Icons

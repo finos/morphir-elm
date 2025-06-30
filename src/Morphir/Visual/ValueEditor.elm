@@ -36,8 +36,10 @@ import Element
     exposing
         ( Element
         , alignBottom
+        , alignRight
         , alignTop
         , below
+        , centerX
         , centerY
         , column
         , el
@@ -45,6 +47,8 @@ import Element
         , height
         , html
         , inFront
+        , maximum
+        , minimum
         , moveDown
         , moveLeft
         , moveUp
@@ -56,14 +60,11 @@ import Element
         , rgb
         , rgba
         , row
+        , shrink
         , spacing
         , table
         , text
         , width
-        , centerX
-        , shrink
-        , minimum
-        , maximum
         )
 import Element.Background as Background
 import Element.Border as Border
@@ -95,7 +96,6 @@ import Morphir.Visual.Components.Picklist as Picklist
 import Morphir.Visual.Theme as Theme exposing (Theme, scaled)
 import Svg
 import Svg.Attributes
-import Morphir.Visual.Theme as Theme
 
 
 {-| Type that represents the state of the value editor. It's made up of the following pieces of information:
@@ -608,13 +608,13 @@ view theme ir valueType updateEditorState editorState =
                         "text"
 
                     else if tpe == Basics.charType () then
-                        "one char."
+                        "char"
 
                     else if tpe == Basics.intType () then
-                        "integer"
+                        "whole number"
 
                     else if tpe == Basics.floatType () then
-                        "real num."
+                        "numer"
 
                     else if tpe == Decimal.decimalType () then
                         "decimal"
@@ -697,8 +697,8 @@ view theme ir valueType updateEditorState editorState =
                                     )
                     , text = currentText
                     , placeholder =
-                        Just (placeholder [ center, paddingXY 0 1 ] (text "not set"))
-                    , label = Input.labelLeft labelStyle (text <| iconLabel (Distribution.resolveType valueType ir))
+                        Just (placeholder [ center, paddingXY 0 1 ] (text (iconLabel (Distribution.resolveType valueType ir))))
+                    , label = Input.labelHidden (iconLabel (Distribution.resolveType valueType ir))
                     }
                     editorState.errorState
                 , if editorState.defaultValueCheckbox.show then
@@ -735,113 +735,110 @@ view theme ir valueType updateEditorState editorState =
                             }
                 , options = [ Input.option True (text "yes"), Input.option False (text "no") ]
                 , selected = isChecked
-                , label = Input.labelLeft labelStyle (text "bool")
+                , label = Input.labelHidden "bool"
                 }
 
         RecordEditor fieldEditorStates ->
-            row [] <|
-                [ el [ Font.italic, paddingXY 10 5 ] (text "record")
-                , el
-                    [ padding <| Theme.largePadding theme
-                    , Background.color theme.colors.brandPrimaryLight
-                    , Theme.borderRounded theme
-                    ]
-                    (FieldList.view theme
-                        (fieldEditorStates
-                            |> Dict.toList
-                            |> List.map
-                                (\( fieldName, ( fieldType, fieldEditorState ) ) ->
-                                    ( fieldName
-                                    , el
-                                        [ height fill
-                                        , centerY
-                                        ]
-                                        (view theme
-                                            ir
-                                            fieldType
-                                            (\newFieldEditorState ->
-                                                let
-                                                    newFieldEditorStates : Dict Name ( Type (), EditorState )
-                                                    newFieldEditorStates =
-                                                        fieldEditorStates
-                                                            |> Dict.insert fieldName ( fieldType, newFieldEditorState )
+            el
+                [ padding <| Theme.largePadding theme
+                , Background.color theme.colors.brandPrimaryLight
+                , Theme.borderRounded theme
+                ]
+                (FieldList.view theme
+                    (fieldEditorStates
+                        |> Dict.toList
+                        |> List.map
+                            (\( fieldName, ( fieldType, fieldEditorState ) ) ->
+                                ( fieldName
+                                , el
+                                    [ height fill
+                                    , centerY
+                                    ]
+                                    (view theme
+                                        ir
+                                        fieldType
+                                        (\newFieldEditorState ->
+                                            let
+                                                newFieldEditorStates : Dict Name ( Type (), EditorState )
+                                                newFieldEditorStates =
+                                                    fieldEditorStates
+                                                        |> Dict.insert fieldName ( fieldType, newFieldEditorState )
 
-                                                    allFieldsAreEmpty : Bool
-                                                    allFieldsAreEmpty =
-                                                        newFieldEditorStates
-                                                            |> Dict.values
-                                                            |> List.filterMap
-                                                                (\( _, nextFieldEditorState ) ->
-                                                                    case editorStateToRawValueResult nextFieldEditorState of
-                                                                        Ok (Just value) ->
-                                                                            Just value
+                                                allFieldsAreEmpty : Bool
+                                                allFieldsAreEmpty =
+                                                    newFieldEditorStates
+                                                        |> Dict.values
+                                                        |> List.filterMap
+                                                            (\( _, nextFieldEditorState ) ->
+                                                                case editorStateToRawValueResult nextFieldEditorState of
+                                                                    Ok (Just value) ->
+                                                                        Just value
 
-                                                                        _ ->
-                                                                            Nothing
-                                                                )
-                                                            |> List.isEmpty
+                                                                    _ ->
+                                                                        Nothing
+                                                            )
+                                                        |> List.isEmpty
 
-                                                    recordResult : Result String RawValue
-                                                    recordResult =
-                                                        newFieldEditorStates
-                                                            |> Dict.toList
-                                                            |> List.foldr
-                                                                (\( nextFieldName, ( nextFieldType, nextFieldEditorState ) ) fieldsResultSoFar ->
-                                                                    fieldsResultSoFar
-                                                                        |> Result.andThen
-                                                                            (\fieldsSoFar ->
-                                                                                editorStateToRawValueResult nextFieldEditorState
-                                                                                    |> Result.andThen
-                                                                                        (\maybeNextFieldValue ->
-                                                                                            case maybeNextFieldValue of
-                                                                                                Just nextFieldValue ->
-                                                                                                    Ok <| ( nextFieldName, nextFieldValue ) :: fieldsSoFar
+                                                recordResult : Result String RawValue
+                                                recordResult =
+                                                    newFieldEditorStates
+                                                        |> Dict.toList
+                                                        |> List.foldr
+                                                            (\( nextFieldName, ( nextFieldType, nextFieldEditorState ) ) fieldsResultSoFar ->
+                                                                fieldsResultSoFar
+                                                                    |> Result.andThen
+                                                                        (\fieldsSoFar ->
+                                                                            editorStateToRawValueResult nextFieldEditorState
+                                                                                |> Result.andThen
+                                                                                    (\maybeNextFieldValue ->
+                                                                                        case maybeNextFieldValue of
+                                                                                            Just nextFieldValue ->
+                                                                                                Ok <| ( nextFieldName, nextFieldValue ) :: fieldsSoFar
 
-                                                                                                Nothing ->
-                                                                                                    case nextFieldType of
-                                                                                                        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "maybe" ] ) _ ->
-                                                                                                            Ok <| ( nextFieldName, Value.Constructor () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "nothing" ] ) ) :: fieldsSoFar
+                                                                                            Nothing ->
+                                                                                                case nextFieldType of
+                                                                                                    Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "maybe" ] ) _ ->
+                                                                                                        Ok <| ( nextFieldName, Value.Constructor () ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "maybe" ] ], [ "nothing" ] ) ) :: fieldsSoFar
 
-                                                                                                        _ ->
-                                                                                                            Err <| "Missing field value: " ++ Name.toCamelCase nextFieldName
-                                                                                        )
-                                                                            )
-                                                                )
-                                                                (Ok [])
-                                                            |> Result.map (Dict.fromList >> Value.Record ())
-                                                in
-                                                if allFieldsAreEmpty then
-                                                    updateEditorState
+                                                                                                    _ ->
+                                                                                                        Err <| "Missing field value: " ++ Name.toCamelCase nextFieldName
+                                                                                    )
+                                                                        )
+                                                            )
+                                                            (Ok [])
+                                                        |> Result.map (Dict.fromList >> Value.Record ())
+                                            in
+                                            if allFieldsAreEmpty then
+                                                updateEditorState
+                                                    { editorState
+                                                        | componentState =
+                                                            RecordEditor
+                                                                newFieldEditorStates
+                                                        , lastValidValue =
+                                                            Nothing
+                                                        , errorState =
+                                                            Nothing
+                                                    }
+
+                                            else
+                                                updateEditorState
+                                                    (applyResult recordResult
                                                         { editorState
                                                             | componentState =
                                                                 RecordEditor
                                                                     newFieldEditorStates
-                                                            , lastValidValue =
-                                                                Nothing
-                                                            , errorState =
-                                                                Nothing
                                                         }
-
-                                                else
-                                                    updateEditorState
-                                                        (applyResult recordResult
-                                                            { editorState
-                                                                | componentState =
-                                                                    RecordEditor
-                                                                        newFieldEditorStates
-                                                            }
-                                                        )
-                                            )
-                                            fieldEditorState
+                                                    )
                                         )
+                                        fieldEditorState
                                     )
                                 )
-                        )
+                            )
                     )
-                ]
+                )
 
         CustomTypeEditor fqn constructors customEditorState ->
-            viewCustomTypeEditor theme labelStyle ir updateEditorState editorState fqn constructors customEditorState
+            viewCustomTypeEditor theme ir updateEditorState editorState fqn constructors customEditorState
 
         MaybeEditor itemType maybeItemEditorState ->
             let
@@ -874,13 +871,10 @@ view theme ir valueType updateEditorState editorState =
                         )
                         itemEditorState
             in
-            row [] <|
-                [ el [ centerY, paddingXY 0 5, Font.italic ] (text "optional ")
-                , itemEditor
-                    (maybeItemEditorState
-                        |> Maybe.withDefault (initEditorState ir itemType Nothing)
-                    )
-                ]
+            itemEditor
+                (maybeItemEditorState
+                    |> Maybe.withDefault (initEditorState ir itemType Nothing)
+                )
 
         ListEditor itemType itemEditorStates ->
             let
@@ -932,40 +926,37 @@ view theme ir valueType updateEditorState editorState =
                             }
                         )
             in
-            row [] <|
-                [ el labelStyle (text "list")
-                , if List.isEmpty itemEditorStates then
-                    el [] (plusButton (updateState [ defaultItemEditorState ]))
+            if List.isEmpty itemEditorStates then
+                el [] (plusButton (updateState [ defaultItemEditorState ]))
 
-                  else
-                    column [ spacing 5 ]
-                        (itemEditorStates
-                            |> List.indexedMap
-                                (\index itemEditorState ->
-                                    row []
-                                        [ column [ height fill ]
-                                            [ el
-                                                [ alignTop, moveUp 10 ]
-                                                (plusButton (updateState (itemEditorStates |> insert index defaultItemEditorState)))
-                                            , if index == List.length itemEditorStates - 1 then
-                                                el [ alignBottom, moveDown 9 ]
-                                                    (closeButton (updateState (itemEditorStates |> insert (index + 1) defaultItemEditorState)))
+            else
+                column [ spacing 5 ]
+                    (itemEditorStates
+                        |> List.indexedMap
+                            (\index itemEditorState ->
+                                row []
+                                    [ column [ height fill ]
+                                        [ el
+                                            [ alignTop, moveUp 10 ]
+                                            (plusButton (updateState (itemEditorStates |> insert index defaultItemEditorState)))
+                                        , if index == List.length itemEditorStates - 1 then
+                                            el [ alignBottom, moveDown 9 ]
+                                                (closeButton (updateState (itemEditorStates |> insert (index + 1) defaultItemEditorState)))
 
-                                              else
-                                                none
-                                            ]
-                                        , view theme
-                                            ir
-                                            itemType
-                                            (\newItemEditorState ->
-                                                updateState (itemEditorStates |> set index newItemEditorState)
-                                            )
-                                            itemEditorState
-                                        , closeButton (updateState (itemEditorStates |> remove index))
+                                          else
+                                            none
                                         ]
-                                )
-                        )
-                ]
+                                    , view theme
+                                        ir
+                                        itemType
+                                        (\newItemEditorState ->
+                                            updateState (itemEditorStates |> set index newItemEditorState)
+                                        )
+                                        itemEditorState
+                                    , closeButton (updateState (itemEditorStates |> remove index))
+                                    ]
+                            )
+                    )
 
         GridEditor columnTypes cellEditorStates ->
             let
@@ -1175,81 +1166,78 @@ view theme ir valueType updateEditorState editorState =
                             }
                         )
             in
-            row [] <|
-                [ el labelStyle (text "dictionary")
-                , if List.isEmpty cellEditorStates then
-                    el [] (plusButton (updateState [ emptyRowEditors ]))
+            if List.isEmpty cellEditorStates then
+                el [] (plusButton (updateState [ emptyRowEditors ]))
 
-                  else
-                    table
-                        [ spacing 2
-                        , paddingEach { top = 3, bottom = 10, left = 10, right = 10 }
-                        , Background.color (rgb 0.8 0.8 0.8)
-                        ]
-                        { data = cellEditorStates |> List.indexedMap Tuple.pair
-                        , columns =
-                            columnTypes
-                                |> List.indexedMap
-                                    (\columnIndex ( columnName, columnType ) ->
-                                        { header =
-                                            el [ width fill, height fill, paddingXY 10 5, Font.bold, Background.color (rgb 1 1 1) ]
-                                                (el [ width fill, center ] (text (columnName |> Name.toHumanWords |> String.join " ")))
-                                        , width = fill
-                                        , view =
-                                            \( rowIndex, rowEditorStates ) ->
-                                                let
-                                                    addButton : List ( EditorState, EditorState ) -> Element msg
-                                                    addButton newStates =
-                                                        if columnIndex == 0 then
-                                                            el
-                                                                [ moveUp 7
-                                                                , moveLeft 7
-                                                                ]
-                                                                (plusButton (updateState newStates))
+            else
+                table
+                    [ spacing 2
+                    , paddingEach { top = 3, bottom = 10, left = 10, right = 10 }
+                    , Background.color (rgb 0.8 0.8 0.8)
+                    ]
+                    { data = cellEditorStates |> List.indexedMap Tuple.pair
+                    , columns =
+                        columnTypes
+                            |> List.indexedMap
+                                (\columnIndex ( columnName, columnType ) ->
+                                    { header =
+                                        el [ width fill, height fill, paddingXY 10 5, Font.bold, Background.color (rgb 1 1 1) ]
+                                            (el [ width fill, center ] (text (columnName |> Name.toHumanWords |> String.join " ")))
+                                    , width = fill
+                                    , view =
+                                        \( rowIndex, rowEditorStates ) ->
+                                            let
+                                                addButton : List ( EditorState, EditorState ) -> Element msg
+                                                addButton newStates =
+                                                    if columnIndex == 0 then
+                                                        el
+                                                            [ moveUp 7
+                                                            , moveLeft 7
+                                                            ]
+                                                            (plusButton (updateState newStates))
 
-                                                        else
-                                                            none
+                                                    else
+                                                        none
 
-                                                    removeButton : List ( EditorState, EditorState ) -> Element msg
-                                                    removeButton newStates =
-                                                        if columnIndex == List.length columnTypes - 1 then
-                                                            el
-                                                                [ moveDown 3
-                                                                ]
-                                                                (closeButton (updateState newStates))
+                                                removeButton : List ( EditorState, EditorState ) -> Element msg
+                                                removeButton newStates =
+                                                    if columnIndex == List.length columnTypes - 1 then
+                                                        el
+                                                            [ moveDown 3
+                                                            ]
+                                                            (closeButton (updateState newStates))
 
-                                                        else
-                                                            none
-                                                in
-                                                el
-                                                    [ width fill
-                                                    , height fill
-                                                    , Background.color (rgb 1 1 1)
-                                                    , inFront (addButton (emptyRowEditors :: cellEditorStates))
-                                                    , if rowIndex == List.length cellEditorStates - 1 then
-                                                        below (addButton (cellEditorStates ++ [ emptyRowEditors ]))
+                                                    else
+                                                        none
+                                            in
+                                            el
+                                                [ width fill
+                                                , height fill
+                                                , Background.color (rgb 1 1 1)
+                                                , inFront (addButton (emptyRowEditors :: cellEditorStates))
+                                                , if rowIndex == List.length cellEditorStates - 1 then
+                                                    below (addButton (cellEditorStates ++ [ emptyRowEditors ]))
 
-                                                      else
-                                                        below none
-                                                    , onRight (removeButton (cellEditorStates |> remove rowIndex))
-                                                    ]
-                                                    (view theme
-                                                        ir
-                                                        columnType
-                                                        (\newItemEditorState ->
-                                                            updateState (cellEditorStates |> set rowIndex columnIndex newItemEditorState)
-                                                        )
-                                                        (if columnIndex == 0 then
-                                                            rowEditorStates |> Tuple.first
-
-                                                         else
-                                                            rowEditorStates |> Tuple.second
-                                                        )
+                                                  else
+                                                    below none
+                                                , onRight (removeButton (cellEditorStates |> remove rowIndex))
+                                                ]
+                                                (view theme
+                                                    ir
+                                                    columnType
+                                                    (\newItemEditorState ->
+                                                        updateState (cellEditorStates |> set rowIndex columnIndex newItemEditorState)
                                                     )
-                                        }
-                                    )
-                        }
-                ]
+                                                    (if columnIndex == 0 then
+                                                        rowEditorStates |> Tuple.first
+
+                                                     else
+                                                        rowEditorStates |> Tuple.second
+                                                    )
+                                                )
+                                    }
+                                )
+                    }
 
         GenericEditor currentText ->
             InputComponent.multiLine theme
@@ -1308,7 +1296,7 @@ view theme ir valueType updateEditorState editorState =
             DatePicker.view theme
                 { placeholder =
                     Just (placeholder [ center, paddingXY 0 1 ] (text "not set"))
-                , label = el labelStyle (text "local date")
+                , label = none
                 , state = state
                 , onStateChange =
                     \datePickerState ->
@@ -1328,8 +1316,8 @@ view theme ir valueType updateEditorState editorState =
                 }
 
 
-viewCustomTypeEditor : Theme -> List (Element.Attribute msg) -> Distribution -> (EditorState -> msg) -> EditorState -> FQName -> Type.Constructors () -> CustomTypeEditorState -> Element msg
-viewCustomTypeEditor theme labelStyle ir updateEditorState editorState (( packageName, moduleName, typeName ) as fqn) constructors customTypeEditorState =
+viewCustomTypeEditor : Theme -> Distribution -> (EditorState -> msg) -> EditorState -> FQName -> Type.Constructors () -> CustomTypeEditorState -> Element msg
+viewCustomTypeEditor theme ir updateEditorState editorState (( packageName, moduleName, _ ) as fqn) constructors customTypeEditorState =
     let
         viewConstructor : Element msg
         viewConstructor =
@@ -1377,10 +1365,10 @@ viewCustomTypeEditor theme labelStyle ir updateEditorState editorState (( packag
                     |> Dict.toList
                     |> List.map
                         (\(( ctorName, ctorArgs ) as ctor) ->
-                            ( {tag  = ctorName |> Name.toTitleCase
+                            { tag = ctorName |> Name.toTitleCase
                             , value = ctor
-                            , displayElement = el [padding <| Theme.smallPadding theme, width fill] (Theme.ellipseText (ctorName |> Name.toHumanWordsTitle |> String.join " "))
-                            } )
+                            , displayElement = el [ padding <| Theme.smallPadding theme, width fill ] (Theme.ellipseText (ctorName |> Name.toHumanWordsTitle |> String.join " "))
+                            }
                         )
                 )
                 []
@@ -1450,10 +1438,9 @@ viewCustomTypeEditor theme labelStyle ir updateEditorState editorState (( packag
                             )
                     )
     in
-    row [ width fill, height fill, spacing 5 ]
-        [ el labelStyle (text <| nameToText typeName)
-        , viewConstructor
-        , row
+    column [ width fill, height fill, spacing 5 ]
+        [ viewConstructor
+        , column
             [ width fill
             , spacing 5
             ]

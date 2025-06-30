@@ -1,206 +1,333 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Morphir.Treeview</title>
-    <style>
-      body {
-        padding: 0;
-        margin: 0;
-        font-family: "Poppins", sans-serif;
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Morphir.Treeview</title>
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+    }
+
+    #loading {
+      display: flex;
+      flex-direction: row;
+      text-align: center;
+    }
+
+    #load-symbol {
+      margin: 10px;
+      border-radius: 50%;
+      border: 4px solid rgb(170, 181, 185);
+      border-top: 4px solid rgba(0, 163, 225, 1);
+      width: 15px;
+      height: 15px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
       }
 
-      #treeviewContainer {
-        display: flex;
-        margin: 10px;
-        overflow: hidden;
+      100% {
+        transform: rotate(360deg);
       }
+    }
 
-      #flyout {
-        display: none;
-        flex-direction: column;
-        transition: transform 0.5s ease-in-out;
+    #treeview-container {
+      display: flex;
+      margin: 10px;
+      overflow: hidden;
+    }
+
+    #treeview {
+      width: 60%;
+      overflow: scroll;
+    }
+
+    #flyout {
+      display: none;
+      flex-direction: column;
+      transition: transform 0.5s ease-in-out;
+      transform: translateX(100%);
+      width: 40%;
+      padding: 10px;
+      overflow: scroll;
+      border-left: 2px solid rgba(0, 163, 225, 1);
+    }
+
+    @keyframes slideIn {
+      from {
         transform: translateX(100%);
-        width: 40%;
-        padding: 10px;
-        overflow: scroll;
-        border-left: 2px solid rgba(0, 163, 225, 1);
-      }
-  
-      @keyframes slideIn {
-        from {
-          transform: translateX(100%); /* Starting position */
-        }
-        to {
-          transform: translateX(0); /* Ending position */
-        }
       }
 
-      @keyframes slideOut {
-        from {
-          transform: translateX(0); /* Starting position */
-        }
-        to {
-          transform: translateX(100%); /* Ending position */
-        }
+      to {
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
       }
 
-      #flyout.show {
-        animation: slideIn 0.5s forwards; 
+      to {
+        transform: translateX(100%);
       }
+    }
 
-      #flyout.hide {
-        animation: slideOut 0.5s forwards; 
-      }
+    #flyout.show {
+      animation: slideIn 0.5s forwards;
+    }
 
-      #flyout h1,
-      #flyout h2,
-      #flyout h3,
-      #flyout h4,
-      #flyout h5 {
-        margin: 0;
-      }
+    #flyout.hide {
+      animation: slideOut 0.5s forwards;
+    }
 
-      hr {
-        border: none;
-        border-top: 1px solid rgba(0, 163, 225, 1);
-      }
+    #flyout h1,
+    #flyout h2,
+    #flyout h3,
+    #flyout h4,
+    #flyout h5 {
+      margin: 0;
+    }
 
-      #webHeader {
-        background-color: rgba(0, 163, 225, 1);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 50px;
-        padding-left: 15px;
-        padding-right: 15px;
-      }
+    hr {
+      border: none;
+      border-top: 1px solid rgba(0, 163, 225, 1);
+    }
 
-      #webHeader h1 {
-        font-size: xx-large;
-      }
+    #webHeader {
+      background-color: rgba(0, 163, 225, 1);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 50px;
+      padding-left: 15px;
+      padding-right: 15px;
+    }
 
-      #logoTitle {
-        display: flex;
-        flex-direction: row;
-        gap: 20px;
-      }
+    #webHeader h1 {
+      font-size: xx-large;
+    }
 
-      #webHeader a {
-        font-size: small;
-        font-weight: bold;
-      }
+    #logoTitle {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+    }
 
-      #flyoutTitle {
-        font-size: x-large;
-      }
+    #webHeader a {
+      font-size: small;
+      font-weight: bold;
+    }
 
-      #flyoutSubtitleBox {
-        font-size: medium;
-        display: flex;
-        flex-direction: row;
-        background-color: plum;
-        padding: 5px;
-        border-radius: 10px;
-      }
+    #flyoutTitle {
+      font-size: x-large;
+    }
 
-      #flyoutSubtitle {
-        margin-left: 10px;
-      }
+    #flyoutSubtitleBox {
+      font-size: medium;
+      display: flex;
+      flex-direction: row;
+      background-color: plum;
+      padding: 5px;
+      border-radius: 10px;
+    }
 
-      .section-header {
-        margin-top: 15px;
-        color: grey;
-      }
+    #flyoutSubtitle {
+      margin-left: 10px;
+    }
 
-      .flyout-header {
-        display: flex;
-        justify-content: space-between;
-      }
+    .section-header {
+      margin-top: 15px;
+      color: grey;
+    }
 
-      #closeFlyout:hover {
-        cursor: pointer;
-      }
+    .flyout-header {
+      display: flex;
+      justify-content: space-between;
+    }
 
-      #closeFlyout {
-        width: fit-content;
-      }
+    #closeFlyout:hover {
+      cursor: pointer;
+    }
 
-      td {
-        padding: 5px;
-      }
+    .tooltip-node {
+      position: absolute;
+      z-index: 1000;
+      background-color: white;
+      border: 1px solid grey;
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-family: "Poppins", sans-serif;
+      font-size: 12px;
+      color: grey;
+      box-shadow: 0 1px 2px grey;
+    }
 
-      td:first-child {
-        font-weight: bold;
-      }
+    .tooltip-label {
+      font-weight: bold;
+      margin-right: 4px;
+    }
 
-      tr {
-        border: solid;
-        border-width: 1px 0;
-        border-color: rgba(243, 234, 206, 1);
-      }
+    .tooltip-badge {
+      display: inline-block;
+      background-color: plum;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
 
-      tr:first-child {
-        border-top: none;
-      }
+    #closeFlyout {
+      width: fit-content;
+    }
 
-      tr:last-child {
-        border-bottom: none;
-      }
+    td {
+      padding: 5px;
+    }
 
-      table {
-        border-collapse: collapse;
-      }
+    td:first-child {
+      font-weight: bold;
+    }
 
-      #morphirLogo {
-        height: 50px;
-        width: 50px;
-        margin-top: 15px;
-      }
-    </style>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-  </head>
+    tr {
+      border: solid;
+      border-width: 1px 0;
+      border-color: rgba(243, 234, 206, 1);
+    }
 
-  <body>
-    <div id="webHeader">
-      <div id="logoTitle">
-        <img
-          id="morphirLogo"
-          src="/assets/2020_Morphir_Logo_Icon_WHT.svg"
-          alt="Morphir Logo"
-        />
-        <h1>Morphir: Treeview</h1>
-      </div>
-      <div>ⓘ</div>
+    tr:first-child {
+      border-top: none;
+    }
+
+    tr:last-child {
+      border-bottom: none;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    #morphirLogo {
+      height: 50px;
+      width: 50px;
+      margin-top: 15px;
+    }
+
+    #info-button {
+      cursor: pointer;
+    }
+
+    #close-popup {
+      cursor: pointer;
+    }
+
+    #popup-header {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+    }
+
+    #info-popup {
+      display: none;
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1000;
+      background-color: white;
+      border: 2px solid rgba(0, 163, 225, 1);
+      padding: 10px;
+    }
+
+    #popup-background {
+      display: none;
+      position: fixed;
+      background-color: rgba(0, 0, 0, 0.5);
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 999;
+    }
+  </style>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script defer src="bundle.js"></script>
+</head>
+
+<body>
+  <div id="webHeader">
+    <div id="logoTitle">
+      <img id="morphirLogo" src="/assets/2020_Morphir_Logo_Icon_WHT.svg" alt="Morphir Logo" />
+      <h1>Morphir: Treeview</h1>
     </div>
-    <div id="treeviewContainer">
-      <div id="treeview" style="overflow: scroll"></div>
-      <div id="flyout">
-        <div id="closeFlyout">←</div>
-        <div id="flyoutName">
-          <div class="section-header">
-            <h4>Name/Type</h4>
-            <hr />
-          </div>
-        </div>
-        <div class="flyout-header">
-          <h2 id="flyoutTitle"></h2>
-          <div id="flyoutSubtitleBox">
-            <h4 id="flyoutSubtitle"></h4>
-          </div>
-        </div>
+    <div id="info-button">ⓘ</div>
+  </div>
+  <div id="popup-background"></div>
+  <div id="info-popup">
+    <div id="popup-header">
+      <h1>Information</h1>
+      <div id="close-popup">X</div>
+    </div>
+    <h3>Navigating the Tree</h3>
+    <p>Click nodes to expand the branches and view their children. <br>
+      The tree hierarchy follows this structure: package > modules & submodules > values & types > value definitions.
+      Value definitions include the functions and data passed
+      into any given calculation/value.<br>
+      Hover over a node to see its type or right-click a node to expand a flyout with additional details including type,
+      documentation, and an insight view.</p>
+    <h3>Colour Codes</h3>
+    <ul>
+      <li>Terminating nodes are grey</li>
+      <li>Type nodes are blue</li>
+      <li>Value nodes are green</li>
+    </ul>
+    <h3>Feedback</h3>
+    <p>If you would like to report a bug, or to provide feedback, please visit our <a
+        href="https://github.com/finos/morphir-elm/issues">GitHub issues page.</a></p>
+  </div>
+  <div id="treeview-container">
+    <div id="treeview">
+      <div id="loading">
+        <div id="load-symbol"></div>
+        <p>Loading the IR...</p>
+      </div>
+    </div>
+    <div id="flyout">
+      <div id="closeFlyout">←</div>
+      <div id="flyoutName">
         <div class="section-header">
-          <h4>Documentation</h4>
+          <h4>Name/Type</h4>
           <hr />
         </div>
-        <div id="docs"></div>
-        <div class="section-header">
-          <h4>Type Details</h4>
-          <hr />
-        </div>
-        <div id="contentDef"></div>
       </div>
+      <div class="flyout-header">
+        <h2 id="flyoutTitle"></h2>
+        <div id="flyoutSubtitleBox">
+          <h4 id="flyoutSubtitle"></h4>
+        </div>
+      </div>
+      <div class="section-header">
+        <h4>Documentation</h4>
+        <hr />
+      </div>
+      <div id="docs"></div>
+      <div class="section-header">
+        <h4>Type Details</h4>
+        <hr />
+      </div>
+      <div id="insightContainer">
+        <div id="insight"></div>
+      </div>
+      <div id="contentDef"></div>
     </div>
-  </body>
+  </div>
+</body>
+
 </html>

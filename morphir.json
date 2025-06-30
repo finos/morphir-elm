@@ -12,6 +12,7 @@
         "IR.Module",
         "IR.Package",
         "IR.Distribution",
-        "IR.FormatVersion"
+        "IR.FormatVersion",
+        "IR.Source"
     ]
 }
