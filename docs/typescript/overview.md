@@ -59,32 +59,33 @@ import Baz from "foo/bar/baz"
 Baz.fooBar
 ```
 
-## Types
+## Type Definitions
 
-### Records
+### TypeAliasDefinition
 
-Generates an interface with a function matching the name of the interface
+TypeAliasDefinitions have a direct one-to-one mapping to typescripts type aliases
 
-For example:
+#### Special Record TypeAliasDefinition Constructors
+
+Elm records come with a constructor that allows for a value of that record to be created with positional arguments.
+To match this behaviour, every record definition generates, additionally, a function matching the name of the record type.
+
+Example:
 
 ```elm
-type alias Foo = { name: String, age: Int }
+type alias Foo = {a: String, b: Int}
 ```
 
-should produce
+creates the following in typescript
 
 ```typescript
-interface Foo {
-    name: string
-    age: number
-}
+type Foo = { a: string, b: number }
 
-function Foo(name: string, age: number): Foo {
-    return { name, age }
-}
+// an additional function matching the name of the type
+function Foo(a: string, b: number): Foo = {a, b}
 ```
 
-### Custom types
+### CustomTypeDefinition
 
 Custom types should generate an object having a `kind` field that equals the constructor name
 
@@ -101,9 +102,160 @@ type FooBar =
     | { kind: "Baz", arg1: number }
 ```
 
-### Basic types
+## Type Expressions
 
-Basic types should be mapped to their corresponding types in typescript
+### Variable
+
+A type variable maps directly to a type argument in Typescript
+
+```elm
+type alias Foo a = ...
+```
+
+can be conveniently translated to
+
+```typescript
+type alias Foo<A> = ...
+```
+
+### Reference
+
+A reference type maps directly to type references in typescript
+
+```elm
+type Foo = ...
+
+type alias FooBar = Foo
+```
+
+can be translated to
+
+```typescript
+type Foo = ...
+type FooBar = Foo
+```
+
+### Tuples
+
+Typescript supports the tuple type expression as a literal array expression where the elements at each position is specified and morphir can directly map to this.
+
+```elm
+type alias Foo = (..., ...)
+```
+
+can be translated to
+
+```typescript
+type Foo = [..., ...]
+```
+
+### Record
+
+The community standard for defining record structures in Typescript is to use an interface.
+However, because we'll be mapping the record as a type-expression, it would be more easier to simply produce an object literal always.
+This allows for more complex types to be handled easily without having too much information about the type definition (if any exists) details.
+
+Consider this:
+
+```elm
+type FooBar 
+    = Foo { f: Int }
+    | Bar { b: String }
+```
+
+would become
+
+```typescript
+type FooBar =
+    | { kind: 'foo', arg1: { f:  number } }
+    | { kind: 'bar', arg1: { b:  string } }
+```
+
+Using an object literal makes it possible to simply map each constructor parameter consistently.
+For this reason, even for cases where it makes sense to generate an interface, we'll generate an object.
+
+For example:
+
+```elm
+type alias Foo = { name: String, age: Int }
+```
+
+would produce
+
+```typescript
+type Foo = { name: string, age: number }
+```
+
+### Extensible records
+
+Extensible records are records that specify known fields with the ability of have other undeclared fields in them.
+The most appropraite translation of an extensible record is an intersection of record types, and this is how we map them.
+
+```elm
+type alias ExtensibleFoo a = { a | foo: String }
+```
+
+would produce
+
+```typescript
+type ExtensibleFoo<A> = A & { foo: string }
+```
+
+### Function
+
+A function type would be mapped to a lambda function type where each function argument would be named with an underscore '_'.
+
+```elm
+type alias Func = String -> Bool
+```
+
+would produce
+
+```typescript
+type Func = (_: string) => boolean
+```
+
+### Unit
+
+Unit type needs the ability to assign unit values, because of this, we can't simply map it to a void type.
+Some types that match this in typescripts are the empty object ({}) and array ([]) type.
+These types don't share the same semantics with the Unit type because [] !== [].
+
+So we will map unit types to Unit type provided by the morphir typescript SDK which provides a value for unit
+and have the same semantics.
+
+```elm
+type U = Unit
+```
+
+will translate to
+
+```typescript
+type U = Unit // where Unit is imported from morphir/sdk
+```
+
+### Instrinsic Types
+
+Morphir Supports a number of types through it's SDK. The table below summarizes how each of those is mapped to typescript.
+
+| Morphir Type | TypeScript Type  | Comments                                              |
+|--------------|------------------|-------------------------------------------------------|
+| String       | string           | one-to-one mapping                                    |
+| Bool         | boolean          | one-to-one mapping                                    |
+| Never        | never            | one-to-one mapping                                    |
+| Char         | string           | loose mapping                                         |
+| Int          | number           | loose mapping                                         |
+| Float        | number           | loose mapping                                         |
+| Decimal      | SDK Decimal      |                                                       |
+| LocalDate    | SDK LocalDate    |                                                       |
+| LocalTime    | SDK LocalTime    |                                                       |
+| Instant      | SDK Instant      |                                                       |
+| Regex        | SDK Regex        |                                                       |
+| Maybe a      | SDK Maybe<A>     | Abstracts away differences between null and undefined |
+| Result e a   | SDK Result<E, A> |                                                       |
+| Set a        | SDK Set<A>       | supports complex values                               |
+| List a       | SDK List<A>      | supports complex values                               |
+| Dict k a     | SDK Dict<K, A>   | supports complex keys                                 |
 
 ## Value Definitions
 
@@ -139,4 +291,4 @@ function foo(x: number, y: number): number {
 }
 ```
 
-### Values with pattern matching
+## Values Expressions
