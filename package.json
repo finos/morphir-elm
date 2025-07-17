@@ -40,7 +40,8 @@
   "bin": {
     "morphir-elm": "cli/morphir-elm.js",
     "morphir-dapr": "cli/morphir-dapr.js",
-    "morphir": "cli2/lib/morphir.js"
+    "morphir": "cli2/lib/morphir.js",
+    "morphir-mcp": "cli2/lib/morphir-mcp.js"
   },
   "engines": {
     "npm": "*",

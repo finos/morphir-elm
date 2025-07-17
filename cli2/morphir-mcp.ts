@@ -1,10 +1,15 @@
+#!/usr/bin/env node
+
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { version } from "../package.json"; // Import version from package.json
 import { Command } from "commander"; // Import commander
 import { compileElm } from "./ElmTools";
 import { spawn } from "child_process"; // Import spawn from child_process
+import * as path from "path";
+
+// Read the package.json of this package
+const packageJson = require(path.join(__dirname, "../../package.json"));
 
 // Process arguments using commander
 const program = new Command();
@@ -25,7 +30,7 @@ if (!rootDir) {
 const server = new McpServer(
     {
         name: "Morphir MCP Server",
-        version // Use the imported version
+        version: packageJson.version // Use the version from package.json
     },
     {
         // Define the server's resources
@@ -39,6 +44,25 @@ const server = new McpServer(
     }
 );
 
+
+// Utility function to ensure morphir.json exists, creates it if missing
+async function ensureMorphirJson(rootDir: string): Promise<{ existed: boolean }> {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const morphirJsonPath = path.join(rootDir, "morphir.json");
+    let existed = true;
+    try {
+        await fs.access(morphirJsonPath);
+    } catch {
+        existed = false;
+        const morphirJsonContent = JSON.stringify({
+            name: "MorphirMCP",
+            sourceDirectory: "src"
+        }, null, 4);
+        await fs.writeFile(morphirJsonPath, morphirJsonContent, "utf8");
+    }
+    return { existed };
+}
 
 // Utility function to ensure elm.json exists, creates it if missing
 async function ensureElmJson(rootDir: string, sourceDirectory: string): Promise<{ existed: boolean }> {
@@ -110,6 +134,9 @@ server.tool("addModule",
         const { exec } = await import("child_process");
         const { promisify } = await import("util");
         const execAsync = promisify(exec);
+
+        // Ensure morphir.json exists in the root directory, create if missing
+        await ensureMorphirJson(rootDir);
 
         // Read morphir.json to get the sourceDirectory and name
         const morphirConfigPath = path.join(rootDir, "morphir.json");
