@@ -4,8 +4,6 @@ import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { Command } from "commander"; // Import commander
-import { compileElm } from "./ElmTools";
-import { spawn } from "child_process"; // Import spawn from child_process
 import * as path from "path";
 
 // Read the package.json of this package
