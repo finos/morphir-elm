@@ -40,7 +40,8 @@
   "bin": {
     "morphir-elm": "cli/morphir-elm.js",
     "morphir-dapr": "cli/morphir-dapr.js",
-    "morphir": "cli2/lib/morphir.js"
+    "morphir": "cli2/lib/morphir.js",
+    "morphir-mcp": "cli2/lib/morphir-mcp.js"
   },
   "engines": {
     "npm": "*",
@@ -81,6 +82,7 @@
     "@types/inquirer": "^9.0.3",
     "@types/jest": "^27.4.0",
     "@types/mocha": "^9.0.0",
+    "@types/uuid": "^10.0.0",
     "@types/whatwg-encoding": "^2.0.3",
     "@typespec/compiler": "^0.59.1",
     "@vercel/ncc": "^0.38.1",
@@ -110,6 +112,7 @@
     "webpack-stream": "^7.0.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.1",
     "@types/d3": "^7.4.3",
     "ajv": "^8.10.0",
     "ajv-formats": "^2.1.1",
@@ -120,6 +123,7 @@
     "data-urls": "^5.0.0",
     "dequal": "^2.0.3",
     "express": "^4.21.0",
+    "fp-ts": "^2.16.10",
     "fs-extra": "^9.1.0",
     "get-stdin": "^8.0.0",
     "get-uri": "^6.0.3",
@@ -133,6 +137,7 @@
     "node-fetch": "^3.3.2",
     "packageurl-js": "^1.2.1",
     "prettier": "^2.4.1",
+    "uuid": "^9.0.1",
     "vis-network": "^9.1.2",
     "whatwg-encoding": "^3.1.1",
     "zod": "^3.23.8"

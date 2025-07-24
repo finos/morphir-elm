@@ -139,6 +139,41 @@ Options:
 
 If you want to try the `develop` server you can use the reference model we have under `tests-integration/reference-model`. Simply `cd` into the directory and run the command.
 
+### `morphir mcp`
+
+This command starts a Model Context Protocol (MCP) server that provides tools for interacting with Morphir projects through AI assistants and other MCP-compatible clients.
+
+```
+Usage: morphir mcp [options]
+
+Start a Model Context Protocol server for Morphir project interaction
+
+Options:
+  --elm-command <command>     Specify the Elm command to use for compilation (default: "elm")
+  --root-dir <directory>      Specify the root directory of the Morphir project (required)
+  -h, --help                  output usage information
+```
+
+The MCP server provides the following tools:
+- **addModule**: Adds a new module to the Morphir project with Elm code
+- **setTestCases**: Sets test cases for functions in the Morphir project
+
+The server automatically creates `morphir.json` and `elm.json` configuration files if they don't exist, making it easy to start a new Morphir project from scratch.
+
+#### Examples
+
+Start the MCP server for a project in the current directory:
+```bash
+morphir mcp --root-dir .
+```
+
+Start the MCP server with a custom Elm command:
+```bash
+morphir mcp --root-dir ./my-project --elm-command /path/to/elm
+```
+
+**Note**: The MCP server is designed to be used with AI assistants and other MCP-compatible clients. It uses stdin/stdout for communication according to the MCP protocol specification.
+
 # Elm package
 
 [![Latest version of the Elm package](https://reiner-dolp.github.io/elm-badges/finos/morphir-elm/version.svg)](https://package.elm-lang.org/packages/finos/morphir-elm/latest)
