@@ -6,7 +6,7 @@ import BackedDataStructure from './backed-structure'
  */
 export default class Set<T> extends BackedDataStructure<ISet<T>> implements ValueObject {
     /**
-     * Create an empty list.
+     * Create an empty set.
      */
     static empty<T>(): Set<T> {
         return new Set<T>()
@@ -48,32 +48,82 @@ export default class Set<T> extends BackedDataStructure<ISet<T>> implements Valu
     }
 
     
+
+    /**
+     * Add a value to the set.
+     * @param value The value to add.
+     * @returns A new set with the value added.
+     */
     add(value: T): Set<T> {
         return new Set<T>(this.struct.add(value))
     }
 
+
+    /**
+     * Remove a value from the set.
+     * @param value The value to remove.
+     * @returns A new set with the value removed.
+     */
     remove(value: T): Set<T> {
         return new Set<T>(this.struct.remove(value))
     }
 
+    /**
+     * Check if a value is a member of the set.
+     * @param value The value to check for membership.
+     * @returns True if the value is in the set, false otherwise.
+     */
+    member(value: T): boolean {
+        return this.struct.has(value);
+    }
+
+
+    /**
+     * Return the union of this set and another set.
+     * @param list The set to union with.
+     * @returns A new set containing all elements from both sets.
+     */
     union(list: Set<T>): Set<T> {
         return new Set<T>(this.struct.concat(list.struct))
     }
 
+
+    /**
+     * Reduce the set to a single value using a reducer function.
+     * @param reducer The reducer function.
+     * @param initialValue The initial value for the reduction.
+     * @returns The reduced value.
+     */
     reduce<R>(reducer: (acc: R, value: T) => R, initialValue: R): R {
         return this.struct.reduce(reducer, initialValue)
     }
 
     
+
+    /**
+     * Check if this set is equal to another set.
+     * @param other The set to compare with.
+     * @returns True if the sets are equal, false otherwise.
+     */
     equals(other: Set<T>): boolean {
         return this.struct.equals(other.struct)
     }
 
+
+    /**
+     * Get the hash code for this set.
+     * @returns The hash code as a number.
+     */
     hashCode(): number {
         return this.struct.hashCode()
     }
 
+
+    /**
+     * Get a string representation of the set.
+     * @returns A string representing the set.
+     */
     override toString(): string {
-        return `List(${JSON.stringify(this.struct.toJS())})`
+        return `Set(${JSON.stringify(this.struct.toJS())})`
     }
 }
