@@ -52,7 +52,11 @@ jobs:
       
       - name: Version bump (custom)
         if: ${{ github.event.inputs.custom_version != '' }}
-        run: npm version ${{ github.event.inputs.custom_version }} --no-git-tag-version
+        run: |
+          npm version ${{ github.event.inputs.custom_version }} --no-git-tag-version
+          git add package.json package-lock.json
+          git commit -m "Release v${{ github.event.inputs.custom_version }}"
+          git tag v${{ github.event.inputs.custom_version }}
       
       - name: Version bump (preset)
         if: ${{ github.event.inputs.custom_version == '' }}
@@ -67,12 +71,8 @@ jobs:
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
       
-      - name: Create and push tag
-        run: |
-          git add package.json package-lock.json
-          git commit -m "Release v${{ steps.version.outputs.version }}"
-          git tag v${{ steps.version.outputs.version }}
-          git push origin main --tags
+      - name: Push tag
+        run: git push origin main --tags
       
       - name: Package for release
         run: npm pack
