@@ -1,0 +1,32 @@
+name: Mark NPM Version as Latest
+description: 'Perform a soft rollback by marking a previously published morphir-elm version as the latest on npm.'
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to mark as latest (e.g., 1.2.3)'
+        required: true
+        type: string
+
+jobs:
+  mark-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Validate version exists on NPM
+        run: |
+          set -e
+          npm view morphir-elm@${{ github.event.inputs.version }} version
+
+      - name: Mark version as latest on NPM
+        run: |
+          npm dist-tag add morphir-elm@${{ github.event.inputs.version }} latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
