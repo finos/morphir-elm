@@ -28,7 +28,6 @@ import Morphir.IR.SDK.List exposing (listType)
 import Morphir.IR.SDK.Maybe exposing (maybeType)
 import Morphir.IR.SDK.String exposing (stringType)
 import Morphir.IR.Type as Type exposing (Specification(..), Type(..))
-import Morphir.IR.Value as Value
 
 
 moduleName : ModuleName
