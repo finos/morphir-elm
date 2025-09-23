@@ -1,13 +1,18 @@
-import { Map, ValueObject } from 'immutable'
+import { Map as IMap, ValueObject, fromJS, FromJS, isImmutable, Collection } from 'immutable'
 import List from './list'
 import BackedDataStructure from './backed-structure'
 
 /**
- * A dictionary mapping unique keys to values. The keys can be any comparable type. This includes Int, Float, Time, Char, String, and tuples or lists of comparable types.
+ * A dictionary mapping unique keys to values. The keys can be any comparable type.
+ * This includes Int, Float, Time, Char, String, and tuples or lists of comparable types.
  * Insert, remove, and query operations all take O(log n) time.
+ *
+ * @note: If the keys are regular JavaScript types, they will be converted to immutable types.
+ * This is to ensure that the keys are comparable and can be used in the dictionary.
+ * If the keys are already immutable types, they will be used as is.
+ *
  */
-export default class Dict<K, V> extends BackedDataStructure<Map<K, V>> implements ValueObject {
-
+export default class Dict<K, V> extends BackedDataStructure<IMap<K, V>> implements ValueObject {
     /**
      * Create an empty dictionary.
      * @returns a new empty dictionary.
@@ -22,11 +27,45 @@ export default class Dict<K, V> extends BackedDataStructure<Map<K, V>> implement
      * @returns a new dictionary containing the key-value pairs from the association list.
      */
     static fromList<K, V>(array: List<[K, V]>): Dict<K, V> {
-        return new Dict<K, V>(Map(array.iterator))
+        return new Dict<K, V>(IMap<K, V>(array.map<[K, V]>(([k, v]) => [fromJS(k) as K, v]).iterator))
     }
 
-    private constructor(map: Map<K, V>) {
+    /**
+     * Convert an array of tuples into a dictionary.
+     * @param tuples array of tuples to convert.
+     * @returns a new dictionary containing the key-value pairs from tuples.
+     */
+    static fromTuples<K, V>(tuples: [K, V][]): Dict<K, V> {
+        return new Dict<K, V>(IMap(tuples.map(([key, value]) => [fromJS(key) as K, value])))
+    }
+
+    private constructor(map: IMap<K, V>) {
         super(map)
+    }
+
+    /**
+     * Returns an array of the keys of this Collection, discarding values.
+     * @returns an arrray of keys.
+     */
+    get keys(): K[] {
+        return this.struct
+            .keySeq()
+            .map(k => {
+                if (isImmutable(k)) {
+                    return (k as any).toJS()
+                } else {
+                    return k
+                }
+            })
+            .toJS() as K[]
+    }
+
+    /**
+     * Returns an array of the values of this Collection, discarding keys.
+     * @returns an arrray of values.
+     */
+    get values(): V[] {
+        return this.struct.valueSeq().toJS() as V[]
     }
 
     /**
@@ -36,7 +75,7 @@ export default class Dict<K, V> extends BackedDataStructure<Map<K, V>> implement
      * @returns a new dictionary with the key-value pair inserted.
      */
     insert(key: K, value: V): Dict<K, V> {
-        return new Dict(this.struct.set(key, value))
+        return new Dict(this.struct.set(fromJS(key) as K, value))
     }
 
     /**
@@ -47,8 +86,9 @@ export default class Dict<K, V> extends BackedDataStructure<Map<K, V>> implement
      * @returns a new dictionary with the updated value.
      */
     update(key: K, updater: (value: V) => V): Dict<K, V> {
-        if (this.member(key)) {
-            return new Dict(this.struct.update(key, (v) => updater(v!)))
+        const imKey = fromJS(key) as K
+        if (this.member(imKey)) {
+            return new Dict(this.struct.update(imKey, v => updater(v!)))
         } else {
             return this
         }
@@ -60,7 +100,7 @@ export default class Dict<K, V> extends BackedDataStructure<Map<K, V>> implement
      * @returns a new dictionary with the key-value pair removed.
      */
     remove(key: K): Dict<K, V> {
-        return new Dict(this.struct.remove(key))
+        return new Dict(this.struct.remove(fromJS(key) as K))
     }
 
     /**
@@ -69,7 +109,7 @@ export default class Dict<K, V> extends BackedDataStructure<Map<K, V>> implement
      * @returns true if the key is present, false otherwise.
      */
     member(key: K): boolean {
-        return this.struct.has(key)
+        return this.struct.has(fromJS(key) as K)
     }
 
     /**
@@ -78,24 +118,27 @@ export default class Dict<K, V> extends BackedDataStructure<Map<K, V>> implement
      * @returns the value associated with the key, or undefined if the key is not found.
      */
     get(key: K): V | undefined {
-        return this.struct.get(key)
+        return this.struct.get(fromJS(key) as K)
     }
 
     /**
      * Fold over the the key-value pairs of this dictionary
-     * @param reducer 
-     * @param initialValue 
-     * @returns 
+     * @param reducer
+     * @param initialValue
+     * @returns
      */
     foldl<R>(reducer: (acc: R, keyValuePair: [K, V]) => R, initialValue: R): R {
-        return this.struct.reduce((acc, value, key) => reducer(acc, [key, value]), initialValue)
+        return this.struct.reduce((acc, value, key) => {
+            if (isImmutable(key)) return reducer(acc, [(key as any).toJS() as K, value])
+            else return reducer(acc, [key, value])
+        }, initialValue)
     }
 
     /**
-     * Combine this dictionary with another of the same type. 
+     * Combine this dictionary with another of the same type.
      * If there is a collision, preference is given to the items in the other dictionary.
-     * @param other 
-     * @returns 
+     * @param other
+     * @returns
      */
     union(other: Dict<K, V>): Dict<K, V> {
         return new Dict(this.struct.merge(other.struct))
