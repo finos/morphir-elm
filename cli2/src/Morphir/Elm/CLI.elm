@@ -43,6 +43,8 @@ import Morphir.TestCoverage.Backend exposing (TestCoverageResult, getBranchCover
 import Morphir.TestCoverage.Codec exposing (encodeTestCoverageError, encodeTestCoverageResult)
 import Process
 import Task
+import Morphir.YAML.Mapping as YamlMapping
+import Yaml.Encode as YamlEncode
 
 
 port decodeFailed : String -> Cmd msg
@@ -84,6 +86,12 @@ port testCoverage : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
 port testCoverageResult : Encode.Value -> Cmd msg
 
 
+port yamlGenerate : (Decode.Value -> msg) -> Sub msg
+
+
+port yamlGenerateResult : Encode.Value -> Cmd msg
+
+
 subscriptions : () -> Sub Msg
 subscriptions _ =
     Sub.batch
@@ -92,6 +100,7 @@ subscriptions _ =
         , generate Generate
         , stats Stats
         , testCoverage TestCoverage
+    , yamlGenerate YamlGenerate
         ]
 
 
@@ -120,6 +129,7 @@ type Msg
     | Generate ( Decode.Value, Decode.Value, Decode.Value )
     | Stats Decode.Value
     | TestCoverage ( Decode.Value, Decode.Value )
+    | YamlGenerate Decode.Value
 
 
 main : Platform.Program () () Msg
@@ -380,6 +390,31 @@ process msg =
                         |> encodeTestCoverageError
                         |> testCoverageResult
 
+        YamlGenerate packageDistJson ->
+            case Decode.decodeValue DistroCodec.decodeVersionedDistribution packageDistJson of
+                Ok distro ->
+                    case distro of
+                        Library packageName dependencies packageDef ->
+                            packageDef.modules
+                                |> Dict.toList
+                                |> List.map
+                                    (\( modName, accesscontrolledModDef ) ->
+                                        ( modName |> Path.toString Name.toTitleCase "." 
+                                        , accesscontrolledModDef.value
+                                            |> YamlMapping.encodeModule
+                                            |> YamlEncode.toString 2
+                                            |> Encode.string
+                                        )
+                                    )
+                                |> Encode.object
+                                |> yamlGenerateResult
+
+                Err errorMessage ->
+                    errorMessage
+                        |> Decode.errorToString
+                        |> decodeFailed
+                
+
 
 report : Msg -> Cmd Msg
 report msg =
@@ -423,6 +458,9 @@ report msg =
 
         TestCoverage ( _, _ ) ->
             reportProgress "Generating Tests Coverage from testSuites ..."
+
+        YamlGenerate _ ->
+            reportProgress "Generating YAML representation of modules ..."
 
 
 keepElmFilesOnly : FileChanges -> FileChanges
