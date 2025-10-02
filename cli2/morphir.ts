@@ -13,6 +13,7 @@ program
   .command("make", "Translate Elm sources to Morphir IR")
   .command("scala-gen", "Generate scala code from Morphir IR")
   .command("json-schema-gen", "Generate Json Schema from the Morphir IR")
+  .command("yaml-gen", "Generate YAML representation of Morphir modules from the IR")
   .command("snowpark-gen", "Generate Scala with Snowpark code from Morphir IR")
   .command("stats", "Collect morphir features used in a model into a document")
   .command(
