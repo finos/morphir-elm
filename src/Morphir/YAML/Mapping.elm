@@ -50,8 +50,8 @@ encodeTypeDef typeDef =
                 |> Encode.dict nameToString
                     encodeArgs
 
-        onlyNoArgConstrutors : Type.Constructors ta -> Bool
-        onlyNoArgConstrutors constructors =
+        onlyNoArgConstructors : Type.Constructors ta -> Bool
+        onlyNoArgConstructors constructors =
             constructors
                 |> Dict.values
                 |> List.all (\args -> List.isEmpty args)
@@ -62,7 +62,7 @@ encodeTypeDef typeDef =
                 [ ( "alias-for", encodeType typeExp ) ]
 
         Type.CustomTypeDefinition _ accessControlledConstructors ->
-            if onlyNoArgConstrutors accessControlledConstructors.value then
+            if onlyNoArgConstructors accessControlledConstructors.value then
                 Encode.record
                     [ ( "enum-of"
                       , Encode.list
