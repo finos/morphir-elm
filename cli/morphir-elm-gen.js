@@ -36,12 +36,15 @@ const showDeprecationMessage = (cmd, opts) => {
 
 switch (backendTarget) {
     case "TypeScript":
-        const copyDeps = (options.copyDeps) ? "--copy-deps" : "";
-        const cmdOptions = `--input=${options.input} --output=${options.output} ${copyDeps}`.trim();
+        const args = ['--input=' + options.input, '--output=' + options.output];
+        if (options.copyDeps) {
+            args.push('--copy-deps');
+        }
+        const cmdOptions = args.join(' ');
         showDeprecationMessage("typescript", cmdOptions);
         // Try to use morphir from bin, fallback to direct node execution
         const morphirPath = path.join(__dirname, '..', 'cli2', 'lib', 'morphir.js');
-        execa('node', [morphirPath, 'typescript-gen', ...cmdOptions.split(/\s+/)], { stdio: 'inherit' })
+        execa('node', [morphirPath, 'typescript-gen'].concat(args), { stdio: 'inherit' })
             .then(() => {
                 console.log("Done.")
             })

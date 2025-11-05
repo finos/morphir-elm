@@ -9,10 +9,11 @@ import * as util from 'util'
 
 const prettier = require("prettier");
 
-const fsExists = util.promisify(fs.exists);
+const fsAccess = util.promisify(fs.access);
 const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
+const fsUnlink = util.promisify(fs.unlink);
 const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
 
 require('log-timestamp')
@@ -103,7 +104,8 @@ const gen = async (
          const filePath: string = path.join(fileDir, fileName)
          const incomingContent = prettier.format(content, { parser: "typescript" })
 
-         if(await fsExists(filePath)) {
+         try {
+            await fsAccess(filePath, fs.constants.F_OK);
             const existingContent: Buffer = await fsReadFile(filePath)
             if (existingContent.toString() == incomingContent) {
                //console.log(`No Changes Detected - ${filePath}`);
@@ -112,7 +114,7 @@ const gen = async (
                console.log(`UPDATE - ${filePath}`)
             }
          }
-         else {
+         catch (_) {
             console.log(`INSERT - ${filePath}`);
          }
 
@@ -124,7 +126,7 @@ const gen = async (
    
    const deletePromises = filesToDelete.map(async (fileToDelete: string) => {
       console.log(`DELETE - ${fileToDelete}`);
-      return fs.unlinkSync(fileToDelete);
+      return fsUnlink(fileToDelete);
    });
 
    if (options.copyDeps) {
