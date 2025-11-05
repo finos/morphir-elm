@@ -11,9 +11,7 @@ const program = new Command();
 program
   .version(packageJson.version, "-v, --version")
   .command("make", "Translate Elm sources to Morphir IR")
-  .command("scala-gen", "Generate scala code from Morphir IR")
   .command("json-schema-gen", "Generate Json Schema from the Morphir IR")
-  .command("snowpark-gen", "Generate Scala with Snowpark code from Morphir IR")
   .command("stats", "Collect morphir features used in a model into a document")
   .command(
     "dockerize",
@@ -29,4 +27,8 @@ program
     "Launches an interactive session to initialize a new morphir project."
   )
   .command("mcp", "Start a Model Context Protocol server for Morphir project interaction")
+  // transpile commands
+  .command("scala-gen", "Generate scala code from Morphir IR")
+  .command("snowpark-gen", "Generate Scala with Snowpark code from Morphir IR")
+  .command("typescript-gen", "Generate typescript code from Morphir IR")
   .parse(process.argv);
