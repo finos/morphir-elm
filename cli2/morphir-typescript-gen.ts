@@ -129,19 +129,18 @@ const gen = async (
       return fsUnlink(fileToDelete);
    });
 
-   if (options.copyDeps) {
-      const copyFiles = (src: string, dest: string) => {
-         const sourceDirectory: string = path.join(
-           path.dirname(__dirname),
-           "..",
-           "redistributable",
-           src
-         );
-         cli.copyRecursiveSync(sourceDirectory, outputPath);
-      };
+   // Always copy redistributables for TypeScript (matching old CLI behavior)
+   const copyFiles = (src: string, dest: string) => {
+      const sourceDirectory: string = path.join(
+        path.dirname(__dirname),
+        "..",
+        "redistributable",
+        src
+      );
+      cli.copyRecursiveSync(sourceDirectory, outputPath);
+   };
 
-      copyFiles("TypeScript/", outputPath)
-   }
+   copyFiles("TypeScript/", outputPath);
    
    return Promise.all(writePromises.concat(deletePromises));
 };
