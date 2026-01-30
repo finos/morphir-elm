@@ -2,10 +2,8 @@
 
 // NPM imports
 import { Command } from 'commander'
-import cli from './cli'
-
-// logging
-require('log-timestamp')
+import * as cli from './cli.js'
+import 'log-timestamp'
 
 // Set up Commander
 const program = new Command()

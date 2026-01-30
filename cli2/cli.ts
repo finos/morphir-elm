@@ -3,10 +3,14 @@
 import * as fs from "fs";
 import * as util from "util";
 import * as path from "path";
-import * as FileChanges from "./FileChanges";
-import * as Dependencies from "./dependencies";
-import { DependencyConfig } from "./dependencies";
+import { createRequire } from "module";
+import * as FileChanges from "./FileChanges.js";
+import * as Dependencies from "./dependencies.js";
+import { DependencyConfig } from "./dependencies.js";
 import { z } from "zod";
+
+// Create require for loading CommonJS modules (Elm output)
+const require = createRequire(import.meta.url);
 
 const fsExists = util.promisify(fs.exists);
 const fsWriteFile = util.promisify(fs.writeFile);
@@ -14,7 +18,7 @@ const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
 const readdir = util.promisify(fs.readdir);
 
-const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
+const worker = require("./../Morphir.Elm.CLI.cjs").Elm.Morphir.Elm.CLI.init();
 
 const Includes = z.array(z.string()).optional();
 type Includes = z.infer<typeof Includes>;
@@ -405,7 +409,7 @@ function copyRecursiveSync(src: string, dest: string) {
     const stats = exists && fs.statSync(src);
     const isDirectory = exists && stats.isDirectory();
     if (isDirectory) {
-      if (!fs.existsSync(dest)) fs.mkdirSync(dest);
+      fs.mkdirSync(dest, { recursive: true });
       fs.readdirSync(src).forEach(function (childItemName) {
         copyRecursiveSync(
           path.join(src, childItemName),
@@ -548,7 +552,7 @@ async function testCoverage(
   });
 }
 
-export = {
+export {
   gen,
   make,
   writeFile,

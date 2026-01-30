@@ -4,11 +4,9 @@ import * as path from "path";
 import * as util from "util";
 import { decode, labelToName } from "whatwg-encoding";
 import { z } from "zod";
-import { fetchUriToJson } from "./get-uri-wrapper";
+import { fetchUriToJson } from "./get-uri-wrapper.js";
 import { Readable } from "stream";
-
-
-const parseDataUrl = require("data-urls");
+import parseDataUrl from "data-urls";
 const fsReadFile = util.promisify(fs.readFile);
 
 export const DataUrl = z.string().trim().transform((val, ctx) => {

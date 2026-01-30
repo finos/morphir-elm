@@ -5,6 +5,6 @@ import { exec, log } from "../_lib.ts";
 
 log("test:unit", "Running Elm unit tests...");
 
-await exec("elm-test", []);
+await exec("npx", ["elm-test"]);
 
 log("test:unit", "Done");

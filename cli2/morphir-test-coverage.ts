@@ -5,10 +5,8 @@ import { Command } from "commander";
 import * as fs from "fs";
 import * as path from "path";
 import * as util from "util";
-import cli from "./cli";
-
-// logging
-require("log-timestamp");
+import * as cli from "./cli.js";
+import "log-timestamp";
 const fsWriteFile = util.promisify(fs.writeFile);
 
 const program = new Command();

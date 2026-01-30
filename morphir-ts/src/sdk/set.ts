@@ -1,5 +1,5 @@
 import { Set as ISet, ValueObject } from 'immutable'
-import BackedDataStructure from './backed-structure'
+import BackedDataStructure from './backed-structure.js'
 
 export namespace Set {
 

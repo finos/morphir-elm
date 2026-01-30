@@ -1,5 +1,5 @@
 import { List as IList, ValueObject } from 'immutable'
-import BackedDataStructure from './backed-structure'
+import BackedDataStructure from './backed-structure.js'
 
 
 /**

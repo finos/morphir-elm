@@ -3,10 +3,9 @@
 // NPM imports
 import { Command } from 'commander';
 import path from 'path';
-import cli from './cli';
-import configProcessing from './config-processing'
-
-require('log-timestamp')
+import * as cli from './cli.js';
+import configProcessing from './config-processing.js'
+import 'log-timestamp'
 
 const program = new Command
 program
