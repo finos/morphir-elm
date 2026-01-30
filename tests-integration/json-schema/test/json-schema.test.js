@@ -6,6 +6,7 @@
     and instances of the subschemas.
 */
 // Imports
+const { describe, test, expect, beforeAll } = require('bun:test');
 const ajv2020 = require("ajv/dist/2020")
 const addFormats = require("ajv-formats")
 const fs = require('fs')

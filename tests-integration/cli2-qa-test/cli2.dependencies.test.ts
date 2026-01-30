@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeAll, afterAll, afterEach, mock } from 'bun:test';
 import * as getUriWrapper from '../../cli2/lib/get-uri-wrapper';
 
 
@@ -196,8 +197,6 @@ describe('morphir dependencies', () => {
 			await copyRecursive(DEPENDENCY_PROJECT_SOURCE, PATH_TO_DEPENDENCY_PROJECT, { recursive: true })
 			await copyRecursive(PROJECT_SOURCE, PATH_TO_PROJECT, { recursive: true })
 
-			jest.mock('../../cli2/lib/get-uri-wrapper');
-
 		})
 
 		afterAll(async () => {
@@ -208,8 +207,8 @@ describe('morphir dependencies', () => {
 			let localInclude = path.join(PATH_TO_DEPENDENCY_PROJECT, 'morphir-ir.json');
 			let morphirIr = await loadFile(localInclude);
 
-			//setting up mock 
-			getUriWrapper.fetchUriToJson = jest.fn(url => morphirIr);
+			//setting up mock
+			(getUriWrapper as any).fetchUriToJson = mock(() => morphirIr);
 
 			let newMorphir = { ...morphirJSON, dependencies: ["http://somewhere/morphir-ir"] };
 			await makeMorphirJson(newMorphir);

@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'bun:test';
 import * as getUriWrapper from './get-uri-wrapper';
 import * as path from 'path'
 

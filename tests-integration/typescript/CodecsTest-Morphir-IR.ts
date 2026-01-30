@@ -1,4 +1,5 @@
-const assert = require('assert');
+import { describe, it, expect } from 'bun:test';
+import * as assert from 'assert';
 
 import { Morphir } from '../generated/morphirIR/src/typescript/Morphir'
 import * as codecs from "../generated/morphirIR/src/typescript/morphir/internal/Codecs"

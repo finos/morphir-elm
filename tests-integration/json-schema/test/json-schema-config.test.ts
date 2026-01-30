@@ -1,7 +1,8 @@
 /*
-This file contains test cases for the inferBackendConfig() 
-function defined in  the config-processing.ts file @see 
+This file contains test cases for the inferBackendConfig()
+function defined in  the config-processing.ts file @see
 */
+import { describe, test, expect } from 'bun:test';
 import type {JsonBackendOptions} from '../../../cli2/config-processing'
 import configProcessing from '../../../cli2/config-processing'
 
