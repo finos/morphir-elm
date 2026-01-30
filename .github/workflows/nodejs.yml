@@ -56,6 +56,9 @@ jobs:
       - name: Download dependencies
         run: npm ci
 
+      - name: Setup Elm tooling
+        run: mise run setup:elm-tooling
+
       - name: Build
         run: mise run build
 
