@@ -1,4 +1,4 @@
-const assert = require('assert')
+import { describe, it, expect } from 'bun:test'
 
 import * as Types from '../generated/refModel/src/typescript/morphir/reference/model/types'
 
@@ -6,8 +6,8 @@ import * as Types from '../generated/refModel/src/typescript/morphir/reference/m
 //
 // We are testing TypeScript types so bugs in the generated code will
 // mostly appear as compile failures, rather than runtime assert failures.
-describe('TypeScript type mapping', function () {
-    it('represents custom type variants', function () {
+describe('TypeScript type mapping', () => {
+    it('represents custom type variants', () => {
         const goodNoArg: Types.Custom = { kind: 'CustomNoArg' }
         const goodOneArg: Types.Custom = { kind: 'CustomOneArg', arg1: true }
         const goodTwoArg: Types.Custom = { kind: 'CustomTwoArg', arg1: 'some good quantity', arg2: 42 }
@@ -17,19 +17,20 @@ describe('TypeScript type mapping', function () {
         const goodOneArg_Explicit: Types.CustomOneArg = { kind: 'CustomOneArg', arg1: true }
         const goodTwoArg_Explicit: Types.CustomTwoArg = { kind: 'CustomTwoArg', arg1: 'some good quantity', arg2: 42 }
 
-        assert.equal(goodNoArg.kind, 'CustomNoArg')
-        assert.equal(goodNoArg_Explicit.kind, 'CustomNoArg')
+        expect(goodNoArg.kind).toBe('CustomNoArg')
+        expect(goodNoArg_Explicit.kind).toBe('CustomNoArg')
     })
 
-    it('represents custom type unions', function () {
+    it('represents custom type unions', () => {
         const goodNoArg: Types.Custom = { kind: 'CustomNoArg' }
         const goodOneArg: Types.Custom = { kind: 'CustomOneArg', arg1: true }
         const goodTwoArg: Types.Custom = { kind: 'CustomTwoArg', arg1: 'some good quantity', arg2: 42 }
 
         const goodVariantArray: Types.Custom[] = [goodNoArg, goodOneArg, goodTwoArg]
+        expect(goodVariantArray.length).toBe(3)
     })
 
-    it('allows constructing custom types', function () {
+    it('allows constructing custom types', () => {
         // This is rather ugly. Adding constructor functions might help, e.g.:
         //
         //     const goodFullName = FullName(FirstName("Brian"), LastName("Blessed"));
@@ -48,14 +49,15 @@ describe('TypeScript type mapping', function () {
 
         const fullName_ConstructorFn = new Types.FullName(new Types.FirstName('Brian'), new Types.LastName('Blessed'))
 
-        assert.deepEqual(fullName_Manual, fullName_ConstructorFn)
+        expect(fullName_Manual).toEqual(fullName_ConstructorFn)
     })
 
-    it('allows constructing records', function () {
+    it('allows constructing records', () => {
         const goodRecord: Types.FooBarBazRecord = {
             foo: 'A delicious banana',
             bar: true,
             baz: 123.456
         }
+        expect(goodRecord.foo).toBe('A delicious banana')
     })
 })

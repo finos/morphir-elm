@@ -89,9 +89,10 @@ async function testTypeScript() {
   );
 
   log("test:integration", "Running TypeScript tests...");
+  // Use bun test directly (bun natively understands TypeScript and has built-in test runner)
   await exec(
-    "npx",
-    ["mocha", "--require", "ts-node/register", "tests-integration/typescript/TypesTest-refModel.ts"],
+    "bun",
+    ["test", "./tests-integration/typescript/TypesTest-refModel.ts"],
     { cwd: ROOT_DIR }
   );
 }
