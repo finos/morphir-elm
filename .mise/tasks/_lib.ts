@@ -23,6 +23,7 @@ export const PATHS = {
   morphirTs: join(ROOT_DIR, "morphir-ts"),
   testsIntegration: join(ROOT_DIR, "tests-integration"),
   redistributable: join(ROOT_DIR, "redistributable"),
+  nodeBin: join(ROOT_DIR, "node_modules/.bin"),
 } as const;
 
 // Environment
@@ -75,7 +76,9 @@ export async function elmMake(
     args.push("--docs", opts.docs);
   }
 
-  await exec("elm", args, { cwd: opts.cwd || ROOT_DIR });
+  // Use elm from node_modules/.bin (installed by elm-tooling)
+  const elmPath = join(PATHS.nodeBin, "elm");
+  await exec(elmPath, args, { cwd: opts.cwd || ROOT_DIR });
 }
 
 /**
