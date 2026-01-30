@@ -57,10 +57,10 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build --if-present
+        run: mise run build
 
       - name: Running Test
-        run: npm test
+        run: mise run test
 
       - uses: actions/upload-artifact@v4
         with:

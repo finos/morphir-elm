@@ -1,4 +1,4 @@
-import { equal } from './basics.js';
+import { equal } from './basics';
 type Just<T> = {
     readonly kind: 'Just';
     readonly value: T;

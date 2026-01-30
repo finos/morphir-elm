@@ -1,2 +1,2 @@
-export * as IR from "./exports/ir.js";
-export * as SDK from "./exports/sdk.js";
+export * as IR from "./exports/ir";
+export * as SDK from "./exports/sdk";
