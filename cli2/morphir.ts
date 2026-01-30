@@ -1,7 +1,16 @@
 #!/usr/bin/env node
 // NPM imports
 import path from "path";
+import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import { Command } from "commander";
+
+// ESM equivalents for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Create require for loading CommonJS modules
+const require = createRequire(import.meta.url);
 
 // Read the package.json of this package
 const packageJson = require(path.join(__dirname, "../../package.json"));

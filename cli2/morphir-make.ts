@@ -2,10 +2,8 @@
 
 // NPM imports
 import { Command } from 'commander'
-import { make } from './cliAPI'
-
-// logging
-require('log-timestamp')
+import { make } from './cliAPI.js'
+import 'log-timestamp'
 
 // Set up Commander
 const program = new Command()

@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 
-// NPM Imports 
+// NPM Imports
 import { Command } from "commander";
-import { dockerize } from "./cliAPI";
-
-// logging 
-require('log-timestamp')
+import { dockerize } from "./cliAPI.js";
+import 'log-timestamp'
 
 const program = new Command()
 program

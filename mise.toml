@@ -1,0 +1,12 @@
+min_version = "2024.11.0"
+
+[tools]
+node = "20"       # Matches lts/iron from .nvmrc
+bun = "latest"    # Task executor
+
+[env]
+MORPHIR_JVM_VERSION = "0.18.2"
+
+[task_config]
+# Tasks are discovered in .mise/tasks/ directory
+# Directory structure creates namespaced tasks (build/cli.ts → build:cli)

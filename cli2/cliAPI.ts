@@ -1,4 +1,4 @@
-import cli from './cli'
+import * as cli from './cli.js'
 
 
 export function make(dir: string, opts: any) {

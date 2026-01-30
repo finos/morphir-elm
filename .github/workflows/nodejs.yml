@@ -32,6 +32,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          experimental: true
+
       - name: Cache NPM
         uses: actions/cache@v4
         with:
@@ -51,11 +56,14 @@ jobs:
       - name: Download dependencies
         run: npm ci
 
+      - name: Setup Elm tooling
+        run: mise run setup:elm-tooling
+
       - name: Build
-        run: npm run build --if-present
+        run: mise run build
 
       - name: Running Test
-        run: npm test
+        run: mise run test
 
       - uses: actions/upload-artifact@v4
         with:

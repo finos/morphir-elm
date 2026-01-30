@@ -19,6 +19,7 @@ cli2/lib/
 lib/geneated
 cadl-Frontend/cadl-output
 cli2/*.js
+cli2/*.cjs
 docs.json
 /.coverage/
 tests-integration/reference-model/Dockerfile

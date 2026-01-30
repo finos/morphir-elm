@@ -3,20 +3,27 @@
 //NPM imports
 import * as fs from "fs";
 import path from 'path';
+import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import { Command } from 'commander'
-import cli = require('./cli')
+import * as cli from './cli.js'
 import * as util from 'util'
+import * as prettier from "prettier";
+import 'log-timestamp'
 
-const prettier = require("prettier");
+// ESM equivalents for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Create require for loading CommonJS modules (Elm output)
+const require = createRequire(import.meta.url);
 
 const fsAccess = util.promisify(fs.access);
 const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
 const fsUnlink = util.promisify(fs.unlink);
-const worker = require("./../Morphir.Elm.CLI").Elm.Morphir.Elm.CLI.init();
-
-require('log-timestamp')
+const worker = require("./../Morphir.Elm.CLI.cjs").Elm.Morphir.Elm.CLI.init();
 
 const program = new Command()
 program
