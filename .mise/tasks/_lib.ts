@@ -16,7 +16,7 @@ export const ROOT_DIR = join(import.meta.dir, "../..");
 
 // Common paths
 export const PATHS = {
-  cli: join(ROOT_DIR, "cli"),
+  cli: join(ROOT_DIR, "packages/cli"),
   cli2: join(ROOT_DIR, "cli2"),
   dist: join(ROOT_DIR, "dist"),
   src: join(ROOT_DIR, "src"),
@@ -95,7 +95,7 @@ export async function morphirMake(
 ): Promise<void> {
   const cliPath = opts.useCli2
     ? join(ROOT_DIR, "cli2/lib/morphir.js")
-    : join(ROOT_DIR, "cli/morphir-elm.js");
+    : join(ROOT_DIR, "packages/cli/morphir-elm.js");
 
   const args = [cliPath, "make", "-p", projectDir, "-o", outputPath];
 
@@ -119,7 +119,7 @@ export async function morphirGen(
   outputDir: string,
   target: string
 ): Promise<void> {
-  const cliPath = join(ROOT_DIR, "cli/morphir-elm.js");
+  const cliPath = join(ROOT_DIR, "packages/cli/morphir-elm.js");
   const args = [cliPath, "gen", "-i", inputPath, "-o", outputDir, "-t", target];
 
   console.log(`Running: node ${args.slice(1).join(" ")}`);

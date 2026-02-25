@@ -8,7 +8,7 @@ const readdir = util.promisify(fs.readdir)
 const mkdir = util.promisify(fs.mkdir)
 const readFile = util.promisify(fs.readFile)
 const fsWriteFile = util.promisify(fs.writeFile)
-const outputPath = "../src/Morphir/IR/SDK/SDKNativeFunctions.elm"
+const outputPath = "../../src/Morphir/IR/SDK/SDKNativeFunctions.elm"
 // Elm imports
 const worker = require('./Morphir.Elm.DevCLI').Elm.Morphir.Elm.DevCLI.init()
 

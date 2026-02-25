@@ -43,7 +43,7 @@ switch (backendTarget) {
         const cmdOptions = args.join(' ');
         showDeprecationMessage("typescript", cmdOptions);
         // Try to use morphir from bin, fallback to direct node execution
-        const morphirPath = path.join(__dirname, '..', 'cli2', 'lib', 'morphir.js');
+        const morphirPath = path.join(__dirname, '..', '..', 'cli2', 'lib', 'morphir.js');
         const child = execFile('node', [morphirPath, 'typescript-gen'].concat(args), { stdio: 'inherit' })
         child.on('close', (code) => {
             if (code === 0) {

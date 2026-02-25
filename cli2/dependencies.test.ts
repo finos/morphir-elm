@@ -64,12 +64,12 @@ describe("the dependencies module", () => {
     });
     test("should support local files on a sibling folder", () => {
       let fileName = "morphir.js";
-      let expectedFile = path.resolve(__dirname, "..", "cli", fileName);
+      let expectedFile = path.resolve(__dirname, "..", "packages", "cli", fileName);
 
       let expectedUrl = new URL(`file://${expectedFile}`);
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
         baseDir: __dirname,
-        sanitized: `../cli/${fileName}`,
+        sanitized: `../packages/cli/${fileName}`,
       });
       expect({ success: urlSuccess, data: urlData }).toStrictEqual({
         success: true,

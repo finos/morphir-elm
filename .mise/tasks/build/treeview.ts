@@ -6,7 +6,7 @@ import { exec, log, PATHS, ROOT_DIR } from "../_lib.ts";
 
 log("build:treeview", "Building treeview with webpack...");
 
-await exec("npx", ["webpack", "--config", "cli/treeview/webpack.config.js"], {
+await exec("npx", ["webpack", "--config", "packages/cli/treeview/webpack.config.js"], {
   cwd: ROOT_DIR,
 });
 

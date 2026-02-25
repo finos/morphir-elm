@@ -1,4 +1,6 @@
 {
+  "name": "@morphir/cli",
+  "private": true,
   "type": "commonjs",
   "devDependencies": {
     "ts-loader": "^9.4.2",

@@ -179,7 +179,7 @@ async function getDecorationFilePath(decorationID) {
 }
 
 async function indexHtmlWithVersion() {
-  const packageJson = require(path.join(__dirname, '../package.json'))
+  const packageJson = require(path.join(__dirname, '../../package.json'))
   const _indexHtml = await readFile(path.join(webDir, "index.html"), 'utf8');
   return _indexHtml.replace('__VERSION_NUMBER__', packageJson.version.toString());
 
