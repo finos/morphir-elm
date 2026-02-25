@@ -3,20 +3,15 @@
 //NPM imports
 import * as fs from "fs";
 import path from 'path';
-import { createRequire } from "module";
 import {Command} from 'commander'
 import * as cli from './cli.js'
 import * as util from 'util'
 import 'log-timestamp'
-
-// Create require for loading CommonJS modules (Elm output)
-const require = createRequire(import.meta.url);
+import { worker } from "./elm-worker.js";
 
 const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
-
-const worker = require("./../Morphir.Elm.CLI.cjs").Elm.Morphir.Elm.CLI.init();
 
 interface CommandOptions {
   targetVersion: string;
@@ -103,7 +98,6 @@ const gen = async (
       console.log(`DELETE - ${fileToDelete}`);
       return fs.unlinkSync(fileToDelete); 
     });
-    cli.copyRedistributables(options, outputPath);
     return Promise.all(writePromises.concat(deletePromises));
   };
   
