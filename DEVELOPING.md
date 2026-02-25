@@ -105,10 +105,14 @@ npm run build:cli2     # Build CLI2 only
 │   └── setup/               # Setup subtasks
 │       ├── elm-tooling.ts
 │       └── morphir-jvm.ts
-cli/                         # CLI v1 (Elm + JavaScript)
-cli2/                        # CLI v2 (TypeScript + Elm)
-morphir-ts/                  # TypeScript SDK
-src/                         # Elm source code
+packages/                    # Workspace packages
+│   ├── cli/                 # CLI v1 (Elm + JavaScript)
+│   ├── cli2/                # CLI v2 (TypeScript + Elm)
+│   ├── morphir-ts/          # TypeScript SDK
+│   ├── server/              # Development server
+│   ├── cadl-frontend/       # CADL frontend
+│   └── decoration-extension/# VS Code decoration extension
+src/                         # Elm source code (shared root for Elm package)
 tests-integration/           # Integration tests
 ```
 

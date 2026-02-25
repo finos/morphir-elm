@@ -32,7 +32,7 @@ Morphir is a multi-language system for capturing business logic in a technology-
 
 ### Languages
 - **Elm** - Primary language for business logic and frontend tooling
-- **TypeScript** - CLI tooling (cli2/) and SDK (morphir-ts/)
+- **TypeScript** - CLI tooling (packages/cli2/) and SDK (packages/morphir-ts/)
 - **JavaScript** - CLI v1 and generated outputs
 
 ### Key Commands
