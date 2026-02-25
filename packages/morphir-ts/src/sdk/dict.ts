@@ -1,6 +1,6 @@
 import { Map, ValueObject } from 'immutable'
-import List from './list'
-import BackedDataStructure from './backed-structure'
+import List from './list.js'
+import BackedDataStructure from './backed-structure.js'
 
 /**
  * A dictionary mapping unique keys to values. The keys can be any comparable type. This includes Int, Float, Time, Char, String, and tuples or lists of comparable types.
