@@ -4,22 +4,6 @@
 
 import { elmMake, log, PATHS, join } from "../_lib.ts";
 import { mkdir, rm } from "fs/promises";
-import type { BunPlugin } from "bun";
-
-// Plugin to externalize Elm-compiled CJS files (loaded at runtime via createRequire)
-const elmExternalPlugin: BunPlugin = {
-  name: "elm-external",
-  setup(build) {
-    // Match any require/import that looks like an Elm module path
-    // These are relative paths to Elm-compiled .cjs files
-    build.onResolve({ filter: /Morphir\.Elm\.(CLI|Generator)\.cjs/ }, (args) => {
-      return {
-        path: args.path,
-        external: true,
-      };
-    });
-  },
-};
 
 async function compileCli2Ts() {
   log("build:cli2", "Compiling TypeScript...");
@@ -39,15 +23,16 @@ async function compileCli2Ts() {
     }
   }
 
-  // Build using Bun.build API with plugin to externalize Elm modules
+  // Build using Bun.build API
   // Output ESM format (default) to match package.json "type": "module"
+  // Externalize Elm-compiled .cjs files — they're resolved at runtime, not bundled here
   const result = await Bun.build({
     entrypoints: tsFiles,
     outdir,
     target: "node",
     format: "esm",
     root: PATHS.cli2, // Set root so output files are directly in outdir
-    plugins: [elmExternalPlugin],
+    external: ["*.cjs"],
   });
 
   if (!result.success) {
