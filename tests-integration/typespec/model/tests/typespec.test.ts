@@ -8,7 +8,6 @@ import * as path from "path"
 // process constants
 const writeFile = util.promisify(fs.writeFile)
 const rmdir = util.promisify(fs.rmSync)
-const execa = require("execa")
 
 // cadl model related paths
 const projectDir = path.join("tests-integration","typespec", "model")
@@ -36,7 +35,8 @@ describe("Validating Generated TypeSpec", () => {
 
         // compile generated Cadl to look for errors
         const args = ['compile', path.join(generatedCadl,"TestModel.tsp")]
-        const {stdout} = await execa('tsp', args)
+        const proc = Bun.spawn(['tsp', ...args], { stdout: 'pipe' })
+        const stdout = await new Response(proc.stdout).text()
         
         expect(stdout).toContain("Compilation completed successfully")
     })

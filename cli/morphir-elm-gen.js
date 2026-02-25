@@ -5,7 +5,7 @@
 const path = require('path')
 const commander = require('commander')
 const cli = require('./cli')
-const execa = require('execa')
+const { execFile } = require('child_process')
 
 //logging
 require('log-timestamp')
@@ -44,14 +44,18 @@ switch (backendTarget) {
         showDeprecationMessage("typescript", cmdOptions);
         // Try to use morphir from bin, fallback to direct node execution
         const morphirPath = path.join(__dirname, '..', 'cli2', 'lib', 'morphir.js');
-        execa('node', [morphirPath, 'typescript-gen'].concat(args), { stdio: 'inherit' })
-            .then(() => {
+        const child = execFile('node', [morphirPath, 'typescript-gen'].concat(args), { stdio: 'inherit' })
+        child.on('close', (code) => {
+            if (code === 0) {
                 console.log("Done.")
-            })
-            .catch((err) => {
-                console.error(err)
-                process.exit(1)
-            })
+            } else {
+                process.exit(code)
+            }
+        })
+        child.on('error', (err) => {
+            console.error(err)
+            process.exit(1)
+        })
         break;
 
     default:

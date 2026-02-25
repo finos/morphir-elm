@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Run all tests"
-//MISE depends=["test:unit", "test:integration"]
+//MISE depends=["test:unit", "test:cli2", "test:integration"]
 
 import { log } from "./_lib.ts";
 
