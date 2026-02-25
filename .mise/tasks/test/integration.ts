@@ -63,7 +63,7 @@ async function testMorphirTest() {
 
   await exec(
     "node",
-    ["./cli/morphir-elm.js", "test", "-p", "./tests-integration/reference-model"],
+    ["./packages/cli/morphir-elm.js", "test", "-p", "./tests-integration/reference-model"],
     { cwd: ROOT_DIR }
   );
 }
