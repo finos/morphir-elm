@@ -1,5 +1,6 @@
 {
     "name": "scratch_node_docker",
+    "private": true,
     "version": "1.0.0",
     "description": "Node.js on Docker",
     "author": "morphir@finos.org",
