@@ -6,7 +6,7 @@
 
 **Architecture:** Single workflow file with two triggers (tag push, workflow_dispatch). Parses the tag to determine if it's a default-branch release or branch prerelease. Builds platform-specific CLI binaries via `bun build --compile`, the interpreter WASM component, packages all artifacts, and creates a GitHub Release.
 
-**Tech Stack:** GitHub Actions, mise, Bun, Elm, jco (ComponentizeJS)
+**Tech Stack:** GitHub Actions, mise, Bun, Elm, extism-js (Extism plugin)
 
 **Design doc:** `docs/plans/2026-02-25-github-release-design.md`
 
@@ -134,7 +134,7 @@ jobs:
 
       # --- Build ---
 
-      - name: Build interpreter WASM component
+      - name: Build interpreter WASM (Extism plugin)
         run: mise run build:interpreter-wasm
 
       - name: Build CLI binaries (all platforms)
@@ -153,16 +153,13 @@ jobs:
           cp "$BINARIES/morphir-darwin-arm64" .
           cp "$BINARIES/morphir-windows-amd64.exe" .
 
-          # WASM interpreter artifacts
-          cp "$PKG/build/interpreter.wasm" interpreter.wasm
+          # Extism plugin (released as interpreter.wasm for install scripts)
+          cp "$PKG/build/plugin.wasm" interpreter.wasm
 
-          # WIT-only tarball
-          tar -czf morphir-interpreter-wit.tar.gz -C "$PKG" wit/
-
-          # WASM + WIT combined tarball
+          # WASM tarball (plugin + README)
           mkdir -p _release/morphir-interpreter
-          cp "$PKG/build/interpreter.wasm" _release/morphir-interpreter/
-          cp -r "$PKG/wit" _release/morphir-interpreter/
+          cp "$PKG/build/plugin.wasm" _release/morphir-interpreter/
+          cp "$PKG/README.md" _release/morphir-interpreter/ 2>/dev/null || true
           tar -czf morphir-interpreter-wasm.tar.gz -C _release morphir-interpreter/
           rm -rf _release
 
@@ -179,7 +176,6 @@ jobs:
             morphir-darwin-arm64
             morphir-windows-amd64.exe
             interpreter.wasm
-            morphir-interpreter-wit.tar.gz
             morphir-interpreter-wasm.tar.gz
             scripts/install.sh
             scripts/install.ps1
@@ -263,7 +259,7 @@ gh release view vnext-0.0.1-test
 
 Expected: A prerelease with 9 artifacts:
 - `morphir-linux-amd64`, `morphir-linux-arm64`, `morphir-darwin-arm64`, `morphir-windows-amd64.exe`
-- `interpreter.wasm`, `morphir-interpreter-wit.tar.gz`, `morphir-interpreter-wasm.tar.gz`
+- `interpreter.wasm`, `morphir-interpreter-wasm.tar.gz`
 - `install.sh`, `install.ps1`
 
 **Step 4: Clean up test release and tag**

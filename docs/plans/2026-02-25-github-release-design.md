@@ -27,7 +27,7 @@ Takes branch + version. Checks out that branch, creates the appropriate tag (`v{
 
 1. Checkout the tagged commit
 2. Install dependencies (mise, bun, elm-tooling)
-3. Build the interpreter WASM component (`mise run build:interpreter-wasm`)
+3. Build the interpreter Extism plugin (`mise run build:interpreter-wasm`)
 4. Build platform-specific CLI binaries (`mise run build:cli-binaries`)
 
 ### Release Artifacts
@@ -38,14 +38,13 @@ Takes branch + version. Checks out that branch, creates the appropriate tag (`v{
 3. **`morphir-darwin-arm64`** — macOS Apple Silicon binary
 4. **`morphir-windows-amd64.exe`** — Windows x86_64 binary
 
-**WASM interpreter artifacts**:
-5. **`interpreter.wasm`** — raw WASM component file
-6. **`morphir-interpreter-wit.tar.gz`** — tarball of WIT interface definitions
-7. **`morphir-interpreter-wasm.tar.gz`** — tarball bundling WASM file + WIT directory
+**WASM interpreter (Extism plugin)**:
+5. **`interpreter.wasm`** — Extism plugin (raw WASM file)
+6. **`morphir-interpreter-wasm.tar.gz`** — tarball bundling plugin.wasm + README
 
 **Install scripts** (also release artifacts):
-8. **`install.sh`** — Unix installer (Linux/macOS) with `--cli`, `--wasm`, `--wit` options
-9. **`install.ps1`** — Windows installer with `-Cli`, `-Wasm`, `-Wit` parameters
+7. **`install.sh`** — Unix installer (Linux/macOS) with `--cli`, `--wasm`, `--all` options
+8. **`install.ps1`** — Windows installer with `-Cli`, `-Wasm`, `-All` parameters
 
 ### Release Metadata
 
