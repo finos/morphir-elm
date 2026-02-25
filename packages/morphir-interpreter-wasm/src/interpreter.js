@@ -420,7 +420,7 @@ function elmResultToWitResult(elmResult) {
  * WIT signature: evaluate(ir-json: string, fqn: fq-name, args: list<morphir-value>)
  *                  -> result<morphir-value, eval-error>
  */
-export const eval_ = {
+const eval_ = {
   evaluate(irJson, fqn, args) {
     const { sendAndReceive } = createApp();
 
@@ -450,6 +450,10 @@ export const eval_ = {
 // ---------------------------------------------------------------------------
 // WIT exports: types interface (IrStore resource)
 // ---------------------------------------------------------------------------
+
+// "eval" is a reserved word in JS, so we use eval_ internally and re-export
+// with the WIT interface name.
+export { eval_ as eval };
 
 export const types = {
   IrStore: class IrStore {
