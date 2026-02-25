@@ -99,6 +99,6 @@
   "dependencies": {
     "comment-json": "^4.2.3",
     "jsonc-parser": "^3.2.0",
-    "morphir-elm": "^2.86.0"
+    "morphir-elm": "*"
   }
 }
