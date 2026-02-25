@@ -1,0 +1,121 @@
+#!/usr/bin/env sh
+
+# Morphir CLI wrapper — downloads and caches the correct version of the morphir
+# binary, then executes it. Inspired by mill, gradlew, and mvnw.
+#
+# Version resolution order:
+#   1. MORPHIR_VERSION environment variable
+#   2. .morphir-version file (in project root or .config/)
+#   3. DEFAULT_MORPHIR_VERSION (built into this script)
+#
+# The binary is cached at ~/.cache/morphir/download/<version>/morphir-<platform>
+# and only downloaded once per version+platform combination.
+#
+# Usage:
+#   ./morphir make
+#   ./morphir --version
+#   MORPHIR_VERSION=2.100.0 ./morphir make
+
+set -e
+
+if [ -z "${DEFAULT_MORPHIR_VERSION}" ] ; then DEFAULT_MORPHIR_VERSION="2.100.0"; fi
+
+if [ -z "${GITHUB_RELEASE_CDN}" ] ; then GITHUB_RELEASE_CDN=""; fi
+
+MORPHIR_REPO="finos/morphir-elm"
+MORPHIR_REPO_URL="https://github.com/${MORPHIR_REPO}"
+
+# --- Version resolution ---
+
+if [ -z "${MORPHIR_VERSION}" ] ; then
+  if [ -f ".morphir-version" ] ; then
+    MORPHIR_VERSION="$(tr '\r' '\n' < .morphir-version | head -n 1 2> /dev/null)"
+  elif [ -f ".config/morphir-version" ] ; then
+    MORPHIR_VERSION="$(tr '\r' '\n' < .config/morphir-version | head -n 1 2> /dev/null)"
+  fi
+fi
+
+if [ -z "${MORPHIR_VERSION}" ] ; then MORPHIR_VERSION="${DEFAULT_MORPHIR_VERSION}"; fi
+
+# --- Platform detection ---
+
+detect_platform() {
+  _os="$(uname -s)"
+  _arch="$(uname -m)"
+
+  case "$_os" in
+    Linux)   _os="linux" ;;
+    Darwin)  _os="darwin" ;;
+    CYGWIN*|MINGW*|MSYS*)
+      _os="windows"
+      ;;
+    *)
+      echo "Error: Unsupported OS: $_os" 1>&2
+      exit 1
+      ;;
+  esac
+
+  case "$_arch" in
+    x86_64|amd64)    _arch="amd64" ;;
+    aarch64|arm64)   _arch="arm64" ;;
+    *)
+      echo "Error: Unsupported architecture: $_arch" 1>&2
+      exit 1
+      ;;
+  esac
+
+  echo "${_os}-${_arch}"
+}
+
+PLATFORM="$(detect_platform)"
+
+case "$PLATFORM" in
+  windows-*) BINARY_NAME="morphir-${PLATFORM}.exe" ;;
+  *)         BINARY_NAME="morphir-${PLATFORM}" ;;
+esac
+
+# --- Cache directory ---
+
+MORPHIR_USER_CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/morphir"
+
+if [ -z "${MORPHIR_DOWNLOAD_DIR}" ] ; then
+  MORPHIR_DOWNLOAD_DIR="${MORPHIR_USER_CACHE_DIR}/download/${MORPHIR_VERSION}"
+fi
+
+MORPHIR="${MORPHIR_DOWNLOAD_DIR}/${BINARY_NAME}"
+
+# --- Download if needed ---
+
+if [ ! -x "${MORPHIR}" ] ; then
+  # Strip leading 'v' for tag if present, add it for the download URL tag
+  case "$MORPHIR_VERSION" in
+    v*) MORPHIR_TAG="${MORPHIR_VERSION}" ;;
+    *)  MORPHIR_TAG="v${MORPHIR_VERSION}" ;;
+  esac
+
+  MORPHIR_DOWNLOAD_URL="${GITHUB_RELEASE_CDN}${MORPHIR_REPO_URL}/releases/download/${MORPHIR_TAG}/${BINARY_NAME}"
+
+  echo "Downloading morphir ${MORPHIR_VERSION} for ${PLATFORM}..." 1>&2
+  echo "  ${MORPHIR_DOWNLOAD_URL}" 1>&2
+
+  MORPHIR_TEMP_FILE="${MORPHIR_DOWNLOAD_DIR}/morphir-download.tmp"
+  mkdir -p "${MORPHIR_DOWNLOAD_DIR}"
+
+  if command -v curl > /dev/null 2>&1 ; then
+    curl -f -L -o "${MORPHIR_TEMP_FILE}" "${MORPHIR_DOWNLOAD_URL}"
+  elif command -v wget > /dev/null 2>&1 ; then
+    wget -q -O "${MORPHIR_TEMP_FILE}" "${MORPHIR_DOWNLOAD_URL}"
+  else
+    echo "Error: Neither curl nor wget found. Install one to download morphir." 1>&2
+    exit 1
+  fi
+
+  chmod +x "${MORPHIR_TEMP_FILE}"
+  mv "${MORPHIR_TEMP_FILE}" "${MORPHIR}"
+
+  echo "Cached morphir ${MORPHIR_VERSION} at ${MORPHIR}" 1>&2
+fi
+
+# --- Execute ---
+
+exec "${MORPHIR}" "$@"
