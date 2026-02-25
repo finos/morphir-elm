@@ -4,7 +4,7 @@
 
 **Goal:** Expose the Morphir interpreter as a WebAssembly Component Model component using ComponentizeJS.
 
-**Architecture:** Compile the existing Elm interpreter to JS, wrap it with a thin JS glue layer that implements WIT-exported functions, then use `jco componentize` to produce a `.wasm` component and `jco transpile` for browser output.
+**Architecture:** Compile the existing Elm interpreter to JS, wrap it with a thin JS glue layer that implements WIT-exported functions, then use `jco componentize` to produce a `.wasm` component and `jco transpile` for browser output. The WIT interface uses typed values (index-based flat tree) instead of JSON strings.
 
 **Tech Stack:** Elm 0.19.1, ComponentizeJS (`@bytecodealliance/jco`), WIT (Component Model IDL), Bun (task runner), mise (build orchestration)
 
@@ -66,16 +66,62 @@ git commit -m "Add morphir-interpreter-wasm package scaffolding"
 package morphir:interpreter;
 
 interface types {
+    record fq-name {
+        package-path: string,
+        module-path: string,
+        local-name: string,
+    }
+
+    record morphir-value {
+        root: u32,
+        nodes: list<morphir-node>,
+    }
+
+    variant morphir-node {
+        bool-val(bool),
+        int-val(s64),
+        float-val(f64),
+        string-val(string),
+        decimal-val(string),
+        char-val(char),
+        list-val(list<u32>),
+        tuple-val(list<u32>),
+        record-val(list<field-ref>),
+        constructor-val(constructor-ref),
+        unit-val,
+    }
+
+    record field-ref {
+        name: string,
+        value: u32,
+    }
+
+    record constructor-ref {
+        fqn: fq-name,
+        args: list<u32>,
+    }
+
+    variant eval-error {
+        invalid-ir(string),
+        reference-not-found(fq-name),
+        argument-error(string),
+        pattern-mismatch(string),
+        type-error(string),
+        variable-not-found(string),
+        other(string),
+    }
+
     resource ir-store {
         constructor(ir-json: string, uri: option<string>);
         uri: func() -> string;
-        evaluate: func(fqn: string, args: list<string>) -> result<string, string>;
-        reload: func(ir-json: string) -> result<_, string>;
+        evaluate: func(fqn: fq-name, args: list<morphir-value>) -> result<morphir-value, eval-error>;
+        reload: func(ir-json: string) -> result<_, eval-error>;
     }
 }
 
 interface eval {
-    evaluate: func(ir-json: string, fqn: string, args: list<string>) -> result<string, string>;
+    use types.{fq-name, morphir-value, eval-error};
+    evaluate: func(ir-json: string, fqn: fq-name, args: list<morphir-value>) -> result<morphir-value, eval-error>;
 }
 
 world interpreter {
@@ -99,7 +145,7 @@ git commit -m "Add WIT interface definition for morphir interpreter"
 - Create: `packages/morphir-interpreter-wasm/elm.json`
 - Create: `packages/morphir-interpreter-wasm/src/Morphir/Interpreter/Worker.elm`
 
-The Elm module is a `Platform.worker` that uses ports to communicate with the JS glue layer. It receives commands (load IR, evaluate) via inbound ports and sends results via outbound ports.
+The Elm module is a `Platform.worker` that uses ports to communicate with the JS glue layer. It receives commands (load IR, evaluate) via inbound ports and sends results via outbound ports. The JS glue handles conversion between WIT typed values and JSON — the Elm side works with standard JSON-encoded Morphir values.
 
 **Step 1: Create elm.json**
 
@@ -129,8 +175,7 @@ import Morphir.IR.Name as Name
 import Morphir.IR.Path as Path
 import Morphir.IR.SDK as SDK
 import Morphir.IR.Value as Value
-import Morphir.IR.Value.Codec as ValueCodec
-import Morphir.Value.Error exposing (Error)
+import Morphir.Value.Error exposing (Error(..))
 import Morphir.Value.Interpreter as Interpreter
 
 
@@ -194,19 +239,19 @@ update msg model =
 
                         Err err ->
                             ( model
-                            , loadIRResult (encodeErr (Decode.errorToString err))
+                            , loadIRResult (encodeEvalError "invalid-ir" (Decode.errorToString err))
                             )
 
                 Err err ->
                     ( model
-                    , loadIRResult (encodeErr (Decode.errorToString err))
+                    , loadIRResult (encodeEvalError "invalid-ir" (Decode.errorToString err))
                     )
 
         EvaluateFunction jsonValue ->
             case model.distribution of
                 Nothing ->
                     ( model
-                    , evaluateFunctionResult (encodeErr "No IR loaded")
+                    , evaluateFunctionResult (encodeEvalError "other" "No IR loaded")
                     )
 
                 Just dist ->
@@ -223,19 +268,17 @@ update msg model =
                             case result of
                                 Ok value ->
                                     ( model
-                                    , evaluateFunctionResult
-                                        (encodeOk (ValueCodec.encodeValue (\_ -> Encode.null) (\_ -> Encode.null) value))
+                                    , evaluateFunctionResult (encodeOk (encodeRawValue value))
                                     )
 
                                 Err error ->
                                     ( model
-                                    , evaluateFunctionResult
-                                        (encodeErr (errorToString error))
+                                    , evaluateFunctionResult (encodeError error)
                                     )
 
                         Err err ->
                             ( model
-                            , evaluateFunctionResult (encodeErr (Decode.errorToString err))
+                            , evaluateFunctionResult (encodeEvalError "argument-error" (Decode.errorToString err))
                             )
 
 
@@ -262,7 +305,7 @@ main =
         }
 
 
--- HELPERS
+-- DECODERS
 
 
 decodeLoadRequest : Decoder ( String, String )
@@ -276,61 +319,136 @@ decodeEvalRequest : Decoder ( FQName, List Value.RawValue )
 decodeEvalRequest =
     Decode.map2 Tuple.pair
         (Decode.field "fqn" decodeFQN)
-        (Decode.field "args" (Decode.list decodeArg))
+        (Decode.field "args" (Decode.list decodeRawValue))
 
 
 decodeFQN : Decoder FQName
 decodeFQN =
-    Decode.string
-        |> Decode.andThen
-            (\s ->
-                case String.split ":" s of
-                    [ pkg, mod, name ] ->
-                        Decode.succeed
-                            ( pkg |> String.split "." |> List.map Name.fromString |> Path.fromList
-                            , mod |> String.split "." |> List.map Name.fromString |> Path.fromList
-                            , Name.fromString name
-                            )
-
-                    _ ->
-                        Decode.fail ("Invalid FQN format, expected 'Package:Module:name', got: " ++ s)
-            )
+    Decode.map3
+        (\pkg mod name -> ( pkg, mod, name ))
+        (Decode.field "packagePath" (Decode.string |> Decode.map parsePath))
+        (Decode.field "modulePath" (Decode.string |> Decode.map parsePath))
+        (Decode.field "localName" (Decode.string |> Decode.map Name.fromString))
 
 
-decodeArg : Decoder Value.RawValue
-decodeArg =
-    Decode.string
-        |> Decode.andThen
-            (\jsonStr ->
-                case Decode.decodeString (ValueCodec.decodeValue (Decode.succeed ()) (Decode.succeed ())) jsonStr of
-                    Ok val ->
-                        Decode.succeed val
+parsePath : String -> List Name.Name
+parsePath s =
+    s |> String.split "." |> List.map Name.fromString |> Path.fromList
 
-                    Err err ->
-                        Decode.fail (Decode.errorToString err)
-            )
+
+{- Decode a RawValue from JSON. The JS glue converts the flat indexed
+   morphir-value into nested JSON matching the Morphir IR value codec format
+   before sending it through the port.
+-}
+decodeRawValue : Decoder Value.RawValue
+decodeRawValue =
+    Decode.lazy (\_ -> decodeRawValueHelp)
+
+
+decodeRawValueHelp : Decoder Value.RawValue
+decodeRawValueHelp =
+    -- Use the existing IR value codec format. The JS glue inflates the
+    -- flat indexed morphir-value into this nested JSON structure.
+    -- Implementation note: check what Morphir.IR.Value.Codec exposes.
+    -- If no standalone decoder exists, build one matching the JSON format
+    -- used by the Distribution codec for values.
+    Decode.fail "TODO: wire up to existing Value codec or implement"
+
+
+-- ENCODERS
+
+
+encodeRawValue : Value.RawValue -> Encode.Value
+encodeRawValue value =
+    -- Encode to the nested JSON format. The JS glue will flatten this
+    -- into the indexed morphir-value representation for WIT.
+    -- Implementation note: check what Morphir.IR.Value.Codec exposes.
+    Encode.null
+
+
+encodeFQN : FQName -> Encode.Value
+encodeFQN ( pkg, mod, name ) =
+    Encode.object
+        [ ( "packagePath", Encode.string (pkg |> List.map Name.toTitleCase |> String.join ".") )
+        , ( "modulePath", Encode.string (mod |> List.map Name.toTitleCase |> String.join ".") )
+        , ( "localName", Encode.string (Name.toCamelCase name) )
+        ]
 
 
 encodeOk : Encode.Value -> Encode.Value
 encodeOk value =
-    Encode.object [ ( "ok", value ) ]
+    Encode.object
+        [ ( "tag", Encode.string "ok" )
+        , ( "value", value )
+        ]
 
 
-encodeErr : String -> Encode.Value
-encodeErr message =
-    Encode.object [ ( "err", Encode.string message ) ]
+encodeEvalError : String -> String -> Encode.Value
+encodeEvalError variant message =
+    Encode.object
+        [ ( "tag", Encode.string "err" )
+        , ( "variant", Encode.string variant )
+        , ( "message", Encode.string message )
+        ]
+
+
+encodeEvalErrorWithFQN : String -> FQName -> Encode.Value
+encodeEvalErrorWithFQN variant fqn =
+    Encode.object
+        [ ( "tag", Encode.string "err" )
+        , ( "variant", Encode.string variant )
+        , ( "fqn", encodeFQN fqn )
+        ]
+
+
+encodeError : Error -> Encode.Value
+encodeError error =
+    case error of
+        VariableNotFound name ->
+            encodeEvalError "variable-not-found" (Name.toCamelCase name)
+
+        ReferenceNotFound fqn ->
+            encodeEvalErrorWithFQN "reference-not-found" fqn
+
+        NoArgumentToPassToLambda ->
+            encodeEvalError "argument-error" "No argument to pass to lambda"
+
+        LambdaArgumentDidNotMatch _ _ ->
+            encodeEvalError "pattern-mismatch" "Lambda argument did not match pattern"
+
+        BindPatternDidNotMatch _ _ ->
+            encodeEvalError "pattern-mismatch" "Bind pattern did not match"
+
+        _ ->
+            encodeEvalError "other" ("Evaluation error: " ++ errorToString error)
 
 
 errorToString : Error -> String
 errorToString error =
-    -- Use Debug.toString for now; can be refined later
-    "Evaluation error: " ++ Debug.toString error
+    -- Manual error stringification (Debug.toString won't work in --optimize)
+    case error of
+        VariableNotFound name ->
+            "Variable not found: " ++ Name.toCamelCase name
+
+        ReferenceNotFound ( pkg, mod, name ) ->
+            "Reference not found: "
+                ++ (pkg |> List.map Name.toTitleCase |> String.join ".")
+                ++ ":"
+                ++ (mod |> List.map Name.toTitleCase |> String.join ".")
+                ++ ":"
+                ++ Name.toCamelCase name
+
+        NoArgumentToPassToLambda ->
+            "No argument to pass to lambda"
+
+        _ ->
+            "Unknown evaluation error"
 ```
 
 **Important notes for the implementer:**
-- The `ValueCodec` module path may need adjustment. Check what's exposed: `grep -r "module Morphir.IR.Value.Codec" src/` — if it doesn't exist, use `Morphir.IR.Value` which has `Value.toString` for a simpler string encoding, or encode as JSON via the Distribution codecs.
-- `Debug.toString` won't work in `--optimize` builds. Replace with a manual error-to-string function or use the non-optimized build initially.
-- The `evaluateFunctionValue` takes `List (Maybe RawValue)` — wrapping args in `Just` is correct for providing all arguments.
+- The `decodeRawValue` and `encodeRawValue` functions are stubs. Check what `src/Morphir/IR/Value/Codec.elm` exports. If it doesn't exist as a standalone module, look at how `Morphir.IR.Distribution.Codec` handles value encoding/decoding and extract the relevant parts. The JSON format must match what the JS glue produces/consumes.
+- The `Error` type has many variants. The `encodeError` function covers the common ones; add cases as needed by reading `src/Morphir/Value/Error.elm`.
+- `Debug.toString` is intentionally avoided — it doesn't work with `--optimize`.
 
 **Step 3: Verify it compiles**
 
@@ -351,7 +469,9 @@ git commit -m "Add Elm Worker entry point for WASM interpreter"
 **Files:**
 - Create: `packages/morphir-interpreter-wasm/src/interpreter.js`
 
-The JS file implements the WIT exports by bridging to the compiled Elm module. It initializes Elm app instances and communicates via ports.
+The JS file implements the WIT exports by bridging to the compiled Elm module. It handles two key conversions:
+1. **`fq-name`** (WIT record) ↔ JSON object (for Elm ports)
+2. **`morphir-value`** (WIT flat indexed tree) ↔ nested JSON (for Elm's value codec)
 
 **Step 1: Write interpreter.js**
 
@@ -361,10 +481,178 @@ The JS file implements the WIT exports by bridging to the compiled Elm module. I
 // ComponentizeJS bundles this at componentize time
 import { Elm } from "../build/Morphir.Interpreter.js";
 
+// -- morphir-value conversion utilities --
+
 /**
- * Helper: create an Elm app instance and set up synchronous port communication.
- * ComponentizeJS runs inside SpiderMonkey which handles the sync/async bridge.
+ * Convert a WIT morphir-value (flat indexed tree) to nested JSON
+ * matching Morphir's IR value codec format for Elm consumption.
  */
+function morphirValueToJson(morphirValue) {
+  const { root, nodes } = morphirValue;
+
+  function inflate(index) {
+    const node = nodes[index];
+    // node is a WIT variant: { tag: string, val: ... }
+    switch (node.tag) {
+      case "bool-val":
+        return ["literal", [null], ["bool_literal", node.val]];
+      case "int-val":
+        return ["literal", [null], ["int_literal", Number(node.val)]];
+      case "float-val":
+        return ["literal", [null], ["float_literal", node.val]];
+      case "string-val":
+        return ["literal", [null], ["string_literal", node.val]];
+      case "decimal-val":
+        return ["literal", [null], ["decimal_literal", node.val]];
+      case "char-val":
+        return ["literal", [null], ["char_literal", node.val]];
+      case "list-val":
+        return ["list", [null], node.val.map((i) => inflate(i))];
+      case "tuple-val":
+        return ["tuple", [null], node.val.map((i) => inflate(i))];
+      case "record-val":
+        return [
+          "record",
+          [null],
+          Object.fromEntries(
+            node.val.map((f) => [f.name, inflate(f.value)])
+          ),
+        ];
+      case "constructor-val": {
+        const { fqn, args } = node.val;
+        const fqnArray = [
+          fqn["package-path"].split(".").map((s) => s.split(/(?=[A-Z])/)),
+          fqn["module-path"].split(".").map((s) => s.split(/(?=[A-Z])/)),
+          fqn["local-name"].split(/(?=[A-Z])/),
+        ];
+        return [
+          "constructor",
+          [null],
+          fqnArray,
+          ...args.map((i) => inflate(i)),
+        ];
+      }
+      case "unit-val":
+        return ["unit", [null]];
+      default:
+        throw new Error(`Unknown morphir-node tag: ${node.tag}`);
+    }
+  }
+
+  return inflate(root);
+}
+
+/**
+ * Convert nested Morphir IR value JSON to a WIT morphir-value (flat indexed tree).
+ */
+function jsonToMorphirValue(json) {
+  const nodes = [];
+
+  function flatten(value) {
+    const index = nodes.length;
+    nodes.push(null); // placeholder
+
+    const tag = value[0];
+    let node;
+
+    switch (tag) {
+      case "literal": {
+        const lit = value[2];
+        const [litType, litVal] = lit;
+        switch (litType) {
+          case "bool_literal":
+            node = { tag: "bool-val", val: litVal };
+            break;
+          case "int_literal":
+            node = { tag: "int-val", val: BigInt(litVal) };
+            break;
+          case "float_literal":
+            node = { tag: "float-val", val: litVal };
+            break;
+          case "string_literal":
+            node = { tag: "string-val", val: litVal };
+            break;
+          case "decimal_literal":
+            node = { tag: "decimal-val", val: String(litVal) };
+            break;
+          case "char_literal":
+            node = { tag: "char-val", val: litVal };
+            break;
+          default:
+            throw new Error(`Unknown literal type: ${litType}`);
+        }
+        break;
+      }
+      case "list":
+        node = { tag: "list-val", val: value[2].map((v) => flatten(v)) };
+        break;
+      case "tuple":
+        node = { tag: "tuple-val", val: value[2].map((v) => flatten(v)) };
+        break;
+      case "record":
+        node = {
+          tag: "record-val",
+          val: Object.entries(value[2]).map(([name, v]) => ({
+            name,
+            value: flatten(v),
+          })),
+        };
+        break;
+      case "constructor": {
+        const fqnArray = value[2];
+        const args = value.slice(3).map((v) => flatten(v));
+        node = {
+          tag: "constructor-val",
+          val: {
+            fqn: {
+              "package-path": fqnArray[0].map((n) => n.join("")).join("."),
+              "module-path": fqnArray[1].map((n) => n.join("")).join("."),
+              "local-name": fqnArray[2].join(""),
+            },
+            args,
+          },
+        };
+        break;
+      }
+      case "unit":
+        node = { tag: "unit-val" };
+        break;
+      default:
+        throw new Error(`Unknown value tag: ${tag}`);
+    }
+
+    nodes[index] = node;
+    return index;
+  }
+
+  const root = flatten(json);
+  return { root, nodes };
+}
+
+/**
+ * Convert a WIT fq-name record to the JSON format Elm expects.
+ */
+function fqNameToJson(fqName) {
+  return {
+    packagePath: fqName["package-path"],
+    modulePath: fqName["module-path"],
+    localName: fqName["local-name"],
+  };
+}
+
+/**
+ * Convert Elm JSON fq-name to WIT fq-name record.
+ */
+function jsonToFqName(json) {
+  return {
+    "package-path": json.packagePath,
+    "module-path": json.modulePath,
+    "local-name": json.localName,
+  };
+}
+
+// -- Elm app management --
+
 function createApp() {
   const app = Elm.Morphir.Interpreter.Worker.init();
   let lastResult = null;
@@ -390,33 +678,46 @@ function createApp() {
   return { app, sendAndReceive };
 }
 
-function unwrapResult(result) {
-  if (result.ok !== undefined) {
-    return { tag: "ok", val: JSON.stringify(result.ok) };
+/**
+ * Convert Elm result JSON to WIT result with typed morphir-value and eval-error.
+ */
+function toWitResult(elmResult) {
+  if (elmResult.tag === "ok") {
+    return { tag: "ok", val: jsonToMorphirValue(elmResult.value) };
   } else {
-    return { tag: "err", val: result.err };
+    return { tag: "err", val: toWitEvalError(elmResult) };
   }
+}
+
+function toWitEvalError(elmError) {
+  const variant = elmError.variant || "other";
+  if (elmError.fqn) {
+    return { tag: variant, val: jsonToFqName(elmError.fqn) };
+  }
+  return { tag: variant, val: elmError.message || "Unknown error" };
 }
 
 // -- WIT: eval interface --
 
 export const eval_ = {
-  evaluate(irJson, fqn, args) {
+  evaluate(irJson, fqName, args) {
     const { app, sendAndReceive } = createApp();
     // Load IR
     const loadResult = sendAndReceive(app.ports.loadIR, {
       irJson,
       uri: "one-shot",
     });
-    if (loadResult.err !== undefined) {
-      return { tag: "err", val: loadResult.err };
+    if (loadResult.tag !== "ok") {
+      return { tag: "err", val: toWitEvalError(loadResult) };
     }
+    // Convert typed args to JSON for Elm
+    const jsonArgs = args.map((a) => morphirValueToJson(a));
     // Evaluate
     const evalResult = sendAndReceive(app.ports.evaluateFunction, {
-      fqn,
-      args,
+      fqn: fqNameToJson(fqName),
+      args: jsonArgs,
     });
-    return unwrapResult(evalResult);
+    return toWitResult(evalResult);
   },
 };
 
@@ -440,8 +741,8 @@ export const types = {
         irJson,
         uri: this.#uri,
       });
-      if (result.err !== undefined) {
-        throw new Error(result.err);
+      if (result.tag !== "ok") {
+        throw new Error(result.message || "Failed to load IR");
       }
     }
 
@@ -449,12 +750,13 @@ export const types = {
       return this.#uri;
     }
 
-    evaluate(fqn, args) {
+    evaluate(fqName, args) {
+      const jsonArgs = args.map((a) => morphirValueToJson(a));
       const result = this.#sendAndReceive(this.#app.ports.evaluateFunction, {
-        fqn,
-        args,
+        fqn: fqNameToJson(fqName),
+        args: jsonArgs,
       });
-      return unwrapResult(result);
+      return toWitResult(result);
     }
 
     reload(irJson) {
@@ -462,8 +764,8 @@ export const types = {
         irJson,
         uri: this.#uri,
       });
-      if (result.err !== undefined) {
-        return { tag: "err", val: result.err };
+      if (result.tag !== "ok") {
+        return { tag: "err", val: toWitEvalError(result) };
       }
       return { tag: "ok" };
     }
@@ -472,15 +774,16 @@ export const types = {
 ```
 
 **Important notes for the implementer:**
-- The `eval` export name is a JS reserved word. `jco` may require `eval_` or a different export name. Check `jco componentize` docs. If it maps WIT `eval` interface to a JS export name, use whatever convention `jco` expects.
-- The synchronous port communication assumption needs validation. If Elm ports don't fire synchronously in SpiderMonkey, we may need to use `async`/`await` or a different pattern. Test this in Task 6.
+- The Morphir IR JSON value format (`["literal", [null], ["int_literal", 2]]`, etc.) must be verified against the actual codec. Check `src/Morphir/IR/Value/Codec.elm` and `src/Morphir/IR/Literal/Codec.elm`. The conversion functions may need adjustment to match the real format.
+- The `eval` export name is a JS reserved word. `jco` may require `eval_` or handle the mapping automatically. Check `jco componentize` docs for how it maps WIT interface names to JS exports.
+- The synchronous port communication assumption needs validation in Task 6. If Elm ports don't fire synchronously in SpiderMonkey, use `async`/`await` with ComponentizeJS `--async` flag.
 - The `import` path `../build/Morphir.Interpreter.js` is resolved at componentize time, not runtime.
 
 **Step 2: Commit**
 
 ```bash
 git add packages/morphir-interpreter-wasm/src/interpreter.js
-git commit -m "Add JS glue layer bridging WIT exports to Elm ports"
+git commit -m "Add JS glue layer with morphir-value conversion"
 ```
 
 ---
@@ -595,7 +898,7 @@ Expected: `packages/morphir-interpreter-wasm/build/browser/` contains ESM files.
 
 Run: `npx jco inspect packages/morphir-interpreter-wasm/build/interpreter.wasm`
 
-Expected: Shows exported `eval` and `types` interfaces matching the WIT definition.
+Expected: Shows exported `eval` and `types` interfaces with `fq-name`, `morphir-value`, `morphir-node`, `eval-error` types.
 
 **Step 4: Commit any fixes**
 
@@ -643,13 +946,12 @@ isPositive n =
 
 **Step 2: Compile the test fixture IR**
 
-Run: `cd packages/morphir-interpreter-wasm/test/fixtures && npx morphir-elm make`
-Expected: `morphir-ir.json` is generated
-
-**Note:** You'll need to use the project's own CLI to compile this. Run from the repo root:
+Run from repo root:
 ```bash
 node packages/cli/morphir-elm-make.js -p packages/morphir-interpreter-wasm/test/fixtures -o packages/morphir-interpreter-wasm/test/fixtures/morphir-ir.json
 ```
+
+Expected: `morphir-ir.json` is generated
 
 **Step 3: Commit fixture (including the generated morphir-ir.json)**
 
@@ -665,6 +967,8 @@ git commit -m "Add test fixture for WASM interpreter integration tests"
 **Files:**
 - Create: `packages/morphir-interpreter-wasm/test/interpreter.test.js`
 
+Tests use the WIT typed values — no JSON strings in the test API.
+
 **Step 1: Write tests**
 
 ```js
@@ -673,8 +977,31 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 // Import from the jco-transpiled browser output for testing
-// (Wasmtime testing requires a separate harness)
 const componentPath = join(import.meta.dir, "../build/browser/interpreter.js");
+
+// -- Test helpers for building morphir-values --
+
+function intVal(n) {
+  return { root: 0, nodes: [{ tag: "int-val", val: BigInt(n) }] };
+}
+
+function boolVal(b) {
+  return { root: 0, nodes: [{ tag: "bool-val", val: b }] };
+}
+
+function stringVal(s) {
+  return { root: 0, nodes: [{ tag: "string-val", val: s }] };
+}
+
+function fqn(pkg, mod, name) {
+  return {
+    "package-path": pkg,
+    "module-path": mod,
+    "local-name": name,
+  };
+}
+
+// -- Tests --
 
 describe("morphir interpreter wasm component", () => {
   let component;
@@ -692,60 +1019,89 @@ describe("morphir interpreter wasm component", () => {
     test("evaluates addInts(2, 3) = 5", () => {
       const result = component.eval.evaluate(
         fixtureIR,
-        "TestModel:Basic:addInts",
-        [JSON.stringify(["int_literal_value", 2]), JSON.stringify(["int_literal_value", 3])]
+        fqn("TestModel", "Basic", "addInts"),
+        [intVal(2), intVal(3)]
       );
       expect(result.tag).toBe("ok");
-      // Parse and verify the result contains 5
-      const value = JSON.parse(result.val);
-      expect(value).toContain(5);
+      const resultNode = result.val.nodes[result.val.root];
+      expect(resultNode.tag).toBe("int-val");
+      expect(resultNode.val).toBe(5n);
     });
 
-    test("returns error for unknown function", () => {
+    test("evaluates isPositive(42) = true", () => {
       const result = component.eval.evaluate(
         fixtureIR,
-        "TestModel:Basic:nonExistent",
-        []
+        fqn("TestModel", "Basic", "isPositive"),
+        [intVal(42)]
       );
-      expect(result.tag).toBe("err");
+      expect(result.tag).toBe("ok");
+      const resultNode = result.val.nodes[result.val.root];
+      expect(resultNode.tag).toBe("bool-val");
+      expect(resultNode.val).toBe(true);
     });
 
-    test("returns error for invalid IR JSON", () => {
+    test("evaluates isPositive(-1) = false", () => {
       const result = component.eval.evaluate(
-        "not valid json",
-        "TestModel:Basic:addInts",
+        fixtureIR,
+        fqn("TestModel", "Basic", "isPositive"),
+        [intVal(-1)]
+      );
+      expect(result.tag).toBe("ok");
+      const resultNode = result.val.nodes[result.val.root];
+      expect(resultNode.tag).toBe("bool-val");
+      expect(resultNode.val).toBe(false);
+    });
+
+    test("returns reference-not-found for unknown function", () => {
+      const result = component.eval.evaluate(
+        fixtureIR,
+        fqn("TestModel", "Basic", "nonExistent"),
         []
       );
       expect(result.tag).toBe("err");
+      expect(result.val.tag).toBe("reference-not-found");
+    });
+
+    test("returns invalid-ir for bad JSON", () => {
+      const result = component.eval.evaluate(
+        "not valid json",
+        fqn("TestModel", "Basic", "addInts"),
+        []
+      );
+      expect(result.tag).toBe("err");
+      expect(result.val.tag).toBe("invalid-ir");
     });
   });
 
   describe("types.IrStore (stateful)", () => {
-    test("creates store and evaluates", () => {
+    test("creates store with explicit URI and evaluates", () => {
       const store = new component.types.IrStore(fixtureIR, "test-model");
       expect(store.uri()).toBe("test-model");
 
       const result = store.evaluate(
-        "TestModel:Basic:isPositive",
-        [JSON.stringify(["int_literal_value", 42])]
+        fqn("TestModel", "Basic", "addInts"),
+        [intVal(10), intVal(20)]
       );
       expect(result.tag).toBe("ok");
+      const resultNode = result.val.nodes[result.val.root];
+      expect(resultNode.tag).toBe("int-val");
+      expect(resultNode.val).toBe(30n);
     });
 
     test("creates store with default URI", () => {
       const store = new component.types.IrStore(fixtureIR, undefined);
       expect(store.uri()).toBeTruthy();
+      expect(typeof store.uri()).toBe("string");
     });
 
-    test("reload replaces IR", () => {
+    test("reload replaces IR and still works", () => {
       const store = new component.types.IrStore(fixtureIR, "reloadable");
       const reloadResult = store.reload(fixtureIR);
       expect(reloadResult.tag).toBe("ok");
 
-      // Should still work after reload
       const result = store.evaluate(
-        "TestModel:Basic:addInts",
-        [JSON.stringify(["int_literal_value", 1]), JSON.stringify(["int_literal_value", 1])]
+        fqn("TestModel", "Basic", "addInts"),
+        [intVal(1), intVal(1)]
       );
       expect(result.tag).toBe("ok");
     });
@@ -754,20 +1110,30 @@ describe("morphir interpreter wasm component", () => {
       const store = new component.types.IrStore(fixtureIR, null);
       for (let i = 0; i < 5; i++) {
         const result = store.evaluate(
-          "TestModel:Basic:addInts",
-          [JSON.stringify(["int_literal_value", i]), JSON.stringify(["int_literal_value", 1])]
+          fqn("TestModel", "Basic", "addInts"),
+          [intVal(i), intVal(1)]
         );
         expect(result.tag).toBe("ok");
+        const resultNode = result.val.nodes[result.val.root];
+        expect(resultNode.tag).toBe("int-val");
+        expect(resultNode.val).toBe(BigInt(i + 1));
       }
+    });
+
+    test("returns error for invalid IR on reload", () => {
+      const store = new component.types.IrStore(fixtureIR, "bad-reload");
+      const result = store.reload("garbage json");
+      expect(result.tag).toBe("err");
+      expect(result.val.tag).toBe("invalid-ir");
     });
   });
 });
 ```
 
 **Important notes for the implementer:**
-- The exact JSON encoding of Morphir values (e.g., `["int_literal_value", 2]`) needs to match what `ValueCodec.decodeValue` expects. Check `src/Morphir/IR/Value/Codec.elm` or `src/Morphir/IR/Literal/Codec.elm` for the actual format. Adjust test data accordingly.
-- The import path for the browser output may vary. Check what `jco transpile` actually generates.
-- If the component exports use different names (e.g., `eval_` instead of `eval`), adjust the test imports.
+- The exact WIT variant JS representation (`{ tag: "int-val", val: 5n }`) depends on how `jco transpile` maps WIT types to JS. Check the generated typings. BigInt (`5n`) is used for `s64`.
+- The `fq-name` field names in JS may be camelCased by `jco` (e.g., `packagePath` instead of `package-path`). Check the generated bindings and adjust helpers.
+- If the component exports use `eval_` instead of `eval`, adjust the test imports.
 
 **Step 2: Run tests**
 
@@ -841,7 +1207,7 @@ Expected: All tests pass
 **Step 3: Inspect the WASM component**
 
 Run: `npx jco inspect packages/morphir-interpreter-wasm/build/interpreter.wasm`
-Expected: Shows `morphir:interpreter/eval` and `morphir:interpreter/types` exports
+Expected: Shows `morphir:interpreter/eval` and `morphir:interpreter/types` exports with typed `morphir-value`, `fq-name`, and `eval-error`.
 
 **Step 4: Verify existing project tests still pass**
 

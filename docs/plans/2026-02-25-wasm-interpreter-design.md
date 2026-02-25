@@ -22,16 +22,62 @@ Two build outputs:
 package morphir:interpreter;
 
 interface types {
+    record fq-name {
+        package-path: string,
+        module-path: string,
+        local-name: string,
+    }
+
+    record morphir-value {
+        root: u32,
+        nodes: list<morphir-node>,
+    }
+
+    variant morphir-node {
+        bool-val(bool),
+        int-val(s64),
+        float-val(f64),
+        string-val(string),
+        decimal-val(string),
+        char-val(char),
+        list-val(list<u32>),
+        tuple-val(list<u32>),
+        record-val(list<field-ref>),
+        constructor-val(constructor-ref),
+        unit-val,
+    }
+
+    record field-ref {
+        name: string,
+        value: u32,
+    }
+
+    record constructor-ref {
+        fqn: fq-name,
+        args: list<u32>,
+    }
+
+    variant eval-error {
+        invalid-ir(string),
+        reference-not-found(fq-name),
+        argument-error(string),
+        pattern-mismatch(string),
+        type-error(string),
+        variable-not-found(string),
+        other(string),
+    }
+
     resource ir-store {
         constructor(ir-json: string, uri: option<string>);
         uri: func() -> string;
-        evaluate: func(fqn: string, args: list<string>) -> result<string, string>;
-        reload: func(ir-json: string) -> result<_, string>;
+        evaluate: func(fqn: fq-name, args: list<morphir-value>) -> result<morphir-value, eval-error>;
+        reload: func(ir-json: string) -> result<_, eval-error>;
     }
 }
 
 interface eval {
-    evaluate: func(ir-json: string, fqn: string, args: list<string>) -> result<string, string>;
+    use types.{fq-name, morphir-value, eval-error};
+    evaluate: func(ir-json: string, fqn: fq-name, args: list<morphir-value>) -> result<morphir-value, eval-error>;
 }
 
 world interpreter {
@@ -45,7 +91,14 @@ world interpreter {
 - **`eval.evaluate`**: Stateless one-shot. Parses IR, evaluates function, returns result. Simple but re-parses IR every call.
 - **`types.ir-store`**: Stateful resource. Load IR once (with optional URI identifier), evaluate many times. `reload` replaces the IR without creating a new handle. Dropping the handle triggers Component Model destructor for cleanup.
 - **`uri`**: Optional identifier for the IR. If omitted, the component assigns a default. Useful when hosts manage multiple IRs.
-- **Data format**: All arguments and return values are JSON-encoded strings. FQN is colon-separated (e.g., `Morphir.SDK:Basics:add`).
+
+### Data types
+
+- **`fq-name`**: Fully qualified name with dot-separated paths (e.g., `{ package-path: "Morphir.SDK", module-path: "Basics", local-name: "add" }`).
+- **`morphir-value`**: Index-based flat tree representation. WIT doesn't support recursive types, so the tree is flattened: `root` is the index of the top-level node, `nodes` is a flat list where children reference other nodes by index. This avoids JSON serialization entirely — hosts get native typed values.
+- **`morphir-node`**: Covers all Morphir value types — primitives (bool, int, float, string, decimal, char), collections (list, tuple, record), algebraic types (constructor), and unit. Constructors handle Maybe, Result, and all custom types uniformly via `constructor-ref`.
+- **`eval-error`**: Structured error variants matching the Elm interpreter's error model. Hosts can pattern-match on error type without parsing strings.
+- **IR input**: Stays as JSON string since it's the existing serialization format and is only parsed once per load.
 
 ## Package Structure
 
@@ -72,7 +125,8 @@ New module at `src/Morphir/Interpreter/Worker.elm`:
 - `Platform.worker` with ports (no subscriptions/commands needed for business logic)
 - Wraps `Distribution.Codec.decodeVersionedDistribution` for IR loading
 - Wraps `Interpreter.evaluate` with `Native.nativeFunctions`
-- Wraps `Value.Codec` for decoding arguments and encoding results
+- Converts between Elm `RawValue` and the flat indexed `morphir-value` representation
+- Converts between Elm `Error` and structured `eval-error` variants
 - References shared source at `../../src` via `elm.json`
 
 ## JS Glue (`src/interpreter.js`)
@@ -80,7 +134,10 @@ New module at `src/Morphir/Interpreter/Worker.elm`:
 Bridges WIT-exported functions to the compiled Elm module:
 - Initializes Elm app instances (one per `ir-store` resource)
 - Translates WIT function calls to Elm port sends/receives
-- ComponentizeJS's SpiderMonkey engine handles the synchronous ↔ async bridge
+- Converts between WIT `morphir-value` (indexed flat tree) and JSON for Elm port communication
+- Converts between WIT `fq-name` record and colon-separated string for Elm
+- Maps WIT `eval-error` variants to/from Elm error JSON
+- ComponentizeJS's SpiderMonkey engine handles the synchronous/async bridge
 
 ## Build Pipeline
 
@@ -95,11 +152,12 @@ Dev dependencies: `@bytecodealliance/jco`, `@bytecodealliance/componentize-js`
 ## Testing
 
 Integration tests verify the full pipeline:
-- One-shot `eval.evaluate` with known function + args
+- One-shot `eval.evaluate` with known function + typed args
 - Stateful `ir-store`: create, evaluate multiple times, verify results
 - `reload` replaces IR correctly
 - `uri` accessor returns assigned or default URI
-- Error cases: bad JSON, unknown FQN, wrong argument count
+- Error cases: bad JSON, unknown FQN, wrong argument count — verify correct `eval-error` variant
+- Verify `morphir-value` round-trip: primitives, lists, records, constructors
 - Run against both Wasmtime and browser outputs
 
 Test fixture: minimal Morphir project with simple functions (add, identity, pattern match) compiled to `morphir-ir.json`.
@@ -109,4 +167,5 @@ Test fixture: minimal Morphir project with simple functions (add, identity, patt
 - **Binary size**: ~5-10MB due to bundled SpiderMonkey. Acceptable for both targets.
 - **Performance**: JS-in-WASM adds overhead vs native WASM. Acceptable for an evaluation engine that isn't in a hot loop.
 - **Maintenance**: Zero interpreter code duplication. Changes to the Elm interpreter automatically flow through.
+- **Value representation**: Index-based flat tree adds conversion overhead but gives hosts fully typed values with no JSON parsing. The conversion happens once at the boundary.
 - **Future**: WIT interface is stable. Could later add a Rust-native implementation behind the same WIT for better performance without changing consumers.
