@@ -2,6 +2,9 @@
   "name": "morphir-elm",
   "version": "2.100.0",
   "description": "Elm bindings for Morphir",
+  "workspaces": [
+    "packages/*"
+  ],
   "type": "module",
   "module": "es6",
   "types": "morphir-ts/dist/",
