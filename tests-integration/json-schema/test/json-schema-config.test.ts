@@ -3,8 +3,8 @@ This file contains test cases for the inferBackendConfig()
 function defined in  the config-processing.ts file @see
 */
 import { describe, test, expect } from 'bun:test';
-import type {JsonBackendOptions} from '../../../cli2/config-processing'
-import configProcessing from '../../../cli2/config-processing'
+import type {JsonBackendOptions} from '../../../packages/cli2/config-processing'
+import configProcessing from '../../../packages/cli2/config-processing'
 
 describe('Test for Json Schema Config Processing',  () => {
 

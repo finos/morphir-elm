@@ -7,8 +7,8 @@ const fs = require('fs')
 const readFile = fs.readFileSync
 const mkdir = fs.mkdirSync
 const rmdir = util.promisify(fs.rm)
-const cli2 = require('../../cli2/lib/cli')
-const cli = require('../../cli/cli')
+const cli2 = require('../../packages/cli2/lib/cli')
+const cli = require('../../packages/cli/cli')
 const writeFile = util.promisify(fs.writeFile)
 
 // utility function for joining strings with newlines

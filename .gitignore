@@ -15,11 +15,11 @@ redistributable/Scala
 packages/cli/web/insightapp.js
 packages/cli/treeStuff.js
 packages/cli/index.html
-cli2/lib/
+packages/cli2/lib/
 lib/geneated
 packages/cadl-frontend/cadl-output
-cli2/*.js
-cli2/*.cjs
+packages/cli2/*.js
+packages/cli2/*.cjs
 docs.json
 /.coverage/
 tests-integration/reference-model/Dockerfile

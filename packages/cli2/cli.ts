@@ -394,6 +394,8 @@ function copyRedistributables(options: CommandOptions, outputPath: string) {
   const copyFiles = (src: string, dest: string) => {
     const sourceDirectory: string = path.join(
       path.dirname(__dirname),
+      "..",
+      "..",
       "redistributable",
       src
     );
@@ -495,7 +497,7 @@ async function writeDockerfile(
   programOpts: any
 ): Promise<void> {
   // read docker template file
-  let filePath = "./cli2/DockerTemplateFile";
+  let filePath = "./packages/cli2/DockerTemplateFile";
   let fileContent = await fsReadFile(filePath, "utf-8");
 
   // replace specific characteres with the required

@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll, afterEach, mock } from 'bun:test';
-import * as getUriWrapper from '../../cli2/lib/get-uri-wrapper';
+import * as getUriWrapper from '../../packages/cli2/lib/get-uri-wrapper';
 
 
 
@@ -10,8 +10,8 @@ const fs = require('fs')
 const mkdir = fs.mkdirSync
 const copyRecursive = util.promisify(fs.cp)
 const rmdir = util.promisify(fs.rm)
-const cli2 = require('../../cli2/lib/cli')
-const cli = require('../../cli/cli')
+const cli2 = require('../../packages/cli2/lib/cli')
+const cli = require('../../packages/cli/cli')
 const writeFile = util.promisify(fs.writeFile)
 const readFile = util.promisify(fs.readFile)
 const rmFile = util.promisify(fs.rm)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Build Morphir TypeScript library"
-//MISE depends=["build:cli"]
+//MISE depends=["build:cli", "build:cli2"]
 
 import { del, morphirMake, morphirGen, exec, log, PATHS, ROOT_DIR, copyGlob, join } from "../_lib.ts";
 

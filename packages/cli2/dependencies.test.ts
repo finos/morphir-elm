@@ -50,12 +50,12 @@ describe("the dependencies module", () => {
     });
     test("should support local files on an above folder", () => {
       let fileName = "package.json";
-      let expectedFile = path.join(__dirname, "..", fileName);
+      let expectedFile = path.join(__dirname, "../..", fileName);
 
       let expectedUrl = new URL(`file://${expectedFile}`);
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
         baseDir: __dirname,
-        sanitized: `../${fileName}`,
+        sanitized: `../../${fileName}`,
       });
       expect({ success: urlSuccess, data: urlData }).toStrictEqual({
         success: true,
@@ -64,12 +64,12 @@ describe("the dependencies module", () => {
     });
     test("should support local files on a sibling folder", () => {
       let fileName = "morphir.js";
-      let expectedFile = path.resolve(__dirname, "..", "packages", "cli", fileName);
+      let expectedFile = path.resolve(__dirname, "..", "cli", fileName);
 
       let expectedUrl = new URL(`file://${expectedFile}`);
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
         baseDir: __dirname,
-        sanitized: `../packages/cli/${fileName}`,
+        sanitized: `../cli/${fileName}`,
       });
       expect({ success: urlSuccess, data: urlData }).toStrictEqual({
         success: true,
