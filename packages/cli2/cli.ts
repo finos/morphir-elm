@@ -3,22 +3,17 @@
 import * as fs from "fs";
 import * as util from "util";
 import * as path from "path";
-import { createRequire } from "module";
 import * as FileChanges from "./FileChanges.js";
 import * as Dependencies from "./dependencies.js";
 import { DependencyConfig } from "./dependencies.js";
 import { z } from "zod";
-
-// Create require for loading CommonJS modules (Elm output)
-const require = createRequire(import.meta.url);
+import { worker } from "./elm-worker.js";
 
 const fsExists = util.promisify(fs.exists);
 const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
 const readdir = util.promisify(fs.readdir);
-
-const worker = require("./../Morphir.Elm.CLI.cjs").Elm.Morphir.Elm.CLI.init();
 
 const Includes = z.array(z.string()).optional();
 type Includes = z.infer<typeof Includes>;
@@ -390,41 +385,6 @@ const findFilesToDelete = async (outputPath: string, fileMap: string[]) => {
   return Promise.all(await readDir(outputPath, files));
 };
 
-function copyRedistributables(options: CommandOptions, outputPath: string) {
-  const copyFiles = (src: string, dest: string) => {
-    const sourceDirectory: string = path.join(
-      path.dirname(__dirname),
-      "..",
-      "..",
-      "redistributable",
-      src
-    );
-    copyRecursiveSync(sourceDirectory, outputPath);
-  };
-  copyFiles("Scala/sdk/src", outputPath);
-  copyFiles(`Scala/sdk/src-${options.targetVersion}`, outputPath);
-}
-
-function copyRecursiveSync(src: string, dest: string) {
-  const exists = fs.existsSync(src);
-  if (exists) {
-    const stats = exists && fs.statSync(src);
-    const isDirectory = exists && stats.isDirectory();
-    if (isDirectory) {
-      fs.mkdirSync(dest, { recursive: true });
-      fs.readdirSync(src).forEach(function (childItemName) {
-        copyRecursiveSync(
-          path.join(src, childItemName),
-          path.join(dest, childItemName)
-        );
-      });
-    } else {
-      fs.copyFileSync(src, dest);
-      console.log(`COPY - ${dest}`);
-    }
-  }
-}
-
 async function writeFile(filePath: string, content: string) {
   await fsMakeDir(path.dirname(filePath), {
     recursive: true,
@@ -562,8 +522,6 @@ export {
   stats,
   writeDockerfile,
   findFilesToDelete,
-  copyRedistributables,
   testCoverage,
   worker,
-  copyRecursiveSync,
 };
