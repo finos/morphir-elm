@@ -6,11 +6,11 @@ import { log, PATHS, join, mkdir, rm } from "../_lib.ts";
 
 const BINARY_NAME = "morphir";
 
-// The compiled lib output — the normal build:cli2 compiles TS to lib/ and
-// externalizes Elm .cjs files. When bun build --compile encounters the
-// external require("../Morphir.Elm.CLI.cjs"), it resolves from lib/ to
-// packages/cli2/Morphir.Elm.CLI.cjs and bundles it into the binary.
-const ENTRY_POINT = join(PATHS.cli2, "lib", "morphir.js");
+// Compile from source TS directly — Bun handles TypeScript natively.
+// The source imports resolve ./Morphir.Elm.CLI.cjs from packages/cli2/
+// which is the correct location. (The lib/ output externalizes .cjs files
+// so it can't be used for --compile.)
+const ENTRY_POINT = join(PATHS.cli2, "morphir.ts");
 const OUT_DIR = join(PATHS.dist, "binaries");
 
 // Platform targets supported by bun build --compile --target

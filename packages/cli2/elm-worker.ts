@@ -13,10 +13,12 @@ export const worker = ElmCLI.Elm.Morphir.Elm.CLI.init();
 
 /**
  * Generator worker — loaded lazily because Generator.elm compilation
- * is currently broken (missing dependent modules).
+ * is currently broken (missing dependent modules). Uses a computed
+ * import path so the bundler doesn't try to resolve it at compile time.
  */
 export async function getGeneratorWorker() {
-  // @ts-ignore — Elm-compiled CJS module
-  const ElmGenerator = await import("./Morphir.Elm.Generator.cjs");
-  return ElmGenerator.default.Elm.Morphir.Elm.Generator.init();
+  const modulePath = [".", "Morphir.Elm.Generator.cjs"].join("/");
+  // @ts-ignore — Elm-compiled CJS module, dynamic path
+  const ElmGenerator = await import(modulePath);
+  return (ElmGenerator.default ?? ElmGenerator).Elm.Morphir.Elm.Generator.init();
 }
