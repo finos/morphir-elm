@@ -1,0 +1,65 @@
+package morphir:interpreter;
+
+interface types {
+    record fq-name {
+        package-path: string,
+        module-path: string,
+        local-name: string,
+    }
+
+    record morphir-value {
+        root: u32,
+        nodes: list<morphir-node>,
+    }
+
+    variant morphir-node {
+        bool-val(bool),
+        int-val(s64),
+        float-val(f64),
+        string-val(string),
+        decimal-val(string),
+        char-val(char),
+        list-val(list<u32>),
+        tuple-val(list<u32>),
+        record-val(list<field-ref>),
+        constructor-val(constructor-ref),
+        unit-val,
+    }
+
+    record field-ref {
+        name: string,
+        value: u32,
+    }
+
+    record constructor-ref {
+        fqn: fq-name,
+        args: list<u32>,
+    }
+
+    variant eval-error {
+        invalid-ir(string),
+        reference-not-found(fq-name),
+        argument-error(string),
+        pattern-mismatch(string),
+        type-error(string),
+        variable-not-found(string),
+        other(string),
+    }
+
+    resource ir-store {
+        constructor(ir-json: string, uri: option<string>);
+        uri: func() -> string;
+        evaluate: func(fqn: fq-name, args: list<morphir-value>) -> result<morphir-value, eval-error>;
+        reload: func(ir-json: string) -> result<_, eval-error>;
+    }
+}
+
+interface eval {
+    use types.{fq-name, morphir-value, eval-error};
+    evaluate: func(ir-json: string, fqn: fq-name, args: list<morphir-value>) -> result<morphir-value, eval-error>;
+}
+
+world interpreter {
+    export types;
+    export eval;
+}
