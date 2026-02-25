@@ -76,11 +76,15 @@ await writeFile(bundlePath, bundled);
 
 log("build:interpreter-wasm", "Building WASM component...");
 
+// Disable WASI features we don't need — our interpreter is a pure computation
+// component with no I/O requirements. This avoids requiring wasi:http, wasi:io,
+// wasi:clocks, etc. which cause issues for consumers using WASI-compatible runtimes.
 await exec("npx", [
   "jco", "componentize",
   "build/interpreter-bundle.js",
   "--wit", "wit/",
   "--world-name", "interpreter",
+  "--disable", "all",
   "-o", "build/interpreter.wasm",
 ], { cwd: pkgDir });
 
