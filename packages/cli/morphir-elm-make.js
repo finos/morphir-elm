@@ -33,7 +33,7 @@ function runAppropriateCli(projectDir, opts) {
     }
 
     else {
-        const cli2 = require('../cli2/lib/cliAPI')
+        const cli2 = require('../../cli2/lib/cliAPI')
         cli2.make(projectDir, opts)
     }
 }
