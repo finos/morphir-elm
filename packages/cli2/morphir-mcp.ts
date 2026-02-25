@@ -5,18 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { Command } from "commander"; // Import commander
 import * as path from "path";
-import { fileURLToPath } from "url";
-import { createRequire } from "module";
-
-// ESM equivalents for __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Create require for loading CommonJS modules
-const require = createRequire(import.meta.url);
-
-// Read the package.json of this package
-const packageJson = require(path.join(__dirname, "../../../package.json"));
+import packageJson from "../../package.json";
 
 // Process arguments using commander
 const program = new Command();
