@@ -1,0 +1,11 @@
+{
+  "name": "@morphir/interpreter-wasm",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Morphir interpreter as a WebAssembly Component Model component",
+  "type": "module",
+  "devDependencies": {
+    "@bytecodealliance/jco": "^1.9.0",
+    "@bytecodealliance/componentize-js": "^0.14.0"
+  }
+}
