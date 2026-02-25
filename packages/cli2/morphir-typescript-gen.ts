@@ -3,27 +3,19 @@
 //NPM imports
 import * as fs from "fs";
 import path from 'path';
-import { fileURLToPath } from "url";
-import { createRequire } from "module";
 import { Command } from 'commander'
 import * as cli from './cli.js'
 import * as util from 'util'
 import * as prettier from "prettier";
 import 'log-timestamp'
-
-// ESM equivalents for __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Create require for loading CommonJS modules (Elm output)
-const require = createRequire(import.meta.url);
+import { worker } from "./elm-worker.js";
+import { files as tsRedistributables } from "./redistributable/typescript.js";
 
 const fsAccess = util.promisify(fs.access);
 const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
 const fsUnlink = util.promisify(fs.unlink);
-const worker = require("./../Morphir.Elm.CLI.cjs").Elm.Morphir.Elm.CLI.init();
 
 const program = new Command()
 program
@@ -136,19 +128,12 @@ const gen = async (
       return fsUnlink(fileToDelete);
    });
 
-   // Always copy redistributables for TypeScript (matching old CLI behavior)
-   const copyFiles = (src: string, dest: string) => {
-      const sourceDirectory: string = path.join(
-        path.dirname(__dirname),
-        "..",
-        "..",
-        "redistributable",
-        src
-      );
-      cli.copyRecursiveSync(sourceDirectory, outputPath);
-   };
-
-   copyFiles("TypeScript/", outputPath);
+   // Write embedded redistributable files to output
+   for (const [relativePath, content] of Object.entries(tsRedistributables)) {
+     const destPath = path.join(outputPath, relativePath);
+     fs.mkdirSync(path.dirname(destPath), { recursive: true });
+     fs.writeFileSync(destPath, content);
+   }
    
    return Promise.all(writePromises.concat(deletePromises));
 };
