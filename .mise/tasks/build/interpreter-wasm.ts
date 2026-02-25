@@ -36,6 +36,17 @@ log("build:interpreter-wasm", "Breaking up deeply nested && chains for SpiderMon
 
 elmCode = breakUpDeepConditions(elmCode);
 
+// 3. Elm's _Process_sleep(0) uses setTimeout which is async in normal JS
+//    runtimes. Inside ComponentizeJS (StarlingMonkey), setTimeout is sync.
+//    For testing the bundle outside WASM (e.g. with Bun), we make sleep(0)
+//    synchronous by returning an immediate succeed value.
+log("build:interpreter-wasm", "Patching _Process_sleep(0) for sync execution...");
+elmCode = elmCode.replace(
+  /function _Process_sleep\(time\)\s*\{/,
+  `function _Process_sleep(time) {\n` +
+  `\tif (time === 0) { return _Scheduler_succeed(_Utils_Tuple0); }\n`
+);
+
 // ---------------------------------------------------------------------------
 // Bundle Elm + glue into a single ESM file
 // ---------------------------------------------------------------------------
