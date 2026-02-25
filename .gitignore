@@ -17,7 +17,7 @@ cli/treeStuff.js
 cli/index.html
 cli2/lib/
 lib/geneated
-cadl-Frontend/cadl-output
+packages/cadl-frontend/cadl-output
 cli2/*.js
 cli2/*.cjs
 docs.json
