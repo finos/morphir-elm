@@ -37,13 +37,16 @@ jobs:
         with:
           experimental: true
 
-      - name: Cache NPM
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-bun-
 
       - name: Cache Elm
         uses: actions/cache@v4
@@ -54,7 +57,7 @@ jobs:
             ${{ runner.os }}-elm-
 
       - name: Download dependencies
-        run: npm ci
+        run: bun install
 
       - name: Setup Elm tooling
         run: mise run setup:elm-tooling
@@ -67,8 +70,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: package-lock
-          path: package-lock.json
+          name: bun-lock
+          path: bun.lock
 
   # Semgrep static code analysis
   semgrep:
