@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "types": ["node", "mocha", "jest"],
+        "types": ["node", "mocha"],
         "lib": ["ES2019"],
         "target": "es2019",
         "module": "nodenext",
