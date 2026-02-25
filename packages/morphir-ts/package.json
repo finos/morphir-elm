@@ -1,0 +1,13 @@
+{
+  "name": "@morphir/typescript-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Morphir TypeScript SDK and IR type definitions",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/",
+  "dependencies": {
+    "dequal": "^2.0.3",
+    "immutable": "^5.0.3"
+  }
+}

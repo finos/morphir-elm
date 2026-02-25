@@ -7,7 +7,7 @@
         "moduleResolution": "nodenext",
         "resolveJsonModule": true,
         "paths": {
-            "~/*": ["./morphir-ts/src/*"]
+            "~/*": ["./packages/morphir-ts/src/*"]
         },
     }
 }

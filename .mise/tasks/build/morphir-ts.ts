@@ -13,13 +13,13 @@ await morphirMake(".", "./morphir-ir.json", { force: true });
 // Step 2: Clean previously generated files
 log("build:morphir-ts", "Cleaning previous builds...");
 await del([
-  "morphir-ts/src/generated",
-  "morphir-ts/dist",
+  "packages/morphir-ts/src/generated",
+  "packages/morphir-ts/dist",
 ]);
 
 // Step 3: Generate TypeScript from IR
 log("build:morphir-ts", "Generating TypeScript from IR...");
-await morphirGen("./morphir-ir.json", "./morphir-ts/src/generated", "TypeScript");
+await morphirGen("./morphir-ir.json", "./packages/morphir-ts/src/generated", "TypeScript");
 
 // Step 4: Copy SDK files
 log("build:morphir-ts", "Copying SDK files...");
@@ -29,7 +29,7 @@ await copyGlob("**/*", join(PATHS.morphirTs, "src/generated/morphir/sdk"), {
 
 // Step 5: Compile TypeScript
 log("build:morphir-ts", "Compiling TypeScript...");
-await exec("npx", ["tsc", "--project", "morphir-ts/tsconfig.json"], {
+await exec("npx", ["tsc", "--project", "packages/morphir-ts/tsconfig.json"], {
   cwd: ROOT_DIR,
 });
 
