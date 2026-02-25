@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add a GitHub Actions workflow that builds and releases WASM interpreter artifacts to GitHub Releases, triggered by tag push or manual dispatch.
+**Goal:** Add a GitHub Actions workflow that builds and releases CLI binaries, WASM interpreter artifacts, and install scripts to GitHub Releases, triggered by tag push or manual dispatch.
 
-**Architecture:** Single workflow file with two triggers (tag push, workflow_dispatch). Parses the tag to determine if it's a default-branch release or branch prerelease. Builds the interpreter WASM component, packages artifacts, and creates a GitHub Release.
+**Architecture:** Single workflow file with two triggers (tag push, workflow_dispatch). Parses the tag to determine if it's a default-branch release or branch prerelease. Builds platform-specific CLI binaries via `bun build --compile`, the interpreter WASM component, packages all artifacts, and creates a GitHub Release.
 
 **Tech Stack:** GitHub Actions, mise, Bun, Elm, jco (ComponentizeJS)
 
@@ -137,19 +137,29 @@ jobs:
       - name: Build interpreter WASM component
         run: mise run build:interpreter-wasm
 
+      - name: Build CLI binaries (all platforms)
+        run: mise run build:cli-binaries
+
       # --- Package artifacts ---
 
       - name: Package release artifacts
         run: |
           PKG=packages/morphir-interpreter-wasm
+          BINARIES=dist/binaries
 
-          # 1. Copy raw WASM file
+          # CLI binaries (already in dist/binaries/ from build:cli-binaries)
+          cp "$BINARIES/morphir-linux-amd64" .
+          cp "$BINARIES/morphir-linux-arm64" .
+          cp "$BINARIES/morphir-darwin-arm64" .
+          cp "$BINARIES/morphir-windows-amd64.exe" .
+
+          # WASM interpreter artifacts
           cp "$PKG/build/interpreter.wasm" interpreter.wasm
 
-          # 2. WIT-only tarball
+          # WIT-only tarball
           tar -czf morphir-interpreter-wit.tar.gz -C "$PKG" wit/
 
-          # 3. WASM + WIT combined tarball
+          # WASM + WIT combined tarball
           mkdir -p _release/morphir-interpreter
           cp "$PKG/build/interpreter.wasm" _release/morphir-interpreter/
           cp -r "$PKG/wit" _release/morphir-interpreter/
@@ -164,9 +174,15 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           name: ${{ env.TAG_NAME }}
           files: |
+            morphir-linux-amd64
+            morphir-linux-arm64
+            morphir-darwin-arm64
+            morphir-windows-amd64.exe
             interpreter.wasm
             morphir-interpreter-wit.tar.gz
             morphir-interpreter-wasm.tar.gz
+            scripts/install.sh
+            scripts/install.ps1
           generate_release_notes: true
           draft: false
           prerelease: ${{ env.IS_PRERELEASE == 'true' }}
@@ -180,12 +196,14 @@ jobs:
 - The `workflow_dispatch` creates and pushes the tag automatically. The tag push event will NOT re-trigger this workflow because GitHub Actions doesn't trigger on tags created within a workflow run.
 - The checkout for tag push uses the tag ref directly. The checkout for dispatch uses the branch ref.
 - Uses `actions/checkout@v4`, `actions/setup-node@v4`, `jdx/mise-action@v2`, `oven-sh/setup-bun@v2` — matching the versions in `nodejs.yml`.
+- CLI binaries are cross-compiled on ubuntu-latest using `bun build --compile --target`. Bun supports cross-compilation without needing the target OS.
+- Install scripts are included directly from `scripts/` — they don't need to be packaged.
 
 **Step 2: Commit**
 
 ```bash
 git add .github/workflows/github-release.yml
-git commit -m "Add GitHub release workflow for WASM interpreter artifacts"
+git commit -m "Add GitHub release workflow for CLI binaries and WASM interpreter artifacts"
 ```
 
 ---
@@ -243,7 +261,10 @@ gh run watch <run-id>
 gh release view vnext-0.0.1-test
 ```
 
-Expected: A prerelease with 3 artifacts (interpreter.wasm, morphir-interpreter-wit.tar.gz, morphir-interpreter-wasm.tar.gz).
+Expected: A prerelease with 9 artifacts:
+- `morphir-linux-amd64`, `morphir-linux-arm64`, `morphir-darwin-arm64`, `morphir-windows-amd64.exe`
+- `interpreter.wasm`, `morphir-interpreter-wit.tar.gz`, `morphir-interpreter-wasm.tar.gz`
+- `install.sh`, `install.ps1`
 
 **Step 4: Clean up test release and tag**
 
