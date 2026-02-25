@@ -2,15 +2,12 @@
 
 // NPM imports
 import { Command } from 'commander'
-import { createRequire } from "module";
 
 import * as fs from 'fs'
 import * as util from 'util'
 import * as path from 'path'
 import 'log-timestamp'
-
-// Create require for loading CommonJS modules (Elm output)
-const require = createRequire(import.meta.url);
+import { getGeneratorWorker } from "./elm-worker.js";
 
 const fsExists = util.promisify(fs.exists)
 const fsWriteFile = util.promisify(fs.writeFile)
@@ -18,7 +15,7 @@ const fsMakeDir = util.promisify(fs.mkdir)
 const fsReadFile = util.promisify(fs.readFile)
 const readdir = util.promisify(fs.readdir)
 
-const worker = require('./../Morphir.Elm.Generator.cjs').Elm.Morphir.Elm.Generator.init()
+const worker = await getGeneratorWorker();
 
 // Set up Commander
 const program = new Command()
