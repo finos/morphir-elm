@@ -1,5 +1,23 @@
 #!/usr/bin/env node
 
+// Increase stack size for complex type inference (see GitHub issue #1258).
+// The Elm type solver uses deep recursion that exceeds Node.js default stack (~1MB)
+// on large value definitions. Re-exec with 8MB stack if needed.
+import { execFileSync } from "child_process";
+
+if (!process.env.__MORPHIR_STACK_EXPANDED) {
+  process.env.__MORPHIR_STACK_EXPANDED = "1";
+  try {
+    execFileSync(process.execPath, ["--stack-size=8192", ...process.argv.slice(1)], {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (e: any) {
+    process.exit(e.status || 1);
+  }
+  process.exit(0);
+}
+
 // NPM imports
 import { Command } from 'commander'
 import { make } from './cliAPI.js'
