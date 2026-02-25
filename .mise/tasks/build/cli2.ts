@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-//MISE description="Build CLI2 (TypeScript + Elm in parallel)"
+//MISE description="Build CLI2 (TypeScript then Elm)"
 //MISE depends=["build:check-elm-docs"]
 
 import { elmMake, log, PATHS, join } from "../_lib.ts";
@@ -46,22 +46,23 @@ async function compileCli2Ts() {
 
 async function makeCli2Elm() {
   log("build:cli2", "Compiling Elm...");
-  // Compile to .js first, then rename to .cjs so it's treated as CommonJS in ESM context
+  const libDir = join(PATHS.cli2, "lib");
+  // Compile to lib/ so ESM in lib/*.js can resolve ./Morphir.Elm.CLI.cjs at runtime
   await elmMake(["src/Morphir/Elm/CLI.elm"], {
     cwd: PATHS.cli2,
-    output: "Morphir.Elm.CLI.js",
+    output: join(libDir, "Morphir.Elm.CLI.js"),
   });
-  // Rename to .cjs for proper CommonJS handling in ESM project
   const { rename } = await import("fs/promises");
   await rename(
-    join(PATHS.cli2, "Morphir.Elm.CLI.js"),
-    join(PATHS.cli2, "Morphir.Elm.CLI.cjs")
+    join(libDir, "Morphir.Elm.CLI.js"),
+    join(libDir, "Morphir.Elm.CLI.cjs")
   );
 }
 
 log("build:cli2", "Building CLI2...");
 
-// Parallel execution
-await Promise.all([compileCli2Ts(), makeCli2Elm()]);
+// TS first so lib/ exists; then Elm writes Morphir.Elm.CLI.cjs into lib/ for runtime resolution
+await compileCli2Ts();
+await makeCli2Elm();
 
 log("build:cli2", "Done");
