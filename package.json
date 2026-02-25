@@ -7,14 +7,14 @@
   ],
   "type": "module",
   "module": "es6",
-  "types": "morphir-ts/dist/",
-  "main": "morphir-ts/dist/index.js",
+  "types": "packages/morphir-ts/dist/",
+  "main": "packages/morphir-ts/dist/index.js",
   "exports": {
-    ".": "./morphir-ts/dist/index.js",
-    "./ir": "./morphir-ts/dist/exports/ir.js",
-    "./sdk": "./morphir-ts/dist/exports/sdk.js",
-    "./ir/*": "./morphir-ts/dist/generated/morphir/ir/*.js",
-    "./sdk/*": "./morphir-ts/dist/sdk/*.js"
+    ".": "./packages/morphir-ts/dist/index.js",
+    "./ir": "./packages/morphir-ts/dist/exports/ir.js",
+    "./sdk": "./packages/morphir-ts/dist/exports/sdk.js",
+    "./ir/*": "./packages/morphir-ts/dist/generated/morphir/ir/*.js",
+    "./sdk/*": "./packages/morphir-ts/dist/sdk/*.js"
   },
   "scripts": {
     "prepare": "npm run setup-elm-tooling",
@@ -67,7 +67,7 @@
     "redistributable/**",
     "cli2/lib/*",
     "cli2/Morphir.Elm.CLI.js",
-    "morphir-ts/dist/**"
+    "packages/morphir-ts/dist/**"
   ],
   "keywords": [
     "morphir",

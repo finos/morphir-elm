@@ -20,7 +20,7 @@ export const PATHS = {
   cli2: join(ROOT_DIR, "cli2"),
   dist: join(ROOT_DIR, "dist"),
   src: join(ROOT_DIR, "src"),
-  morphirTs: join(ROOT_DIR, "morphir-ts"),
+  morphirTs: join(ROOT_DIR, "packages/morphir-ts"),
   testsIntegration: join(ROOT_DIR, "tests-integration"),
   redistributable: join(ROOT_DIR, "redistributable"),
   nodeBin: join(ROOT_DIR, "node_modules/.bin"),
