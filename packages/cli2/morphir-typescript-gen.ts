@@ -141,6 +141,7 @@ const gen = async (
       const sourceDirectory: string = path.join(
         path.dirname(__dirname),
         "..",
+        "..",
         "redistributable",
         src
       );

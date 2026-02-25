@@ -41,6 +41,8 @@ function copyRedistributables(outputPath: string) {
   const copyFiles = (src: string, dest: string) => {
     const sourceDirectory: string = path.join(
       path.dirname(__dirname),
+      "..",
+      "..",
       "redistributable",
       src
     );
