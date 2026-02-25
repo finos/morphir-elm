@@ -1,0 +1,206 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to release from'
+        required: true
+        type: string
+      version:
+        description: 'Version number (e.g., 0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # --- Determine tag and checkout ---
+
+      - name: Determine tag (tag push)
+        if: github.event_name == 'push'
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Determine tag (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          BRANCH="${{ github.event.inputs.branch }}"
+          VERSION="${{ github.event.inputs.version }}"
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+            echo "TAG_NAME=v${VERSION}" >> $GITHUB_ENV
+          else
+            echo "TAG_NAME=v${BRANCH}-${VERSION}" >> $GITHUB_ENV
+          fi
+          echo "RELEASE_BRANCH=${BRANCH}" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+        with:
+          ref: ${{ env.TAG_NAME }}
+
+      - uses: actions/checkout@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+
+      - name: Create and push tag (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag "${{ env.TAG_NAME }}"
+          git push origin "${{ env.TAG_NAME }}"
+
+      # --- Determine prerelease status ---
+
+      - name: Check if prerelease
+        run: |
+          TAG="${{ env.TAG_NAME }}"
+          TAG_BODY="${TAG#v}"
+          if echo "$TAG_BODY" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+          else
+            echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+          fi
+
+      # --- Setup build tools ---
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+        with:
+          experimental: true
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Bun
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Cache Elm
+        uses: actions/cache@v4
+        with:
+          path: ~/.elm
+          key: ${{ runner.os }}-elm-${{ hashFiles('**/elm.json') }}
+          restore-keys: |
+            ${{ runner.os }}-elm-
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup Elm tooling
+        run: mise run setup:elm-tooling
+
+      # --- Build CLI binaries ---
+
+      - name: Build CLI binaries (all platforms)
+        run: mise run build:cli-binaries
+
+      # --- Build WASM interpreter (if available) ---
+
+      - name: Check if interpreter-wasm build exists
+        id: check-wasm
+        run: |
+          if mise tasks 2>/dev/null | grep -q 'build:interpreter-wasm'; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build interpreter WASM component
+        if: steps.check-wasm.outputs.available == 'true'
+        run: mise run build:interpreter-wasm
+
+      # --- Package artifacts ---
+
+      - name: Package CLI binaries
+        run: |
+          cp dist/binaries/morphir-linux-amd64 .
+          cp dist/binaries/morphir-linux-arm64 .
+          cp dist/binaries/morphir-darwin-arm64 .
+          cp dist/binaries/morphir-windows-amd64.exe .
+
+      - name: Package WASM artifacts
+        if: steps.check-wasm.outputs.available == 'true'
+        run: |
+          PKG=packages/morphir-interpreter-wasm
+
+          cp "$PKG/build/interpreter.wasm" interpreter.wasm
+
+          # WIT-only tarball
+          tar -czf morphir-interpreter-wit.tar.gz -C "$PKG" wit/
+
+          # WASM + WIT combined tarball
+          mkdir -p _release/morphir-interpreter
+          cp "$PKG/build/interpreter.wasm" _release/morphir-interpreter/
+          cp -r "$PKG/wit" _release/morphir-interpreter/
+          tar -czf morphir-interpreter-wasm.tar.gz -C _release morphir-interpreter/
+          rm -rf _release
+
+      # --- Collect release files ---
+
+      - name: Collect release file list
+        id: release-files
+        run: |
+          FILES="morphir-linux-amd64
+          morphir-linux-arm64
+          morphir-darwin-arm64
+          morphir-windows-amd64.exe
+          scripts/install.sh
+          scripts/install.ps1
+          scripts/morphir
+          scripts/morphir.bat"
+
+          if [ -f interpreter.wasm ]; then
+            FILES="$FILES
+          interpreter.wasm
+          morphir-interpreter-wit.tar.gz
+          morphir-interpreter-wasm.tar.gz"
+          fi
+
+          # Write to file for the release step
+          echo "$FILES" > release-files.txt
+          cat release-files.txt
+
+      # --- Release ---
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: ${{ env.TAG_NAME }}
+          files: |
+            morphir-linux-amd64
+            morphir-linux-arm64
+            morphir-darwin-arm64
+            morphir-windows-amd64.exe
+            scripts/install.sh
+            scripts/install.ps1
+            scripts/morphir
+            scripts/morphir.bat
+            interpreter.wasm
+            morphir-interpreter-wit.tar.gz
+            morphir-interpreter-wasm.tar.gz
+          fail_on_unmatched_files: false
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ env.IS_PRERELEASE == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
