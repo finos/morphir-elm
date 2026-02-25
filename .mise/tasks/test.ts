@@ -4,7 +4,7 @@
 
 import { log } from "./_lib.ts";
 
-// Note: test:morphir-ir is commented out in the original gulpfile
+// Note: test:morphir-ir is not yet included in the default test suite
 // Add it to depends array when ready to enable
 
 log("test", "All tests completed");

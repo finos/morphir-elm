@@ -49,7 +49,7 @@ describe("the dependencies module", () => {
       });
     });
     test("should support local files on an above folder", () => {
-      let fileName = "gulpfile.mjs";
+      let fileName = "package.json";
       let expectedFile = path.join(__dirname, "..", fileName);
 
       let expectedUrl = new URL(`file://${expectedFile}`);
