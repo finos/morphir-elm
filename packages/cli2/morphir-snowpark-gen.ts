@@ -3,24 +3,15 @@
 // NPM imports
 import * as fs from "fs";
 import path from 'path';
-import { fileURLToPath } from "url";
-import { createRequire } from "module";
 import { Command } from 'commander'
 import * as cli from './cli.js'
 import * as util from 'util'
-
-// ESM equivalents for __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Create require for loading CommonJS modules (Elm output)
-const require = createRequire(import.meta.url);
+import { worker } from "./elm-worker.js";
+import { files as snowparkRedistributables } from "./redistributable/snowpark.js";
 
 const fsWriteFile = util.promisify(fs.writeFile);
 const fsMakeDir = util.promisify(fs.mkdir);
 const fsReadFile = util.promisify(fs.readFile);
-
-const worker = require("./../Morphir.Elm.CLI.cjs").Elm.Morphir.Elm.CLI.init();
 
 interface CommandOptions {
   /**
@@ -38,21 +29,11 @@ interface CommandOptions {
 }
 
 function copyRedistributables(outputPath: string) {
-  const copyFiles = (src: string, dest: string) => {
-    const sourceDirectory: string = path.join(
-      path.dirname(__dirname),
-      "..",
-      "..",
-      "redistributable",
-      src
-    );
-    if (fs.existsSync(sourceDirectory)) {
-      fs.cpSync(sourceDirectory, outputPath, { recursive: true, errorOnExist: false });
-    } else {
-      console.warn(`WARNING: Cannot find directory ${sourceDirectory}`);
-    }
-  };
-  copyFiles("Snowpark", outputPath);
+  for (const [relativePath, content] of Object.entries(snowparkRedistributables)) {
+    const destPath = path.join(outputPath, relativePath);
+    fs.mkdirSync(path.dirname(destPath), { recursive: true });
+    fs.writeFileSync(destPath, content);
+  }
 }
 
 const generate = async (
