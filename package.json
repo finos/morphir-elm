@@ -43,8 +43,8 @@
   "bin": {
     "morphir-elm": "packages/cli/morphir-elm.js",
     "morphir-dapr": "packages/cli/morphir-dapr.js",
-    "morphir": "cli2/lib/morphir.js",
-    "morphir-mcp": "cli2/lib/morphir-mcp.js"
+    "morphir": "packages/cli2/lib/morphir.js",
+    "morphir-mcp": "packages/cli2/lib/morphir-mcp.js"
   },
   "engines": {
     "npm": "*",
@@ -65,8 +65,8 @@
     "dist/morphir-server/*",
     "src/Morphir/SDK/*",
     "redistributable/**",
-    "cli2/lib/*",
-    "cli2/Morphir.Elm.CLI.js",
+    "packages/cli2/lib/*",
+    "packages/cli2/Morphir.Elm.CLI.js",
     "packages/morphir-ts/dist/**"
   ],
   "keywords": [

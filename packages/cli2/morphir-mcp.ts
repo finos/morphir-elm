@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
 // Read the package.json of this package
-const packageJson = require(path.join(__dirname, "../../package.json"));
+const packageJson = require(path.join(__dirname, "../../../package.json"));
 
 // Process arguments using commander
 const program = new Command();

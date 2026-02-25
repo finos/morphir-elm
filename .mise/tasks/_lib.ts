@@ -17,7 +17,7 @@ export const ROOT_DIR = join(import.meta.dir, "../..");
 // Common paths
 export const PATHS = {
   cli: join(ROOT_DIR, "packages/cli"),
-  cli2: join(ROOT_DIR, "cli2"),
+  cli2: join(ROOT_DIR, "packages/cli2"),
   dist: join(ROOT_DIR, "dist"),
   src: join(ROOT_DIR, "src"),
   morphirTs: join(ROOT_DIR, "packages/morphir-ts"),
@@ -94,7 +94,7 @@ export async function morphirMake(
   } = {}
 ): Promise<void> {
   const cliPath = opts.useCli2
-    ? join(ROOT_DIR, "cli2/lib/morphir.js")
+    ? join(ROOT_DIR, "packages/cli2/lib/morphir.js")
     : join(ROOT_DIR, "packages/cli/morphir-elm.js");
 
   const args = [cliPath, "make", "-p", projectDir, "-o", outputPath];
@@ -134,7 +134,7 @@ export async function morphirJsonSchemaGen(
   outputDir: string,
   target: string
 ): Promise<void> {
-  const cliPath = join(ROOT_DIR, "cli2/lib/morphir-json-schema-gen.js");
+  const cliPath = join(ROOT_DIR, "packages/cli2/lib/morphir-json-schema-gen.js");
   const args = [cliPath, "json-schema-gen", "-i", inputPath, "-o", outputDir, "-t", target];
 
   console.log(`Running: node ${args.slice(1).join(" ")}`);
@@ -145,7 +145,7 @@ export async function morphirJsonSchemaGen(
  * Run morphir dockerize command
  */
 export async function morphirDockerize(projectDir: string): Promise<void> {
-  const cliPath = join(ROOT_DIR, "cli2/lib/morphir-dockerize.js");
+  const cliPath = join(ROOT_DIR, "packages/cli2/lib/morphir-dockerize.js");
   const args = [cliPath, "dockerize", "-p", projectDir, "-f"];
 
   console.log(`Running: node ${args.slice(1).join(" ")}`);

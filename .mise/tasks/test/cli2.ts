@@ -6,6 +6,6 @@ import { exec, log } from "../_lib.ts";
 
 log("test:cli2", "Running CLI2 unit tests...");
 
-await exec("bun", ["test", "cli2/"]);
+await exec("bun", ["test", "packages/cli2/"]);
 
 log("test:cli2", "Done");

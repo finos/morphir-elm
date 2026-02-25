@@ -1,0 +1,21 @@
+{
+  "name": "@morphir/cli2",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.1",
+    "chalk": "^4.1.1",
+    "commander": "^9.0.0",
+    "data-urls": "^5.0.0",
+    "get-uri": "^6.0.3",
+    "inquirer": "^8.0.0",
+    "neverthrow": "^6.2.1",
+    "prettier": "^2.4.1",
+    "whatwg-encoding": "^3.1.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
