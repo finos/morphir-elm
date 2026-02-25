@@ -1,5 +1,6 @@
 {
   "name": "morphirdecorations",
+  "private": true,
   "displayName": "MorphirDecorations",
   "description": "",
   "version": "0.0.1",
