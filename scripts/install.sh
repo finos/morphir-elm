@@ -7,17 +7,16 @@ set -euo pipefail
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/finos/morphir-elm/vnext/scripts/install.sh | bash
-#   curl -fsSL ... | bash -s -- --cli --wasm --wit
+#   curl -fsSL ... | bash -s -- --cli --wasm
 #   curl -fsSL ... | bash -s -- --version v0.1.0 --install-dir /usr/local/bin
 #
 # Options:
 #   --cli           Install the morphir CLI binary (default if no options given)
-#   --wasm          Install the WASM interpreter component (interpreter.wasm)
-#   --wit           Install the WIT interface definitions (morphir-interpreter-wit.tar.gz)
-#   --all           Install everything
+#   --wasm          Install the Extism interpreter plugin (interpreter.wasm)
+#   --all           Install CLI and WASM
 #   --version TAG   Specific release tag (default: latest)
 #   --install-dir   Directory to install binaries (default: ~/.local/bin)
-#   --wasm-dir      Directory for WASM/WIT artifacts (default: ~/.local/share/morphir)
+#   --wasm-dir      Directory for WASM plugin (default: ~/.local/share/morphir)
 
 REPO="finos/morphir-elm"
 INSTALL_DIR="${HOME}/.local/bin"
@@ -25,15 +24,13 @@ WASM_DIR="${HOME}/.local/share/morphir"
 VERSION=""
 INSTALL_CLI=false
 INSTALL_WASM=false
-INSTALL_WIT=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cli)        INSTALL_CLI=true; shift ;;
     --wasm)       INSTALL_WASM=true; shift ;;
-    --wit)        INSTALL_WIT=true; shift ;;
-    --all)        INSTALL_CLI=true; INSTALL_WASM=true; INSTALL_WIT=true; shift ;;
+    --all)        INSTALL_CLI=true; INSTALL_WASM=true; shift ;;
     --version)    VERSION="$2"; shift 2 ;;
     --install-dir) INSTALL_DIR="$2"; shift 2 ;;
     --wasm-dir)   WASM_DIR="$2"; shift 2 ;;
@@ -42,12 +39,11 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "Options:"
       echo "  --cli           Install the morphir CLI binary (default)"
-      echo "  --wasm          Install the WASM interpreter component"
-      echo "  --wit           Install the WIT interface definitions"
-      echo "  --all           Install everything"
+      echo "  --wasm          Install the Extism interpreter plugin (interpreter.wasm)"
+      echo "  --all           Install CLI and WASM"
       echo "  --version TAG   Specific release tag (default: latest)"
       echo "  --install-dir   Binary install directory (default: ~/.local/bin)"
-      echo "  --wasm-dir      WASM/WIT artifact directory (default: ~/.local/share/morphir)"
+      echo "  --wasm-dir      WASM artifact directory (default: ~/.local/share/morphir)"
       exit 0
       ;;
     *)
@@ -58,7 +54,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Default to CLI only if nothing specified
-if ! $INSTALL_CLI && ! $INSTALL_WASM && ! $INSTALL_WIT; then
+if ! $INSTALL_CLI && ! $INSTALL_WASM; then
   INSTALL_CLI=true
 fi
 
@@ -164,17 +160,7 @@ main() {
     download_asset "$tag" "interpreter.wasm" "$tmp"
     mkdir -p "$WASM_DIR"
     mv "$tmp" "${WASM_DIR}/interpreter.wasm"
-    echo "Installed interpreter.wasm to ${WASM_DIR}/interpreter.wasm"
-  fi
-
-  if $INSTALL_WIT; then
-    local tmp
-    tmp=$(mktemp -d)
-    download_asset "$tag" "morphir-interpreter-wit.tar.gz" "${tmp}/wit.tar.gz"
-    mkdir -p "$WASM_DIR"
-    tar -xzf "${tmp}/wit.tar.gz" -C "$WASM_DIR"
-    rm -rf "$tmp"
-    echo "Installed WIT definitions to ${WASM_DIR}/wit/"
+    echo "Installed interpreter.wasm (Extism plugin) to ${WASM_DIR}/interpreter.wasm"
   fi
 
   echo ""

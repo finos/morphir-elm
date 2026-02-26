@@ -1,6 +1,12 @@
 port module Morphir.Interpreter.Worker exposing (main)
 
-import Dict
+{-| Elm Worker for the Morphir Extism plugin.
+
+Receives a single JSON message `{ irJson, fqn, args }`, loads the IR, evaluates
+the function, and returns `{ ok, value }` or `{ ok: false, error: { variant, message } }`.
+Used by the Extism plugin glue (interpreter.js) via one port in, one port out.
+-}
+
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Morphir.IR.Distribution exposing (Distribution(..))
@@ -15,29 +21,21 @@ import Morphir.Value.Error as ValueError
 import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
 
 
-
 -- PORTS
 
 
-port loadIR : (Decode.Value -> msg) -> Sub msg
+port evaluate : (Decode.Value -> msg) -> Sub msg
 
 
-port loadIRResult : Encode.Value -> Cmd msg
-
-
-port evaluateFunction : (Decode.Value -> msg) -> Sub msg
-
-
-port evaluateFunctionResult : Encode.Value -> Cmd msg
+port evaluateResult : Encode.Value -> Cmd msg
 
 
 
--- MODEL
+-- MODEL (no state; each call is independent)
 
 
 type alias Model =
-    { distribution : Maybe Distribution
-    }
+    ()
 
 
 
@@ -45,8 +43,7 @@ type alias Model =
 
 
 type Msg
-    = LoadIR Decode.Value
-    | EvaluateFunction Decode.Value
+    = Evaluate Decode.Value
 
 
 
@@ -56,22 +53,10 @@ type Msg
 main : Program () Model Msg
 main =
     Platform.worker
-        { init = \_ -> ( { distribution = Nothing }, Cmd.none )
+        { init = \_ -> ( (), Cmd.none )
         , update = update
-        , subscriptions = subscriptions
+        , subscriptions = \_ -> evaluate Evaluate
         }
-
-
-
--- SUBSCRIPTIONS
-
-
-subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.batch
-        [ loadIR LoadIR
-        , evaluateFunction EvaluateFunction
-        ]
 
 
 
@@ -81,64 +66,40 @@ subscriptions _ =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        LoadIR json ->
-            case Decode.decodeValue decodeLoadIRInput json of
-                Ok irJson ->
+        Evaluate json ->
+            case Decode.decodeValue decodeEvaluateInput json of
+                Ok { irJson, fqn, args } ->
                     case Decode.decodeValue DistributionCodec.decodeVersionedDistribution irJson of
                         Ok dist ->
-                            ( { model | distribution = Just dist }
-                            , loadIRResult (encodeSuccess (Encode.string "IR loaded successfully"))
-                            )
-
-                        Err decodeErr ->
-                            ( model
-                            , loadIRResult (encodeError "other" (Decode.errorToString decodeErr))
-                            )
-
-                Err decodeErr ->
-                    ( model
-                    , loadIRResult (encodeError "other" (Decode.errorToString decodeErr))
-                    )
-
-        EvaluateFunction json ->
-            case model.distribution of
-                Nothing ->
-                    ( model
-                    , evaluateFunctionResult (encodeError "other" "No IR loaded. Call loadIR first.")
-                    )
-
-                Just dist ->
-                    case Decode.decodeValue decodeEvalInput json of
-                        Ok ( fqName, args ) ->
-                            case evaluateFunctionValue SDK.nativeFunctions dist fqName args of
+                            case evaluateFunctionValue SDK.nativeFunctions dist fqn args of
                                 Ok rawValue ->
                                     ( model
-                                    , evaluateFunctionResult
-                                        (encodeSuccess (encodeRawValue rawValue))
+                                    , evaluateResult (encodeSuccess (encodeRawValue rawValue))
                                     )
 
                                 Err error ->
                                     let
                                         ( variant, message ) =
-                                            errorToWitError error
+                                            errorToResultVariant error
                                     in
                                     ( model
-                                    , evaluateFunctionResult (encodeError variant message)
+                                    , evaluateResult (encodeError variant message)
                                     )
 
                         Err decodeErr ->
                             ( model
-                            , evaluateFunctionResult (encodeError "other" (Decode.errorToString decodeErr))
+                            , evaluateResult
+                                (encodeError "invalid-ir" (Decode.errorToString decodeErr))
                             )
+
+                Err decodeErr ->
+                    ( model
+                    , evaluateResult (encodeError "other" (Decode.errorToString decodeErr))
+                    )
 
 
 
 -- DECODERS
-
-
-decodeLoadIRInput : Decoder Decode.Value
-decodeLoadIRInput =
-    Decode.field "irJson" Decode.value
 
 
 decodeFQNameFromJson : Decoder FQName
@@ -149,16 +110,17 @@ decodeFQNameFromJson =
         (Decode.field "localName" Decode.string |> Decode.map Name.fromString)
 
 
-decodeEvalInput : Decoder ( FQName, List (Maybe RawValue) )
-decodeEvalInput =
-    Decode.map2 Tuple.pair
-        (Decode.field "fqn" decodeFQNameFromJson)
-        (Decode.field "args" (Decode.list decodeArgValue))
-
-
 decodeArgValue : Decoder (Maybe RawValue)
 decodeArgValue =
     Decode.map Just (ValueCodec.decodeValue (Decode.succeed ()) (Decode.succeed ()))
+
+
+decodeEvaluateInput : Decoder { irJson : Decode.Value, fqn : FQName, args : List (Maybe RawValue) }
+decodeEvaluateInput =
+    Decode.map3 (\irJson fqn args -> { irJson = irJson, fqn = fqn, args = args })
+        (Decode.field "irJson" Decode.value)
+        (Decode.field "fqn" decodeFQNameFromJson)
+        (Decode.field "args" (Decode.list decodeArgValue))
 
 
 
@@ -192,11 +154,11 @@ encodeError variant message =
 
 
 
--- ERROR MAPPING
+-- ERROR MAPPING (variant strings for JSON output)
 
 
-errorToWitError : ValueError.Error -> ( String, String )
-errorToWitError error =
+errorToResultVariant : ValueError.Error -> ( String, String )
+errorToResultVariant error =
     case error of
         ValueError.VariableNotFound _ ->
             ( "variable-not-found", ValueError.toString error )
@@ -265,10 +227,10 @@ errorToWitError error =
             ( "type-error", ValueError.toString error )
 
         ValueError.ErrorWhileEvaluatingReference _ innerError ->
-            errorToWitError innerError
+            errorToResultVariant innerError
 
         ValueError.ErrorWhileEvaluatingVariable _ innerError ->
-            errorToWitError innerError
+            errorToResultVariant innerError
 
         _ ->
             ( "other", ValueError.toString error )

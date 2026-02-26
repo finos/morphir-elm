@@ -4,22 +4,20 @@
 #
 # Usage:
 #   irm https://raw.githubusercontent.com/finos/morphir-elm/vnext/scripts/install.ps1 | iex
-#   .\install.ps1 -Cli -Wasm -Wit
+#   .\install.ps1 -Cli -Wasm
 #   .\install.ps1 -Version "v0.1.0" -InstallDir "C:\tools\morphir"
 #
 # Parameters:
 #   -Cli           Install the morphir CLI binary (default if no options given)
-#   -Wasm          Install the WASM interpreter component (interpreter.wasm)
-#   -Wit           Install the WIT interface definitions
-#   -All           Install everything
+#   -Wasm          Install the Extism interpreter plugin (interpreter.wasm)
+#   -All           Install CLI and WASM
 #   -Version       Specific release tag (default: latest)
 #   -InstallDir    Directory to install binaries (default: $env:LOCALAPPDATA\morphir\bin)
-#   -WasmDir       Directory for WASM/WIT artifacts (default: $env:LOCALAPPDATA\morphir\share)
+#   -WasmDir       Directory for WASM plugin (default: $env:LOCALAPPDATA\morphir\share)
 
 param(
     [switch]$Cli,
     [switch]$Wasm,
-    [switch]$Wit,
     [switch]$All,
     [string]$Version = "",
     [string]$InstallDir = "",
@@ -37,13 +35,12 @@ if (-not $WasmDir) {
 }
 
 # Default to CLI only if nothing specified
-if (-not $Cli -and -not $Wasm -and -not $Wit -and -not $All) {
+if (-not $Cli -and -not $Wasm -and -not $All) {
     $Cli = $true
 }
 if ($All) {
     $Cli = $true
     $Wasm = $true
-    $Wit = $true
 }
 
 function Resolve-Version {
@@ -117,21 +114,7 @@ function Main {
         $destPath = Join-Path $WasmDir "interpreter.wasm"
         Move-Item -Path $tmp -Destination $destPath -Force
 
-        Write-Host "Installed interpreter.wasm to $destPath"
-    }
-
-    if ($Wit) {
-        $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "morphir-wit-$(Get-Random)"
-        New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
-        $tmpFile = Join-Path $tmpDir "wit.tar.gz"
-
-        Download-Asset -Tag $tag -Asset "morphir-interpreter-wit.tar.gz" -Dest $tmpFile
-
-        New-Item -ItemType Directory -Path $WasmDir -Force | Out-Null
-        tar -xzf $tmpFile -C $WasmDir
-        Remove-Item -Path $tmpDir -Recurse -Force
-
-        Write-Host "Installed WIT definitions to $WasmDir\wit\"
+        Write-Host "Installed interpreter.wasm (Extism plugin) to $destPath"
     }
 
     Write-Host ""

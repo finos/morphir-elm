@@ -131,6 +131,13 @@
         "webpack-cli": "^5.0.1",
       },
     },
+    "packages/morphir-interpreter-wasm": {
+      "name": "@morphir/interpreter-wasm",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@extism/extism": "^1.0.0",
+      },
+    },
     "packages/morphir-ts": {
       "name": "@morphir/typescript-sdk",
       "version": "0.0.0",
@@ -188,6 +195,8 @@
 
     "@eslint/js": ["@eslint/js@8.57.1", "", {}, "sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q=="],
 
+    "@extism/extism": ["@extism/extism@1.0.3", "", {}, "sha512-kHwJwNP19c2q6tN2VYez/Bvv/mvx5J+UEyVbHJKAQ8+l9Z+MJ7TTjBw/GwDQcieXlLtPDNphugeH8ChKKfVtQg=="],
+
     "@humanwhocodes/config-array": ["@humanwhocodes/config-array@0.13.0", "", { "dependencies": { "@humanwhocodes/object-schema": "^2.0.3", "debug": "^4.3.1", "minimatch": "^3.0.5" } }, "sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw=="],
 
     "@humanwhocodes/module-importer": ["@humanwhocodes/module-importer@1.0.1", "", {}, "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA=="],
@@ -215,6 +224,8 @@
     "@morphir/cli": ["@morphir/cli@workspace:packages/cli"],
 
     "@morphir/cli2": ["@morphir/cli2@workspace:packages/cli2"],
+
+    "@morphir/interpreter-wasm": ["@morphir/interpreter-wasm@workspace:packages/morphir-interpreter-wasm"],
 
     "@morphir/typescript-sdk": ["@morphir/typescript-sdk@workspace:packages/morphir-ts"],
 

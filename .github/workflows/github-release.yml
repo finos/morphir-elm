@@ -71,6 +71,14 @@ jobs:
             echo "IS_PRERELEASE=true" >> $GITHUB_ENV
           fi
 
+      - name: Set release title
+        run: |
+          TAG="${{ env.TAG_NAME }}"
+          TAG_BODY="${TAG#v}"
+          # Extract version number (e.g. 2.101.0-alpha-01 from vvnext-2.101.0-alpha-01 or v2.101.0-alpha-01)
+          VERSION_NUMBER=$(echo "$TAG_BODY" | sed -E 's/^[^0-9]*//')
+          echo "RELEASE_TITLE=Release - ${VERSION_NUMBER}" >> $GITHUB_ENV
+
       # --- Setup build tools ---
 
       - name: Setup Node.js
@@ -124,7 +132,7 @@ jobs:
             echo "available=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build interpreter WASM component
+      - name: Build interpreter WASM (Extism plugin)
         if: steps.check-wasm.outputs.available == 'true'
         run: mise run build:interpreter-wasm
 
@@ -137,20 +145,14 @@ jobs:
           cp dist/binaries/morphir-darwin-arm64 .
           cp dist/binaries/morphir-windows-amd64.exe .
 
-      - name: Package WASM artifacts
+      - name: Package WASM artifacts (Extism plugin)
         if: steps.check-wasm.outputs.available == 'true'
         run: |
           PKG=packages/morphir-interpreter-wasm
-
-          cp "$PKG/build/interpreter.wasm" interpreter.wasm
-
-          # WIT-only tarball
-          tar -czf morphir-interpreter-wit.tar.gz -C "$PKG" wit/
-
-          # WASM + WIT combined tarball
+          cp "$PKG/build/plugin.wasm" interpreter.wasm
           mkdir -p _release/morphir-interpreter
-          cp "$PKG/build/interpreter.wasm" _release/morphir-interpreter/
-          cp -r "$PKG/wit" _release/morphir-interpreter/
+          cp "$PKG/build/plugin.wasm" _release/morphir-interpreter/
+          cp "$PKG/README.md" _release/morphir-interpreter/ 2>/dev/null || true
           tar -czf morphir-interpreter-wasm.tar.gz -C _release morphir-interpreter/
           rm -rf _release
 
@@ -171,7 +173,6 @@ jobs:
           if [ -f interpreter.wasm ]; then
             FILES="$FILES
           interpreter.wasm
-          morphir-interpreter-wit.tar.gz
           morphir-interpreter-wasm.tar.gz"
           fi
 
@@ -185,7 +186,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: ${{ env.TAG_NAME }}
+          name: ${{ env.RELEASE_TITLE }}
           files: |
             morphir-linux-amd64
             morphir-linux-arm64
@@ -196,7 +197,6 @@ jobs:
             scripts/morphir
             scripts/morphir.bat
             interpreter.wasm
-            morphir-interpreter-wit.tar.gz
             morphir-interpreter-wasm.tar.gz
           fail_on_unmatched_files: false
           generate_release_notes: true
