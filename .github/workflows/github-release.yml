@@ -71,6 +71,14 @@ jobs:
             echo "IS_PRERELEASE=true" >> $GITHUB_ENV
           fi
 
+      - name: Set release title
+        run: |
+          TAG="${{ env.TAG_NAME }}"
+          TAG_BODY="${TAG#v}"
+          # Extract version number (e.g. 2.101.0-alpha-01 from vvnext-2.101.0-alpha-01 or v2.101.0-alpha-01)
+          VERSION_NUMBER=$(echo "$TAG_BODY" | sed -E 's/^[^0-9]*//')
+          echo "RELEASE_TITLE=Release - ${VERSION_NUMBER}" >> $GITHUB_ENV
+
       # --- Setup build tools ---
 
       - name: Setup Node.js
@@ -178,7 +186,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: ${{ env.TAG_NAME }}
+          name: ${{ env.RELEASE_TITLE }}
           files: |
             morphir-linux-amd64
             morphir-linux-arm64
