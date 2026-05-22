@@ -4,12 +4,12 @@
  */
 
 import { $ } from "bun";
-import { join } from "path";
+import { join, isAbsolute, relative, sep } from "path";
 import { mkdir, rm, readFile, writeFile, copyFile } from "fs/promises";
 import { existsSync } from "fs";
 
 // Re-export common utilities
-export { $, join, mkdir, rm, readFile, writeFile, copyFile, existsSync };
+export { $, join, isAbsolute, relative, sep, mkdir, rm, readFile, writeFile, copyFile, existsSync };
 
 // Project root directory (where mise.toml lives)
 export const ROOT_DIR = join(import.meta.dir, "../..");
@@ -156,7 +156,7 @@ export async function del(patterns: string | string[]): Promise<void> {
   const patternList = Array.isArray(patterns) ? patterns : [patterns];
 
   for (const pattern of patternList) {
-    const fullPath = pattern.startsWith("/") ? pattern : join(ROOT_DIR, pattern);
+    const fullPath = isAbsolute(pattern) ? pattern : join(ROOT_DIR, pattern);
     if (existsSync(fullPath)) {
       await rm(fullPath, { recursive: true, force: true });
       console.log(`Deleted: ${pattern}`);
@@ -178,7 +178,7 @@ export async function copyGlob(
   await mkdir(destDir, { recursive: true });
 
   for await (const file of glob.scan({ cwd, absolute: true })) {
-    const relativePath = file.replace(cwd, "").replace(/^\//, "");
+    const relativePath = relative(cwd, file);
     const destPath = join(destDir, relativePath);
     await mkdir(join(destPath, ".."), { recursive: true });
     await copyFile(file, destPath);
@@ -192,7 +192,7 @@ export async function concat(files: string[], outputPath: string): Promise<void>
   const contents: string[] = [];
 
   for (const file of files) {
-    const fullPath = file.startsWith("/") ? file : join(ROOT_DIR, file);
+    const fullPath = isAbsolute(file) ? file : join(ROOT_DIR, file);
     const content = await readFile(fullPath, "utf-8");
     contents.push(content);
   }
