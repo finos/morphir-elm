@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import { ResultAsync } from "neverthrow";
 import * as path from "path";
+import { pathToFileURL } from "url";
 import * as util from "util";
 import { decode, labelToName } from "whatwg-encoding";
 import { z } from "zod";
@@ -44,7 +45,7 @@ export const LocalFile = z.object({
   baseDir: z.string(),
   sanitized: z.string(),
 }).transform(val => <LocalFileRef>{ baseDir: val.baseDir, original: val.sanitized, fullPath: path.resolve(val.baseDir, val.sanitized) })
-  .transform(ref => <LocalFileRef>({ ...ref, url: new URL(`file://${ref.fullPath}`) }))
+  .transform(ref => <LocalFileRef>({ ...ref, url: pathToFileURL(ref.fullPath) }))
   .refine((ref: LocalFileRef) => fs.existsSync(ref.fullPath),
     (ref: LocalFileRef) => {
       console.error(`File not found ${ref.original}: ${ref.fullPath}`)
@@ -268,5 +269,5 @@ async function toBuffer(stream: Readable): Promise<Buffer> {
   for await (const chunk of stream) {
     chunks.push(chunk);
   }
-  return Buffer.concat(chunks);
+  return Buffer.concat(chunks as unknown as Uint8Array[]);
 }

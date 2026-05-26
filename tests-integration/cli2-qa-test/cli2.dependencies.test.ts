@@ -1,6 +1,4 @@
-import * as getUriWrapper from '../../cli2/lib/get-uri-wrapper';
-
-
+import { describe, test, expect, beforeAll, afterAll, afterEach } from 'bun:test'
 
 const path = require('path')
 const util = require('util')
@@ -195,9 +193,6 @@ describe('morphir dependencies', () => {
 			await mkdir(PATH_TO_PROJECT, { recursive: true })
 			await copyRecursive(DEPENDENCY_PROJECT_SOURCE, PATH_TO_DEPENDENCY_PROJECT, { recursive: true })
 			await copyRecursive(PROJECT_SOURCE, PATH_TO_PROJECT, { recursive: true })
-
-			jest.mock('../../cli2/lib/get-uri-wrapper');
-
 		})
 
 		afterAll(async () => {
@@ -208,19 +203,27 @@ describe('morphir dependencies', () => {
 			let localInclude = path.join(PATH_TO_DEPENDENCY_PROJECT, 'morphir-ir.json');
 			let morphirIr = await loadFile(localInclude);
 
-			//setting up mock 
-			getUriWrapper.fetchUriToJson = jest.fn(url => morphirIr);
+			const server = Bun.serve({
+				port: 0,
+				fetch() {
+					return new Response(JSON.stringify(morphirIr), {
+						headers: { 'Content-Type': 'application/json' },
+					});
+				},
+			});
 
-			let newMorphir = { ...morphirJSON, dependencies: ["http://somewhere/morphir-ir"] };
-			await makeMorphirJson(newMorphir);
+			try {
+				let newMorphir = { ...morphirJSON, dependencies: [`http://localhost:${server.port}/morphir-ir`] };
+				await makeMorphirJson(newMorphir);
 
-			assertMorphirHashesIsMisssing();
-			const resultIR = await cli2.make(PATH_TO_PROJECT, CLI_OPTIONS)
-			expect(resultIR).not.toBeNull();
+				assertMorphirHashesIsMisssing();
+				const resultIR = await cli2.make(PATH_TO_PROJECT, CLI_OPTIONS)
+				expect(resultIR).not.toBeNull();
 
-			assertMorphirHashesExists();
-
-
+				assertMorphirHashesExists();
+			} finally {
+				server.stop();
+			}
 		})
 	})
 

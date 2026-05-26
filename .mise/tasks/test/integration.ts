@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Run integration tests"
-//MISE depends=["build:cli", "build:cli2"]
+//MISE depends=["build:cli", "build:cli2", "build:components"]
 
 import {
   del,
@@ -80,25 +80,25 @@ async function testScala() {
   log("test:integration", "Skipping Scala build (mill not available in standard setup)");
 }
 
-async function testTypeScript() {
+async function generateTypeScript() {
   log("test:integration", "Generating TypeScript...");
   await morphirGen(
     "./tests-integration/generated/refModel/morphir-ir.json",
     "./tests-integration/generated/refModel/src/typescript/",
     "TypeScript"
   );
-
-  log("test:integration", "Running TypeScript tests...");
-  // Use bun test directly (bun natively understands TypeScript and has built-in test runner)
-  await exec(
-    "bun",
-    ["test", "./tests-integration/typescript/TypesTest-refModel.ts"],
-    { cwd: ROOT_DIR }
-  );
 }
 
 // Run parallel test suites
-await Promise.all([testMorphirTest(), testScala(), testTypeScript()]);
+await Promise.all([testMorphirTest(), testScala(), generateTypeScript()]);
+
+// Run all bun test suites (tests-integration, cli2 unit tests, cli unit tests)
+log("test:integration", "Running bun test suites...");
+await exec(
+  "bun",
+  ["test", "tests-integration", "cli", "cli2"],
+  { cwd: ROOT_DIR }
+);
 
 // Step 4: Dockerize test
 log("test:integration", "Testing dockerize...");

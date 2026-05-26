@@ -1,19 +1,22 @@
-/**
- * @jest-environment jsdom
- */
+import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { TextEncoder, TextDecoder } from "util";
-
-Object.assign(global, { TextDecoder, TextEncoder });
 import { JSDOM } from "jsdom";
-import { getIR } from "../../cli/treeview/src/index";
 
 const { window } = new JSDOM(`<!DOCTYPE html><body><div></div></body>`);
+Object.assign(global, {
+  window,
+  document: window.document,
+  TextDecoder,
+  TextEncoder,
+});
+
+const { getIR } = await import("../../cli/treeview/src/index");
 
 describe("test getIR", () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="insight"></div><div id="loading"></div>';
-    global.fetch = jest.fn();
-    (fetch as jest.Mock).mockClear();
+    global.fetch = mock();
+    (fetch as ReturnType<typeof mock>).mockClear();
   });
 
   test("test IR with no modules", async () => {
@@ -66,9 +69,9 @@ describe("test getIR", () => {
 });
 
 async function mockIR(path: string) {
-  (fetch as jest.Mock).mockResolvedValueOnce({
+  (fetch as ReturnType<typeof mock>).mockResolvedValueOnce({
     ok: true,
-    json: jest.fn().mockResolvedValueOnce(require(path)),
+    json: mock().mockResolvedValueOnce(require(path)),
   });
   return await getIR();
 }
