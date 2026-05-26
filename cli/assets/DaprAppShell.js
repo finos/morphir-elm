@@ -15,7 +15,7 @@ const eventPublishUrl = `http://localhost:${DAPR_HTTP_PORT}/v1.0/publish/${OUTPU
 
 const app = fastify()
 
-app.addContentTypeParser(/^application\/.*\+json$/, { parseAs: 'string' }, (_request, body, done) => {
+app.addContentTypeParser(/^application\/.*\+json(?:\s*;.*)?$/i, { parseAs: 'string' }, (_request, body, done) => {
     try {
         done(null, JSON.parse(body))
     } catch (error) {

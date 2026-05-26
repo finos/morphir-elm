@@ -162,7 +162,7 @@ describe("web server smoke tests", () => {
 
     const command = await requestHttp("http://127.0.0.1:3000/A", {
       method: "POST",
-      headers: { "content-type": "application/cloudevents+json" },
+      headers: { "content-type": "application/cloudevents+json; charset=utf-8" },
       body: JSON.stringify({ data: { key: "k", command: {} } }),
     });
     expect(command.status).toBe(200);
