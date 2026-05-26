@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import * as dep from "./dependencies";
 import { z, ZodError } from "zod";
 import * as path from "path";
+import { pathToFileURL } from "url";
 import { decode, labelToName } from "whatwg-encoding";
 
 describe("the dependencies module", () => {
@@ -37,7 +38,7 @@ describe("the dependencies module", () => {
       let fileName = "dependencies.ts";
       let expectedFile = path.join(__dirname, fileName);
 
-      let expectedUrl = new URL(`file://${expectedFile}`);
+      let expectedUrl = pathToFileURL(expectedFile);
 
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
         baseDir: __dirname,
@@ -52,7 +53,7 @@ describe("the dependencies module", () => {
       let fileName = "gulpfile.mjs";
       let expectedFile = path.join(__dirname, "..", fileName);
 
-      let expectedUrl = new URL(`file://${expectedFile}`);
+      let expectedUrl = pathToFileURL(expectedFile);
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
         baseDir: __dirname,
         sanitized: `../${fileName}`,
@@ -66,7 +67,7 @@ describe("the dependencies module", () => {
       let fileName = "morphir.js";
       let expectedFile = path.resolve(__dirname, "..", "cli", fileName);
 
-      let expectedUrl = new URL(`file://${expectedFile}`);
+      let expectedUrl = pathToFileURL(expectedFile);
       let { success: urlSuccess, data: urlData } = dep.LocalFile.safeParse({
         baseDir: __dirname,
         sanitized: `../cli/${fileName}`,
