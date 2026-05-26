@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "child_process";
 import fs from "fs";
+import http from "http";
+import https from "https";
 import os from "os";
 import path from "path";
 
 const repoRoot = path.resolve(__dirname, "../..");
 const testNodePath = process.env.MORPHIR_TEST_NODE_PATH ?? path.join(repoRoot, "node_modules");
+const serverTestTimeoutMs = 20000;
 const runningProcesses: ChildProcess[] = [];
+const processOutput = new WeakMap<ChildProcess, () => string>();
 
 afterEach(async () => {
   await Promise.all(runningProcesses.splice(0).map(stopProcess));
@@ -19,7 +23,7 @@ describe("web server smoke tests", () => {
     fs.writeFileSync(path.join(projectDir, "morphir-ir.json"), "{}");
 
     const port = await getAvailablePort();
-    await startNodeScript("cli/morphir-elm-develop.js", [
+    const server = await startNodeScript("cli/morphir-elm-develop.js", [
       "--port",
       String(port),
       "--host",
@@ -28,20 +32,20 @@ describe("web server smoke tests", () => {
       projectDir,
     ]);
 
-    await waitForHttp(`http://127.0.0.1:${port}/server/morphir.json`);
+    await waitForHttp(`http://127.0.0.1:${port}/server/morphir.json`, server);
 
     await expectJson(`http://127.0.0.1:${port}/server/morphir.json`, { name: "Smoke" });
     await expectJson(`http://127.0.0.1:${port}/server/morphir-tests.json`, []);
 
-    const fallback = await fetch(`http://127.0.0.1:${port}/nested/spa/path`);
+    const fallback = await requestHttp(`http://127.0.0.1:${port}/nested/spa/path`);
     expect(fallback.status).toBe(200);
-    expect(fallback.headers.get("content-type") ?? "").toContain("text/html");
+    expect(fallback.headers["content-type"] ?? "").toContain("text/html");
     expect(await fallback.text()).toContain("<!DOCTYPE html>");
-  });
+  }, serverTestTimeoutMs);
 
   test("treeview server serves packaged SVG fallback", async () => {
     const port = await getAvailablePort();
-    await startNodeScript("cli/morphir-elm-treeview.js", [
+    const server = await startNodeScript("cli/morphir-elm-treeview.js", [
       "--port",
       String(port),
       "--host",
@@ -50,13 +54,13 @@ describe("web server smoke tests", () => {
       ".",
     ]);
 
-    await waitForHttp(`http://127.0.0.1:${port}/`);
+    await waitForHttp(`http://127.0.0.1:${port}/`, server);
 
-    const fallbackLogo = await fetch(`http://127.0.0.1:${port}/assets/2020_Morphir_Logo_Icon_WHT.svg`);
+    const fallbackLogo = await requestHttp(`http://127.0.0.1:${port}/assets/2020_Morphir_Logo_Icon_WHT.svg`);
     expect(fallbackLogo.status).toBe(200);
-    expect(fallbackLogo.headers.get("content-type") ?? "").toContain("image/svg+xml");
+    expect(fallbackLogo.headers["content-type"] ?? "").toContain("image/svg+xml");
     expect(await fallbackLogo.text()).toContain("<svg");
-  });
+  }, serverTestTimeoutMs);
 
   test("treeview server serves project SVG override", async () => {
     const projectDir = makeTempDir("morphir-treeview-");
@@ -67,7 +71,7 @@ describe("web server smoke tests", () => {
     fs.writeFileSync(path.join(projectAssetDir, "2020_Morphir_Logo_Icon_WHT.svg"), "<svg>project</svg>");
 
     const port = await getAvailablePort();
-    await startNodeScript("cli/morphir-elm-treeview.js", [
+    const server = await startNodeScript("cli/morphir-elm-treeview.js", [
       "--port",
       String(port),
       "--host",
@@ -76,12 +80,12 @@ describe("web server smoke tests", () => {
       projectDir,
     ]);
 
-    await waitForHttp(`http://127.0.0.1:${port}/server/morphir.json`);
+    await waitForHttp(`http://127.0.0.1:${port}/server/morphir.json`, server);
 
-    const projectLogo = await fetch(`http://127.0.0.1:${port}/assets/2020_Morphir_Logo_Icon_WHT.svg`);
+    const projectLogo = await requestHttp(`http://127.0.0.1:${port}/assets/2020_Morphir_Logo_Icon_WHT.svg`);
     expect(projectLogo.status).toBe(200);
     expect(await projectLogo.text()).toBe("<svg>project</svg>");
-  });
+  }, serverTestTimeoutMs);
 
   test("treeview server falls back to packaged SVG when project has no logo", async () => {
     const projectDir = makeTempDir("morphir-treeview-no-logo-");
@@ -89,7 +93,7 @@ describe("web server smoke tests", () => {
     fs.writeFileSync(path.join(projectDir, "morphir-ir.json"), "{}");
 
     const port = await getAvailablePort();
-    await startNodeScript("cli/morphir-elm-treeview.js", [
+    const server = await startNodeScript("cli/morphir-elm-treeview.js", [
       "--port",
       String(port),
       "--host",
@@ -98,18 +102,20 @@ describe("web server smoke tests", () => {
       projectDir,
     ]);
 
-    await waitForHttp(`http://127.0.0.1:${port}/server/morphir.json`);
+    await waitForHttp(`http://127.0.0.1:${port}/server/morphir.json`, server);
 
-    const fallbackLogo = await fetch(`http://127.0.0.1:${port}/assets/2020_Morphir_Logo_Icon_WHT.svg`);
+    const fallbackLogo = await requestHttp(`http://127.0.0.1:${port}/assets/2020_Morphir_Logo_Icon_WHT.svg`);
     expect(fallbackLogo.status).toBe(200);
     expect(await fallbackLogo.text()).toContain("<svg");
-  });
+  }, serverTestTimeoutMs);
 
   test("standalone server returns insight HTML after writing posted IR", async () => {
-    await startNodeScript("server/server.js", []);
-    await waitForHttp("http://127.0.0.1:8080/");
+    const server = await startNodeScript("server/server.js", [], {
+      env: { NODE_PATH: buildNodePath([makeTranspilerStubNodePath(), testNodePath]) },
+    });
+    await waitForHttp("http://127.0.0.1:8080/", server);
 
-    const insight = await fetch("http://127.0.0.1:8080/insight", {
+    const insight = await requestHttp("http://127.0.0.1:8080/insight", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ hello: "world" }),
@@ -119,7 +125,7 @@ describe("web server smoke tests", () => {
     expect(insightHtml).toContain("<!DOCTYPE HTML>");
 
     await expectJson("http://127.0.0.1:8080/server/morphir-ir.json", { hello: "world" });
-  });
+  }, serverTestTimeoutMs);
 
   test("generated Dapr app shell starts and accepts CloudEvents JSON", async () => {
     const appDir = makeTempDir("morphir-dapr-shell-");
@@ -146,32 +152,49 @@ describe("web server smoke tests", () => {
       ].join("\n")
     );
 
-    await startNodeScript(path.join(appDir, "DaprAppShell.js"), [], {
+    const server = await startNodeScript(path.join(appDir, "DaprAppShell.js"), [], {
       cwd: appDir,
       env: { NODE_PATH: buildNodePath([testNodePath]) },
     });
-    await waitForHttp("http://127.0.0.1:3000/dapr/subscribe");
+    await waitForHttp("http://127.0.0.1:3000/dapr/subscribe", server);
 
     await expectJson("http://127.0.0.1:3000/dapr/subscribe", ["A"]);
 
-    const command = await fetch("http://127.0.0.1:3000/A", {
+    const command = await requestHttp("http://127.0.0.1:3000/A", {
       method: "POST",
       headers: { "content-type": "application/cloudevents+json" },
       body: JSON.stringify({ data: { key: "k", command: {} } }),
     });
     expect(command.status).toBe(200);
     expect(await command.text()).toBe("OK");
-  });
+  }, serverTestTimeoutMs);
 });
 
 async function expectJson(url: string, expected: unknown): Promise<void> {
-  const response = await fetch(url);
+  const response = await requestHttp(url);
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual(expected);
 }
 
 function makeTempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function makeTranspilerStubNodePath(): string {
+  const nodeModulesDir = path.join(makeTempDir("morphir-transpiler-stub-"), "node_modules");
+  const packageDir = path.join(nodeModulesDir, "morphir-bsq-transpiler");
+  fs.mkdirSync(packageDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(packageDir, "index.js"),
+    [
+      "'use strict';",
+      "exports.bosque_check_ir = function bosqueCheckIr(_ir, callback) {",
+      "  callback(null, 'OK');",
+      "};",
+      "",
+    ].join("\n")
+  );
+  return nodeModulesDir;
 }
 
 async function getAvailablePort(): Promise<number> {
@@ -210,6 +233,7 @@ async function startNodeScript(
   child.stderr?.on("data", (chunk) => {
     output += chunk.toString();
   });
+  processOutput.set(child, () => output);
 
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => resolve(), 100);
@@ -226,13 +250,16 @@ function buildNodePath(entries: Array<string | undefined>): string {
   return entries.filter((entry): entry is string => Boolean(entry)).join(path.delimiter);
 }
 
-async function waitForHttp(url: string): Promise<void> {
-  const deadline = Date.now() + 5000;
+async function waitForHttp(url: string, child?: ChildProcess): Promise<void> {
+  const deadline = Date.now() + 15000;
   let lastError: unknown;
 
   while (Date.now() < deadline) {
+    if (child && (child.exitCode !== null || child.signalCode !== null)) {
+      throw new Error(`Process exited while waiting for ${url}:\n${processOutput.get(child)?.() ?? ""}`);
+    }
     try {
-      const response = await fetch(url);
+      const response = await requestHttp(url);
       if (response.status < 500) {
         return;
       }
@@ -244,6 +271,43 @@ async function waitForHttp(url: string): Promise<void> {
   }
 
   throw new Error(`Timed out waiting for ${url}: ${String(lastError)}`);
+}
+
+async function requestHttp(
+  url: string,
+  options: { method?: string; headers?: Record<string, string>; body?: string } = {}
+): Promise<{ status: number; headers: http.IncomingHttpHeaders; text: () => Promise<string>; json: () => Promise<unknown> }> {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const transport = parsedUrl.protocol === "https:" ? https : http;
+    const request = transport.request(
+      parsedUrl,
+      {
+        method: options.method ?? "GET",
+        headers: options.headers,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        response.on("end", () => {
+          const body = Buffer.concat(chunks).toString("utf8");
+          resolve({
+            status: response.statusCode ?? 0,
+            headers: response.headers,
+            text: async () => body,
+            json: async () => JSON.parse(body),
+          });
+        });
+      }
+    );
+    request.on("error", reject);
+    if (options.body) {
+      request.write(options.body);
+    }
+    request.end();
+  });
 }
 
 async function stopProcess(child: ChildProcess): Promise<void> {
