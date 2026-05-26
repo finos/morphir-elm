@@ -31,16 +31,24 @@ export const ENV = {
 };
 
 /**
- * Execute a command with inherited stdio
+ * Execute a command with inherited stdio.
+ *
+ * On Windows, Bun.spawn does not auto-resolve `.cmd` / `.ps1` shims (e.g.
+ * the `npx.cmd` or `elm.cmd` wrappers npm/elm-tooling install into
+ * node_modules/.bin). Resolve via `Bun.which` first so spawned commands
+ * find the right binary regardless of shim extension.
  */
 export async function exec(
   cmd: string,
   args: string[],
   opts: { cwd?: string; env?: Record<string, string> } = {}
 ): Promise<void> {
-  const proc = Bun.spawn([cmd, ...args], {
-    cwd: opts.cwd || ROOT_DIR,
-    env: { ...process.env, ...opts.env },
+  const cwd = opts.cwd || ROOT_DIR;
+  const env = { ...process.env, ...opts.env };
+  const resolved = Bun.which(cmd, { PATH: env.PATH, cwd }) ?? cmd;
+  const proc = Bun.spawn([resolved, ...args], {
+    cwd,
+    env,
     stdio: ["inherit", "inherit", "inherit"],
   });
   const exitCode = await proc.exited;
