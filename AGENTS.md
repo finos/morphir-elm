@@ -116,7 +116,7 @@ Morphir's core purpose is **functional domain modeling** - capturing business do
 
 - **Elm tests**: Run with `mise run test:unit` (uses elm-test)
 - **Integration tests**: Run with `mise run test:integration`
-- **TypeScript tests**: Jest for unit tests, Mocha for integration
+- **TypeScript tests**: `bun:test` for both unit and integration suites — import via `import { describe, it, expect } from 'bun:test'`
 
 When adding features:
 - Add Elm tests for new SDK functions

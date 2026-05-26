@@ -4,9 +4,12 @@ This guide covers setting up a development environment and building the project.
 
 ## Prerequisites
 
-- **Node.js 20+** - JavaScript runtime
+- **Node.js 24+ (Active LTS)** - JavaScript runtime
 - **mise** - Polyglot tool version manager ([install guide](https://mise.jdx.dev/getting-started.html))
-- **Elm** - Installed via elm-tooling (automated)
+- **Bun** - Installed by mise; runs the build tasks
+- **Elm** - Installed via elm-tooling (automated by `mise run setup`)
+
+The build is verified in CI on `ubuntu-latest` and `windows-latest`. macOS works too — see [.github/workflows/nodejs.yml](.github/workflows/nodejs.yml).
 
 ## Quick Start
 
@@ -75,13 +78,25 @@ This project uses [mise](https://mise.jdx.dev/) with [Bun](https://bun.sh/) for 
 For convenience, common tasks are also available via npm:
 
 ```bash
-npm run build          # Full build + jest + tests
-npm run test           # Run test suite
+npm run build          # Full pipeline: mise run default && mise run test
+npm run test           # Run test suite (delegates to mise run test)
 npm run clean          # Clean build artifacts
 npm run setup          # Run setup tasks
 npm run build:cli      # Build CLI only
 npm run build:cli2     # Build CLI2 only
 ```
+
+`npm ci` automatically runs `setup-elm-tooling` via the `prepare` hook,
+which installs `elm`, `elm-test`, `elm-format`, and `elm-json` into
+`node_modules/.bin/`. `mise.toml` prepends `./node_modules/.bin` to
+PATH so mise tasks resolve those binaries.
+
+### Test Runner
+
+Integration and unit tests use [`bun:test`](https://bun.sh/docs/cli/test).
+Jest was removed in favor of bun's native TypeScript + ESM support.
+Add `import { describe, it, test, expect } from 'bun:test'` to any new
+test file.
 
 ## Project Structure
 

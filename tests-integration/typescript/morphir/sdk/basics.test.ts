@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'bun:test';
 import { equal } from '~/sdk/basics';
 
 describe('equal', () => {

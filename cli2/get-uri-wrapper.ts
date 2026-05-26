@@ -14,5 +14,5 @@ async function toBuffer(stream: Readable): Promise<Buffer> {
   for await (const chunk of stream) {
     chunks.push(chunk);
   }
-  return Buffer.concat(chunks);
+  return Buffer.concat(chunks as unknown as Uint8Array[]);
 }
