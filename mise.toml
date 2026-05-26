@@ -6,6 +6,7 @@ bun = "latest"    # Task executor
 
 [env]
 MORPHIR_JVM_VERSION = "0.18.2"
+_.path = ["./node_modules/.bin"]
 
 [task_config]
 # Tasks are discovered in .mise/tasks/ directory
