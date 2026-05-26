@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from 'bun:test'
 import * as irUtils from '../ts-test-utils/ir-utils'
 
 const path = require('path')
