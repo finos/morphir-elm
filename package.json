@@ -45,7 +45,7 @@
   },
   "engines": {
     "npm": "*",
-    "node": "*"
+    "node": ">=24"
   },
   "files": [
     "cli/cli.js",
@@ -81,6 +81,7 @@
     "@types/bun": "latest",
     "@types/data-urls": "^3.0.4",
     "@types/inquirer": "^9.0.3",
+    "@types/node": "^24.0.0",
     "@types/uuid": "^10.0.0",
     "@types/whatwg-encoding": "^2.0.3",
     "@typespec/compiler": "^0.59.1",

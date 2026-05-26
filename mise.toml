@@ -1,7 +1,7 @@
 min_version = "2024.11.0"
 
 [tools]
-node = "20"       # Matches lts/iron from .nvmrc
+node = "24"       # Matches lts/krypton from .nvmrc
 bun = "latest"    # Task executor
 
 [env]

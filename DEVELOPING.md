@@ -4,7 +4,7 @@ This guide covers setting up a development environment and building the project.
 
 ## Prerequisites
 
-- **Node.js 20+** - JavaScript runtime
+- **Node.js 24+ (Active LTS)** - JavaScript runtime
 - **mise** - Polyglot tool version manager ([install guide](https://mise.jdx.dev/getting-started.html))
 - **Bun** - Installed by mise; runs the build tasks
 - **Elm** - Installed via elm-tooling (automated by `mise run setup`)
