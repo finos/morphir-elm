@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Run all build tasks"
-//MISE depends=["setup", "build:check-elm-docs", "build:cli", "build:cli2", "build:treeview", "build:morphir-ts", "build:dev-server", "build:components", "build:try-morphir"]
+//MISE depends=["build:check-elm-docs", "build:cli", "build:cli2", "build:treeview", "build:morphir-ts", "build:dev-server", "build:components", "build:try-morphir"]
 
 import { log } from "./_lib.ts";
 
