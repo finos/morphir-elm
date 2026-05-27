@@ -66,6 +66,7 @@ This project uses [mise](https://mise.jdx.dev/) with [Bun](https://bun.sh/) for 
 
 | Task | Description |
 |------|-------------|
+| `mise run setup:npm` | Install npm dependencies (`npm ci`) |
 | `mise run setup:elm-tooling` | Install Elm tooling binaries |
 | `mise run setup:morphir-jvm` | Clone and setup Morphir JVM SDK assets |
 
@@ -114,6 +115,7 @@ test file.
 │   │   ├── integration.ts
 │   │   └── ...
 │   └── setup/               # Setup subtasks
+│       ├── npm.ts
 │       ├── elm-tooling.ts
 │       └── morphir-jvm.ts
 cli/                         # CLI v1 (Elm + JavaScript)
