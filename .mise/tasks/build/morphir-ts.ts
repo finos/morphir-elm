@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 //MISE description="Build Morphir TypeScript library"
 //MISE depends=["build:cli", "build:cli2"]
+//MISE sources=["src/**/*.elm", "morphir.json", "morphir-ts/tsconfig.json", "morphir-ts/src/sdk/**/*", "cli/Morphir.Elm.CLI.js", "cli/Morphir.Elm.DevCLI.js", "cli2/Morphir.Elm.CLI.cjs"]
+//MISE outputs=["morphir-ir.json", "morphir-ts/dist/**/*.js", "morphir-ts/src/generated/**/*.ts"]
 
 import { del, morphirMake, morphirGen, exec, log, PATHS, ROOT_DIR, copyGlob, join } from "../_lib.ts";
 

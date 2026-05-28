@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 //MISE description="Build CLI (Elm compilation)"
 //MISE depends=["build:check-elm-docs"]
+//MISE sources=["src/**/*.elm", "cli/src/**/*.elm", "cli/elm.json"]
+//MISE outputs=["cli/Morphir.Elm.CLI.js", "cli/Morphir.Elm.DevCLI.js"]
 
 import { elmMake, log, PATHS } from "../_lib.ts";
 
