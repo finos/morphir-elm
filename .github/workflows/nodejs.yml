@@ -47,9 +47,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-elm-
 
-      - name: Download dependencies
-        run: npm ci
-
       - name: Build
         run: npm run build --if-present
 

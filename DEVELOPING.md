@@ -20,11 +20,7 @@ curl https://mise.run | sh
 # Trust the project configuration
 mise trust
 
-# Install tools (node, bun) and dependencies
-mise install
-npm ci
-
-# Run the full build pipeline
+# Install tools (node, bun) and all dependencies (npm ci, elm-tooling, etc.)
 mise run default
 ```
 
@@ -70,6 +66,7 @@ This project uses [mise](https://mise.jdx.dev/) with [Bun](https://bun.sh/) for 
 
 | Task | Description |
 |------|-------------|
+| `mise run setup:npm` | Install npm dependencies (`npm ci`) |
 | `mise run setup:elm-tooling` | Install Elm tooling binaries |
 | `mise run setup:morphir-jvm` | Clone and setup Morphir JVM SDK assets |
 
@@ -86,8 +83,8 @@ npm run build:cli      # Build CLI only
 npm run build:cli2     # Build CLI2 only
 ```
 
-`npm ci` automatically runs `setup-elm-tooling` via the `prepare` hook,
-which installs `elm`, `elm-test`, `elm-format`, and `elm-json` into
+`mise run setup` handles all npm and tooling setup, including running the
+`prepare` hook which installs `elm`, `elm-test`, `elm-format`, and `elm-json` into
 `node_modules/.bin/`. `mise.toml` prepends `./node_modules/.bin` to
 PATH so mise tasks resolve those binaries.
 
@@ -118,6 +115,7 @@ test file.
 │   │   ├── integration.ts
 │   │   └── ...
 │   └── setup/               # Setup subtasks
+│       ├── npm.ts
 │       ├── elm-tooling.ts
 │       └── morphir-jvm.ts
 cli/                         # CLI v1 (Elm + JavaScript)
@@ -184,7 +182,6 @@ mise run setup:elm-tooling
 ### Missing dependencies
 
 ```bash
-npm ci
 mise run setup
 ```
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Install Elm tooling"
+//MISE depends=["setup:npm"]
 
 import { exec, log } from "../_lib.ts";
 
