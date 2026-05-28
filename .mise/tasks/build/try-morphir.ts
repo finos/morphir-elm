@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 //MISE description="Build Try Morphir web app"
 //MISE depends=["build:cli"]
+//MISE sources=["src/**/*.elm", "cli/src/**/*.elm", "cli/elm.json"]
+//MISE outputs=["cli/web/try-morphir.html"]
 
 import { elmMake, log, PATHS } from "../_lib.ts";
 
