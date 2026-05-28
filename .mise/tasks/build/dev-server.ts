@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Build development server Elm components"
-//MISE depends=["build:check-elm-docs"]
+//MISE depends=["build:cli"]
 
 import { elmMake, log, PATHS } from "../_lib.ts";
 

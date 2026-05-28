@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Build CLI2 (TypeScript + Elm in parallel)"
-//MISE depends=["build:check-elm-docs"]
+//MISE depends=["build:cli"]
 
 import { elmMake, log, PATHS, join } from "../_lib.ts";
 import { mkdir, rm } from "fs/promises";
