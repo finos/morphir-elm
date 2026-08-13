@@ -2,6 +2,9 @@
 
 'use strict'
 
+// Guard against Node 24 EBADF double-close on GC (finos/morphir-elm#1282)
+require('./ebadf-guard')
+
 // NPM imports
 const commander = require('commander')
 const cli = require('./cli')

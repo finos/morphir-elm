@@ -1,3 +1,6 @@
+// Guard against Node 24 EBADF double-close on GC (finos/morphir-elm#1282)
+import "./ebadf-guard.js";
+
 import FileSystemModule from 'fs'
 import chalk from 'chalk'
 import path from 'path'

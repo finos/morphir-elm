@@ -49,6 +49,7 @@
   },
   "files": [
     "cli/cli.js",
+    "cli/ebadf-guard.js",
     "cli/morphir-elm.js",
     "cli/morphir-elm-make.js",
     "cli/morphir-elm-gen.js",
