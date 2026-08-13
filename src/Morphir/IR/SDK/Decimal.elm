@@ -85,6 +85,9 @@ nativeFunctions =
     , ( "toString"
       , eval1 Decimal.toString (decodeLiteral decimalLiteral) (encodeLiteral StringLiteral)
       )
+    , ( "toFloat"
+      , eval1 Decimal.toFloat (decodeLiteral decimalLiteral) (encodeLiteral FloatLiteral)
+      )
     , ( "fromFloat"
       , eval1 Decimal.fromFloat (decodeLiteral Native.floatLiteral) (encodeLiteral DecimalLiteral)
       )

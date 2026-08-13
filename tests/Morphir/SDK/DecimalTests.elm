@@ -267,6 +267,27 @@ toStringTests =
         ]
 
 
+toFloatTests : Test
+toFloatTests =
+    describe "Decimal.toFloat"
+        [ test "positive integer" <|
+            \_ ->
+                Expect.equal 1.0 (Decimal.toFloat <| Decimal.fromInt 1)
+        , test "zero" <|
+            \_ ->
+                Expect.equal 0.0 (Decimal.toFloat <| Decimal.fromInt 0)
+        , test "negative integer" <|
+            \_ ->
+                Expect.equal -1.0 (Decimal.toFloat <| Decimal.fromInt -1)
+        , test "decimal value" <|
+            \_ ->
+                Expect.within (Expect.Absolute 1.0e-9) 3.14 (Decimal.toFloat <| Decimal.fromFloat 3.14)
+        , test "roundtrip fromFloat" <|
+            \_ ->
+                Expect.within (Expect.Absolute 1.0e-9) 1.5 (Decimal.toFloat <| Decimal.fromFloat 1.5)
+        ]
+
+
 compareTests : Test
 compareTests =
     describe "Decimal.compare"

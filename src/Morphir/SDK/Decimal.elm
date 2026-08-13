@@ -12,6 +12,7 @@ module Morphir.SDK.Decimal exposing
     , millionth
     , bps
     , toString
+    , toFloat
     , add
     , sub
     , negate
@@ -63,6 +64,7 @@ module Morphir.SDK.Decimal exposing
 # Convert to
 
 @docs toString
+@docs toFloat
 
 
 # Arithmetic operations
@@ -162,35 +164,35 @@ million n =
 -}
 tenth : Int -> Decimal
 tenth n =
-    D.fromFloat (toFloat n * 0.1)
+    D.fromFloat (Basics.toFloat n * 0.1)
 
 
 {-| Converts an Int to a Decimal that represents n hundredths.
 -}
 hundredth : Int -> Decimal
 hundredth n =
-    D.fromFloat (toFloat n * 0.01)
+    D.fromFloat (Basics.toFloat n * 0.01)
 
 
 {-| Converts an Int to a Decimal that represents n thousandths.
 -}
 thousandth : Int -> Decimal
 thousandth n =
-    D.fromFloat (toFloat n * 0.001)
+    D.fromFloat (Basics.toFloat n * 0.001)
 
 
 {-| Converts an Int to a Decimal that represents n basis points (i.e. 1/10 of % or a ten-thousandth
 -}
 bps : Int -> Decimal
 bps n =
-    D.fromFloat (toFloat n * 0.0001)
+    D.fromFloat (Basics.toFloat n * 0.0001)
 
 
 {-| Converts an Int to a Decimal that represents n millionth.
 -}
 millionth : Int -> Decimal
 millionth n =
-    D.fromFloat (toFloat n * 0.000001)
+    D.fromFloat (Basics.toFloat n * 0.000001)
 
 
 {-| Converts a String to a Maybe Decimal. The string shall be in the format [<sign>]<numbers>[.<numbers>][e<numbers>]
@@ -205,6 +207,15 @@ fromString str =
 toString : Decimal -> String
 toString decimalValue =
     D.toString decimalValue
+
+
+{-| Converts a Decimal to a Float. Note: this conversion may lose precision.
+The conversion goes through the string representation, which is always a valid
+float-parseable value for any well-formed Decimal.
+-}
+toFloat : Decimal -> Float
+toFloat d =
+    d |> toString |> String.toFloat |> Maybe.withDefault 0
 
 
 {-| Addition
@@ -246,7 +257,7 @@ divWithDefault default a b =
 -}
 shiftDecimalLeft : Int -> Decimal -> Decimal
 shiftDecimalLeft n value =
-    fromFloat (10.0 ^ toFloat -n) |> mul value
+    fromFloat (10.0 ^ Basics.toFloat -n) |> mul value
 
 
 {-| Shift the decimal n digits to the right.

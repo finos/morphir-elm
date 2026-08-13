@@ -10,6 +10,7 @@ import Morphir.IR.Package as Package
 import Morphir.IR.QName as QName exposing (QName(..))
 import Morphir.IR.SDK as SDK
 import Morphir.IR.Value as Value
+import Morphir.SDK.Decimal as Decimal
 import Morphir.Value.Interpreter exposing (evaluate)
 import Test exposing (Test, describe, test)
 
@@ -318,6 +319,12 @@ evaluateValueTests =
             )
             stringPendingSDK
             [ [ "string" ] ]
+        , positiveCheck "Decimal.toFloat 3.14 == 3.14"
+            (Value.Apply ()
+                (Value.Reference () (fqn "Morphir.SDK" "Decimal" "toFloat"))
+                (Value.Literal () (DecimalLiteral (Decimal.fromFloat 3.14)))
+            )
+            (Value.Literal () (FloatLiteral 3.14))
         , positiveCheck "(\\val1 val2 -> val1 + val2) 1 2"
             (Value.Apply ()
                 (Value.Apply ()
