@@ -10,8 +10,8 @@ const util = require("util");
 const fs = require("fs");
 const readFile = util.promisify(fs.readFile);
 const commander = require("commander");
-const express = require("express");
-const { file } = require("get-uri/dist/file");
+const fastify = require("fastify");
+const fastifyStatic = require("@fastify/static");
 
 // Set up Commander
 const program = new commander.Command();
@@ -27,47 +27,54 @@ program
   )
   .parse(process.argv);
 
-const app = express();
-const port = program.opts().port;
+const app = fastify({ bodyLimit: 100 * 1024 * 1024 });
+const port = Number(program.opts().port);
 
 const webDir = path.join(__dirname, "treeview", "dist");
 
-app.use(express.static(webDir, { index: false }));
-app.use(express.json({ limit: "100mb" }));
+app.register(fastifyStatic, { root: webDir, index: false });
 
-app.get(
-  "/",
-  wrap(async (req, res, next) => {
-    res.setHeader("Content-type", "text/html");
-    res.send(await indexHtmlWithVersion());
-  })
-);
+app.get("/", async (request, reply) => {
+  reply.type("text/html");
+  return await indexHtmlWithVersion();
+});
 
 createSimpleGetJsonApi(app, "morphir.json");
 createSimpleGetJsonApi(app, "morphir-ir.json");
 
-app.get('/assets/2020_Morphir_Logo_Icon_WHT.svg', (req, res) => {
-  var options = {
-          root: path.join(__dirname)
-      };
-    var fileName = path.join(program.opts().projectDir, 'treeview/assets/2020_Morphir_Logo_Icon_WHT.svg');
-    res.sendFile(fileName, options
-      , function (err) {
-        if (err) {
-            console.error(err);
-        }
-  });
+app.get("/assets/2020_Morphir_Logo_Icon_WHT.svg", async (request, reply) => {
+  const projectFileName = path.join(
+    program.opts().projectDir,
+    "treeview/assets/2020_Morphir_Logo_Icon_WHT.svg"
+  );
+  const packagedFileName = path.join(
+    __dirname,
+    "treeview/assets/2020_Morphir_Logo_Icon_WHT.svg"
+  );
+  const fileContent = await readFileWithFallback(
+    projectFileName,
+    packagedFileName
+  );
+  reply.type("image/svg+xml");
+  return fileContent;
 });
 
-app.get(
-  "*",
-  wrap(async (req, res, next) => {
-    res.setHeader("Content-type", "text/html");
-    res.send(await indexHtmlWithVersion());
-  })
-);
+app.setNotFoundHandler(async (request, reply) => {
+  if (request.method === "GET") {
+    reply.type("text/html");
+    return await indexHtmlWithVersion();
+  }
 
-app.listen(port, program.opts().host, () => {
+  reply.code(404);
+  return { error: "Not Found" };
+});
+
+app.listen({ port, host: program.opts().host }, (err, address) => {
+  if (err) {
+    console.error(err);
+    process.exit(1);
+  }
+
   console.log(
     `Developer server listening at http://${program.opts().host}:${port}`
   );
@@ -78,21 +85,32 @@ app.listen(port, program.opts().host, () => {
 function createSimpleGetJsonApi(app, filePath, defaultContent) {
   app.get(
     "/server/" + filePath,
-    wrap(async (req, res, next) => {
+    async (request, reply) => {
       const jsonPath = path.join(program.opts().projectDir, filePath);
       try {
         const jsonContent = await readFile(jsonPath);
-        res.send(JSON.parse(jsonContent.toString()));
+        return JSON.parse(jsonContent.toString());
       } catch (err) {
         if (defaultContent && err.code === "ENOENT") {
-          // file does not exist, send default content
-          res.send(defaultContent);
+          return JSON.parse(defaultContent);
         } else {
           throw err;
         }
       }
-    })
+    }
   );
+}
+
+async function readFileWithFallback(filePath, fallbackFilePath) {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      return await readFile(fallbackFilePath, "utf8");
+    }
+
+    throw err;
+  }
 }
 
 async function indexHtmlWithVersion() {
@@ -102,8 +120,4 @@ async function indexHtmlWithVersion() {
     "__VERSION_NUMBER__",
     packageJson.version.toString()
   );
-}
-
-function wrap(fn) {
-  return (...args) => fn(...args).catch(args[2]);
 }
