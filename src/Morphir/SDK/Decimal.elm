@@ -12,6 +12,7 @@ module Morphir.SDK.Decimal exposing
     , millionth
     , bps
     , toString
+    , toFloat
     , add
     , sub
     , negate
@@ -63,6 +64,7 @@ module Morphir.SDK.Decimal exposing
 # Convert to
 
 @docs toString
+@docs toFloat
 
 
 # Arithmetic operations
@@ -205,6 +207,13 @@ fromString str =
 toString : Decimal -> String
 toString decimalValue =
     D.toString decimalValue
+
+
+{-| Converts a Decimal to a Float. Note: this conversion may lose precision.
+-}
+toFloat : Decimal -> Float
+toFloat d =
+    d |> toString |> String.toFloat |> Maybe.withDefault 0
 
 
 {-| Addition
