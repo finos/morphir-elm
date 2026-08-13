@@ -210,6 +210,8 @@ toString decimalValue =
 
 
 {-| Converts a Decimal to a Float. Note: this conversion may lose precision.
+The conversion goes through the string representation, which is always a valid
+float-parseable value for any well-formed Decimal.
 -}
 toFloat : Decimal -> Float
 toFloat d =
