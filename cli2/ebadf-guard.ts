@@ -9,15 +9,25 @@
  * The CLI's work has already completed successfully when this fires during
  * wind-down, so the process dying with exit 1 breaks build systems.
  *
- * This guard swallows exactly that error shape and re-throws everything else.
+ * This guard swallows exactly that GC diagnostic and re-throws everything
+ * else. An ordinary double-close via `fs.close()` callback has the same
+ * `EBADF`/`close` fields but without the GC message, so it must not be
+ * swallowed — it indicates a real resource-handling bug while work is still
+ * in progress.
  * It is idempotent across multiple `import` calls via a global flag.
  */
 const g = globalThis as unknown as { __morphirEbadfGuardInstalled?: boolean };
 if (!g.__morphirEbadfGuardInstalled) {
   g.__morphirEbadfGuardInstalled = true;
   process.on('uncaughtException', (err: unknown) => {
-    const e = err as { code?: string; syscall?: string } | null | undefined;
-    if (e && e.code === 'EBADF' && e.syscall === 'close') {
+    const e = err as { code?: string; syscall?: string; message?: string } | null | undefined;
+    if (
+      e &&
+      e.code === 'EBADF' &&
+      e.syscall === 'close' &&
+      typeof e.message === 'string' &&
+      e.message.includes('garbage collection')
+    ) {
       return;
     }
     throw err;

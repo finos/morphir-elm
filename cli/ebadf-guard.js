@@ -11,13 +11,23 @@
  * The CLI's work has already completed successfully when this fires during
  * wind-down, so the process dying with exit 1 breaks build systems.
  *
- * This guard swallows exactly that error shape and re-throws everything else.
+ * This guard swallows exactly that GC diagnostic and re-throws everything
+ * else. An ordinary double-close via `fs.close()` callback has the same
+ * `EBADF`/`close` fields but without the GC message, so it must not be
+ * swallowed — it indicates a real resource-handling bug while work is still
+ * in progress.
  * It is idempotent across multiple `require()` calls via a global flag.
  */
 if (!globalThis.__morphirEbadfGuardInstalled) {
   globalThis.__morphirEbadfGuardInstalled = true;
   process.on('uncaughtException', (err) => {
-    if (err && err.code === 'EBADF' && err.syscall === 'close') {
+    if (
+      err &&
+      err.code === 'EBADF' &&
+      err.syscall === 'close' &&
+      typeof err.message === 'string' &&
+      err.message.includes('garbage collection')
+    ) {
       return;
     }
     throw err;
