@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Guard against Node 24 EBADF double-close on GC (finos/morphir-elm#1282)
+import "./ebadf-guard.js";
+
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";

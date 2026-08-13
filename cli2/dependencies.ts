@@ -1,14 +1,13 @@
 import * as fs from "fs";
 import { ResultAsync } from "neverthrow";
 import * as path from "path";
-import { pathToFileURL } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import * as util from "util";
 import { decode, labelToName } from "whatwg-encoding";
 import { z } from "zod";
 import { fetchUriToJson } from "./get-uri-wrapper.js";
-import { Readable } from "stream";
 import parseDataUrl from "data-urls";
-const fsReadFile = util.promisify(fs.readFile);
+import { promises as fsPromises } from "fs";
 
 export const DataUrl = z.string().trim().transform((val, ctx) => {
   const parsed = parseDataUrl(val)
@@ -186,7 +185,7 @@ const loadDependenciesFromString = (config: DependencyConfig) => function (input
     let { success: fileSuccess, data: fileData } = FileUrl.safeParse(sanitized);
     if (fileSuccess && fileData !== undefined) {
       console.info("Loading file url", fileData);
-      return fetchUriToJson(fileData)
+      return readLocalFileJson(fileData);
 
     }
     let { success: urlSuccess, data: urlData } = Url.safeParse(sanitized);
@@ -199,7 +198,7 @@ const loadDependenciesFromString = (config: DependencyConfig) => function (input
     if (localFileCWDSuccess && localUrlCWDData !== undefined) {
 
       console.info("Loading local file url from current working directory ", localUrlCWDData);
-      return fetchUriToJson(localUrlCWDData);
+      return readLocalFileJson(localUrlCWDData);
 
     }
 
@@ -207,7 +206,7 @@ const loadDependenciesFromString = (config: DependencyConfig) => function (input
     if (localFileSuccess && localUrlData !== undefined) {
 
       console.info("Loading local file url from morphir.json directory", localUrlData);
-      return fetchUriToJson(localUrlData);
+      return readLocalFileJson(localUrlData);
 
     }
 
@@ -263,11 +262,15 @@ class LocalDependencyNotFound extends Error {
 
 }
 
-
-async function toBuffer(stream: Readable): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks as unknown as Uint8Array[]);
+/**
+ * Read a local file:// URL directly via fs/promises instead of get-uri.
+ * This avoids get-uri's file.js path which opens an fd via fs-extra, then
+ * creates a ReadStream without guaranteeing the fd is closed if fstat fails
+ * or if the stream is not fully consumed. That leaked fd surfaces under
+ * Node 24 as a fatal EBADF close-on-GC (finos/morphir-elm#1282).
+ */
+async function readLocalFileJson(url: URL): Promise<unknown> {
+  const filePath = fileURLToPath(url);
+  const content = await fsPromises.readFile(filePath, "utf8");
+  return JSON.parse(content);
 }

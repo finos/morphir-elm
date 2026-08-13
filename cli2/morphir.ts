@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Guard against Node 24 EBADF double-close on GC (finos/morphir-elm#1282)
+import "./ebadf-guard.js";
+
 // NPM imports
 import path from "path";
 import { fileURLToPath } from "url";

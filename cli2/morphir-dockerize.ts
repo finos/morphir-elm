@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Guard against Node 24 EBADF double-close on GC (finos/morphir-elm#1282)
+import "./ebadf-guard.js";
+
 // NPM Imports
 import { Command } from "commander";
 import { dockerize } from "./cliAPI.js";
