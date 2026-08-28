@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Run all setup tasks"
-//MISE depends=["setup:elm-tooling", "setup:morphir-jvm"]
+//MISE depends=["setup:morphir-jvm"]
 
 import { log } from "./_lib.ts";
 

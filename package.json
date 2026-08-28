@@ -17,7 +17,6 @@
     "./sdk/*": "./packages/morphir-ts/dist/sdk/*.js"
   },
   "scripts": {
-    "prepare": "npm run setup-elm-tooling",
     "clean": "mise run clean",
     "test": "mise run test",
     "test-morphir-ir-typescript": "mise run test:morphir-ir",
@@ -33,7 +32,6 @@
     "build:bundle": "mise run build:bundle",
     "test-coverage": "elm-coverage src/ --open",
     "build-value-editor": "elm make packages/cli/src/Morphir/Web/Editor.elm --output=packages/cli/web/valueEditor.js",
-    "setup-elm-tooling": "elm-tooling install",
     "setup": "mise run setup"
   },
   "repository": {
@@ -89,7 +87,6 @@
     "@types/whatwg-encoding": "^2.0.3",
     "@typespec/compiler": "^0.59.1",
     "elm-test": "^0.19.1-revision6",
-    "elm-tooling": "^1.15.0",
     "json-schema": "^0.4.0",
     "mocha": "^10.1.0",
     "package-json": "^8.1.1",

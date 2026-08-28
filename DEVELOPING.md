@@ -6,7 +6,7 @@ This guide covers setting up a development environment and building the project.
 
 - **Node.js 20+** - JavaScript runtime
 - **mise** - Polyglot tool version manager ([install guide](https://mise.jdx.dev/getting-started.html))
-- **Elm** - Installed via elm-tooling (automated)
+- **Elm** - Installed by mise from `mise.toml`
 
 ## Quick Start
 
@@ -17,9 +17,9 @@ curl https://mise.run | sh
 # Trust the project configuration
 mise trust
 
-# Install tools (node, bun) and dependencies
+# Install pinned tools and dependencies
 mise install
-npm ci
+mise exec -- bun ci
 
 # Run the full build pipeline
 mise run default
@@ -36,7 +36,7 @@ This project uses [mise](https://mise.jdx.dev/) with [Bun](https://bun.sh/) for 
 | `mise run clean` | Remove build artifacts |
 | `mise run build` | Build all components |
 | `mise run test` | Run all tests |
-| `mise run setup` | Setup dependencies (elm-tooling, morphir-jvm) |
+| `mise run setup` | Set up Morphir JVM SDK assets |
 | `mise run default` | Full pipeline: clean → check → setup → build |
 
 ### Build Tasks
@@ -67,7 +67,6 @@ This project uses [mise](https://mise.jdx.dev/) with [Bun](https://bun.sh/) for 
 
 | Task | Description |
 |------|-------------|
-| `mise run setup:elm-tooling` | Install Elm tooling binaries |
 | `mise run setup:morphir-jvm` | Clone and setup Morphir JVM SDK assets |
 
 ## NPM Scripts
@@ -103,7 +102,6 @@ npm run build:cli2     # Build CLI2 only
 │   │   ├── integration.ts
 │   │   └── ...
 │   └── setup/               # Setup subtasks
-│       ├── elm-tooling.ts
 │       └── morphir-jvm.ts
 packages/                    # Workspace packages
 │   ├── cli/                 # CLI v1 (Elm + JavaScript)
@@ -165,15 +163,15 @@ mise trust
 
 ### Elm compilation errors
 
-Make sure Elm tooling is installed:
+Make sure the pinned Elm tools are installed:
 ```bash
-mise run setup:elm-tooling
+mise install
 ```
 
 ### Missing dependencies
 
 ```bash
-npm ci
+mise exec -- bun ci
 mise run setup
 ```
 

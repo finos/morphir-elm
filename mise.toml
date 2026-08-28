@@ -2,7 +2,11 @@ min_version = "2024.11.0"
 
 [tools]
 node = "20"       # Matches lts/iron from .nvmrc
-bun = "latest"    # Task executor
+bun = "1.4.0"     # Task executor
+elm = "0.19.1"
+"github:avh4/elm-format" = "0.8.7"
+"github:zwilias/elm-json" = "0.2.13"
+"github:mpizenberg/elm-test-rs" = "3.0"
 "github:extism/js-pdk" = "1.6.0"  # extism-js compiler for interpreter-wasm
 "github:WebAssembly/binaryen" = { version = "126", version_prefix = "version_" }  # wasm-merge, wasm-opt for extism-js
 "github:extism/cli" = "1.6.3"  # run plugins in tests (SDK has ABI mismatch with js-pdk plugins)
