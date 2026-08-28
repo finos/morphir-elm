@@ -1,0 +1,207 @@
+---
+name: MEP extension
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches:
+      - vnext
+    paths:
+      - "cli2/**"
+      - "packages/cli2/**"
+      - "src/**"
+      - ".mise/**"
+      - "mise.toml"
+      - "mise.ci-windows.toml"
+      - "mise.ci-windows.lock"
+      - "elm.json"
+      - "bunfig.toml"
+      - "package.json"
+      - "packages/*/package.json"
+      - "bun.lock"
+      - "package-lock.json"
+      - "tests-integration/mep-extension.test.ts"
+      - "tests-integration/mep-extension/**"
+      - ".github/workflows/mep-extension.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test (${{ matrix.platform }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    env:
+      MISE_AUTO_INSTALL: "false"
+      MISE_ENV: ${{ matrix.mise-env }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        # Executable hashes come from mise v2026.8.14 SHASUMS256.txt.
+        include:
+          - runner: ubuntu-24.04
+            mise-env: ""
+            runner-os: Linux
+            runner-arch: X64
+            bun-arch: x64
+            mise-version: "2026.8.14"
+            mise-sha256: >-
+              7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+            platform: linux
+            arch: amd64
+            executable: dist/morphir-elm-extension/morphir-elm-extension
+          - runner: macos-15
+            mise-env: ""
+            runner-os: macOS
+            runner-arch: ARM64
+            bun-arch: arm64
+            mise-version: "2026.8.14"
+            mise-sha256: >-
+              ba93b3fe7e47964e4392d40c8b7bfa5740e8c2a0a575e3e86268e9764082ed3e
+            platform: darwin
+            arch: arm64
+            executable: dist/morphir-elm-extension/morphir-elm-extension
+          - runner: windows-11-arm
+            mise-env: ci-windows
+            runner-os: Windows
+            runner-arch: ARM64
+            bun-arch: arm64
+            mise-version: "2026.8.14"
+            mise-sha256: >-
+              48c7e0ca372e51393dc518698cfd4c53791f6f7a42be1fb179179a17489bc237
+            platform: windows
+            arch: arm64
+            executable: dist/morphir-elm-extension/morphir-elm-extension.exe
+
+    steps:
+      - name: Assert runner platform and architecture
+        env:
+          EXPECTED_RUNNER_OS: ${{ matrix.runner-os }}
+          EXPECTED_RUNNER_ARCH: ${{ matrix.runner-arch }}
+        run: |
+          test "$RUNNER_OS" = "$EXPECTED_RUNNER_OS"
+          test "$RUNNER_ARCH" = "$EXPECTED_RUNNER_ARCH"
+
+      - name: Check out repository
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Install tools from mise.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: ${{ matrix.mise-version }}
+          sha256: ${{ matrix.mise-sha256 }}
+          experimental: true
+          install_args: bun
+
+      - name: Install Elm
+        if: runner.os != 'Windows'
+        run: |
+          mise install elm@0.19.1
+          elm_bin="$(mise where elm@0.19.1)"
+          echo "$elm_bin" >> "$GITHUB_PATH"
+          "$elm_bin/elm" --version
+
+      # Elm 0.19.1's official Windows compiler is x64 only. The CI-specific
+      # mise config selects that binary asset for Windows ARM64, which runs
+      # elm.exe through x64 emulation while Bun remains native ARM64.
+      - name: Install x64 Elm on Windows ARM64
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          mise --locked install 'github:elm/compiler@0.19.1'
+          $elmBin = mise where 'github:elm/compiler@0.19.1' 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            throw 'mise did not resolve the CI Elm compiler install directory'
+          }
+          $expectedElm = Join-Path $elmBin 'elm.exe'
+          $resolvedElm = mise which elm 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            throw 'mise did not activate the CI Elm compiler'
+          }
+          $expectedPath = [IO.Path]::GetFullPath($expectedElm)
+          $resolvedPath = [IO.Path]::GetFullPath($resolvedElm.Trim())
+          if (-not $expectedPath.Equals(
+              $resolvedPath,
+              [StringComparison]::OrdinalIgnoreCase
+            )) {
+            throw "mise resolved $resolvedPath instead of $expectedPath"
+          }
+          & $resolvedPath --version
+
+      - name: Verify mise-managed tools
+        env:
+          EXPECTED_BUN_ARCH: ${{ matrix.bun-arch }}
+        run: |
+          test "$(mise exec bun@1.4.0 -- bun --version)" = "1.4.0"
+          bun_arch="$(mise exec bun@1.4.0 -- \
+            bun -e 'process.stdout.write(process.arch)')"
+          test "$bun_arch" = "$EXPECTED_BUN_ARCH"
+          test "$(mise exec -- elm --version)" = "0.19.1"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Build native extension
+        run: mise run build:mep-extension
+
+      - name: Test native extension
+        run: mise exec -- bun test tests-integration/mep-extension.test.ts
+
+      - name: Assert native executable
+        env:
+          EXTENSION_EXECUTABLE: ${{ matrix.executable }}
+        run: test -f "$EXTENSION_EXECUTABLE"
+
+      - name: Inspect Linux executable architecture
+        if: runner.os == 'Linux'
+        env:
+          EXTENSION_EXECUTABLE: ${{ matrix.executable }}
+        run: file "$EXTENSION_EXECUTABLE" | grep -q 'ELF 64-bit.*x86-64'
+
+      - name: Inspect macOS executable architecture
+        if: runner.os == 'macOS'
+        env:
+          EXTENSION_EXECUTABLE: ${{ matrix.executable }}
+        run: file "$EXTENSION_EXECUTABLE" | grep -q 'Mach-O.*arm64'
+
+      - name: Inspect Windows executable architecture
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          EXTENSION_EXECUTABLE: ${{ matrix.executable }}
+        run: |
+          $path = [IO.Path]::GetFullPath($env:EXTENSION_EXECUTABLE)
+          $bytes = [IO.File]::ReadAllBytes($path)
+          if ($bytes.Length -lt 64) {
+            throw "Executable is too short to contain a PE header: $path"
+          }
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3c)
+          if ($peOffset -lt 0 -or $peOffset + 6 -gt $bytes.Length) {
+            throw "Executable contains an invalid PE header offset: $peOffset"
+          }
+          $signature = [BitConverter]::ToUInt32($bytes, $peOffset)
+          if ($signature -ne 0x00004550) {
+            throw ('Invalid PE signature: 0x{0:X8}' -f $signature)
+          }
+          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          if ($machine -ne 0xAA64) {
+            $actualMachine = '0x{0:X4}' -f $machine
+            throw "Expected PE ARM64 machine 0xAA64, got $actualMachine"
+          }
+
+      - name: Upload native executable
+        # actions/upload-artifact v4.6.2
+        uses: >-
+          actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: morphir-elm-extension-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ matrix.executable }}
+          if-no-files-found: error

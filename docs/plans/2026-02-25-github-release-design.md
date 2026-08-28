@@ -26,7 +26,7 @@ Takes branch + version. Checks out that branch, creates the appropriate tag (`v{
 ### Build Steps
 
 1. Checkout the tagged commit
-2. Install dependencies (mise, bun, elm-tooling)
+2. Install pinned Bun and native Elm tools with mise, then dependencies with `bun ci`
 3. Build the interpreter Extism plugin (`mise run build:interpreter-wasm`)
 4. Build platform-specific CLI binaries (`mise run build:cli-binaries`)
 

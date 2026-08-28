@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Create single-file executables for CLI distribution"
-//MISE depends=["build:cli", "build:cli2"]
+//MISE depends=["build:cli", "build:cli2", "build:mep-extension"]
 
 import { $, mkdir, log, PATHS, ROOT_DIR, join } from "../_lib.ts";
 
@@ -14,10 +14,25 @@ await mkdir(join(PATHS.dist, "morphir-server"), { recursive: true });
 // --compile flag creates native executable, --minify reduces size
 await Promise.all([
   // CLI v1 (legacy — morphir-elm)
-  $`bun build ${join(PATHS.cli, "morphir.js")} --compile --minify --outfile ${join(PATHS.dist, "morphir-elm/morphir-elm")}`,
-  $`bun build ${join(PATHS.cli, "morphir-elm-develop.js")} --compile --minify --outfile ${join(PATHS.dist, "morphir-server/morphir-server")}`,
-  // CLI v2 (morphir) — compile from source TS directly (Bun handles TypeScript natively)
-  $`bun build ${join(PATHS.cli2, "morphir.ts")} --compile --minify --outfile ${join(PATHS.dist, "morphir/morphir")}`,
+  $`bun build ${join(
+    PATHS.cli,
+    "morphir.js"
+  )} --compile --minify --outfile ${join(
+    PATHS.dist,
+    "morphir-elm/morphir-elm"
+  )}`,
+  $`bun build ${join(
+    PATHS.cli,
+    "morphir-elm-develop.js"
+  )} --compile --minify --outfile ${join(
+    PATHS.dist,
+    "morphir-server/morphir-server"
+  )}`,
+  // CLI v2 (morphir) — compile the build output so its Elm worker stays adjacent.
+  $`bun build ${join(
+    PATHS.cli2,
+    "lib/morphir.js"
+  )} --compile --minify --outfile ${join(PATHS.dist, "morphir/morphir")}`,
 ]);
 
 log("build:bundle", "Created single-file executables in dist/");

@@ -91,9 +91,6 @@ jobs:
         with:
           experimental: true
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
-
       - name: Cache Bun
         uses: actions/cache@v4
         with:
@@ -111,10 +108,7 @@ jobs:
             ${{ runner.os }}-elm-
 
       - name: Install dependencies
-        run: bun install
-
-      - name: Setup Elm tooling
-        run: mise run setup:elm-tooling
+        run: bun ci
 
       # --- Build CLI binaries ---
 

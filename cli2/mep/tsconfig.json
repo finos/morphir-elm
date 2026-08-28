@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": ["bun"]
+  },
+  "files": [
+    "../mep-extension.ts",
+    "compiler.test.ts",
+    "compiler.ts",
+    "framing.ts",
+    "protocol.ts",
+    "../../packages/cli2/worker-build.ts",
+    "../../tests-integration/mep-extension.test.ts"
+  ]
+}

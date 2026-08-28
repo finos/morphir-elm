@@ -107,9 +107,6 @@ jobs:
         with:
           experimental: true
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
-
       - name: Cache Bun
         uses: actions/cache@v4
         with:
@@ -127,10 +124,7 @@ jobs:
             ${{ runner.os }}-elm-
 
       - name: Install dependencies
-        run: bun install
-
-      - name: Setup Elm tooling
-        run: mise run setup:elm-tooling
+        run: bun ci
 
       # --- Build ---
 
@@ -191,7 +185,7 @@ jobs:
 - The prerelease check regex: `^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$` matches pure semver like `2.101.0` or `2.101.0-beta.1` but NOT `vnext-0.1.0` (which has a non-semver prefix).
 - The `workflow_dispatch` creates and pushes the tag automatically. The tag push event will NOT re-trigger this workflow because GitHub Actions doesn't trigger on tags created within a workflow run.
 - The checkout for tag push uses the tag ref directly. The checkout for dispatch uses the branch ref.
-- Uses `actions/checkout@v4`, `actions/setup-node@v4`, `jdx/mise-action@v2`, `oven-sh/setup-bun@v2` — matching the versions in `nodejs.yml`.
+- Uses `actions/checkout@v4`, `actions/setup-node@v4`, and `jdx/mise-action@v2`; mise installs Bun and the native Elm tools from `mise.toml`.
 - CLI binaries are cross-compiled on ubuntu-latest using `bun build --compile --target`. Bun supports cross-compilation without needing the target OS.
 - Install scripts are included directly from `scripts/` — they don't need to be packaged.
 

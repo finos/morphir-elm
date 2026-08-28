@@ -44,7 +44,6 @@
         "@types/whatwg-encoding": "^2.0.3",
         "@typespec/compiler": "^0.59.1",
         "elm-test": "^0.19.1-revision6",
-        "elm-tooling": "^1.15.0",
         "json-schema": "^0.4.0",
         "mocha": "^10.1.0",
         "package-json": "^8.1.1",
@@ -742,8 +741,6 @@
     "elm-solve-deps-wasm": ["elm-solve-deps-wasm@1.0.2", "", {}, "sha512-qnwo7RO9IO7jd9SLHvIy0rSOEIlc/tNMTE9Cras0kl+b161PVidW4FvXo0MtXU8GAKi/2s/HYvhcnpR/NNQ1zw=="],
 
     "elm-test": ["elm-test@0.19.1-revision9", "", { "dependencies": { "chalk": "^4.1.2", "chokidar": "^3.5.3", "commander": "^9.3.0", "cross-spawn": "^7.0.3", "elm-solve-deps-wasm": "^1.0.1", "glob": "^8.0.3", "graceful-fs": "^4.2.10", "split": "^1.0.1", "which": "^2.0.2", "xmlbuilder": "^15.1.1" }, "bin": "bin/elm-test" }, "sha512-lvHJbh16sy7oUBBPIEMN+0v6dGDZFmfvwq+V+TnGPk5ZlI64vcykx8E8+zLt/E+Ja42UKMMXXgN1ZHQ1V6Ic2Q=="],
-
-    "elm-tooling": ["elm-tooling@1.15.1", "", { "bin": "index.js" }, "sha512-+rRYa7gzz6l2/Ip2i197MqkW5abOwPOP/+WlyyatLDeDhh+JR0HUMlZJYenCYodBeG/xW5xW3pRYQ2onf5bIAw=="],
 
     "emoji-regex": ["emoji-regex@8.0.0", "", {}, "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=="],
 
