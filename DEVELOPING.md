@@ -147,8 +147,9 @@ mise run build:bundle
 ```
 
 `mise run build:mep-extension` creates a host-native Morphir Elm frontend for
-local development. Release CI distributes explicit platform and architecture
-artifacts; the platform-neutral npm package does not include this executable.
+local development. The MEP extension pull-request workflow builds and validates
+CI artifacts for Linux AMD64, macOS ARM64, and Windows ARM64. The
+platform-neutral npm package does not include the native executable.
 
 This creates:
 
