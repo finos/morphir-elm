@@ -11,10 +11,12 @@
     "types": ["bun"]
   },
   "files": [
+    "../mep-extension.ts",
     "compiler.test.ts",
     "compiler.ts",
     "framing.ts",
     "protocol.ts",
-    "../../packages/cli2/worker-build.ts"
+    "../../packages/cli2/worker-build.ts",
+    "../../tests-integration/mep-extension.test.ts"
   ]
 }

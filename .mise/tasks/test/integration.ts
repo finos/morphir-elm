@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Run integration tests"
-//MISE depends=["build:cli", "build:cli2"]
+//MISE depends=["build:cli", "build:cli2", "build:mep-extension"]
 
 import {
   del,
@@ -63,7 +63,12 @@ async function testMorphirTest() {
 
   await exec(
     "node",
-    ["./packages/cli/morphir-elm.js", "test", "-p", "./tests-integration/reference-model"],
+    [
+      "./packages/cli/morphir-elm.js",
+      "test",
+      "-p",
+      "./tests-integration/reference-model",
+    ],
     { cwd: ROOT_DIR }
   );
 }
@@ -77,7 +82,10 @@ async function testScala() {
   );
 
   // Mill build is optional - skip if not available
-  log("test:integration", "Skipping Scala build (mill not available in standard setup)");
+  log(
+    "test:integration",
+    "Skipping Scala build (mill not available in standard setup)"
+  );
 }
 
 async function testTypeScript() {
@@ -97,8 +105,20 @@ async function testTypeScript() {
   );
 }
 
+async function testMepExtension() {
+  log("test:integration", "Testing the standalone MEP extension...");
+  await exec("bun", ["test", "./tests-integration/mep-extension.test.ts"], {
+    cwd: ROOT_DIR,
+  });
+}
+
 // Run parallel test suites
-await Promise.all([testMorphirTest(), testScala(), testTypeScript()]);
+await Promise.all([
+  testMorphirTest(),
+  testScala(),
+  testTypeScript(),
+  testMepExtension(),
+]);
 
 // Step 4: Dockerize test
 log("test:integration", "Testing dockerize...");

@@ -31,42 +31,42 @@ This project uses [mise](https://mise.jdx.dev/) with [Bun](https://bun.sh/) for 
 
 ### Available Tasks
 
-| Task | Description |
-|------|-------------|
-| `mise run clean` | Remove build artifacts |
-| `mise run build` | Build all components |
-| `mise run test` | Run all tests |
-| `mise run setup` | Set up Morphir JVM SDK assets |
+| Task               | Description                                  |
+| ------------------ | -------------------------------------------- |
+| `mise run clean`   | Remove build artifacts                       |
+| `mise run build`   | Build all components                         |
+| `mise run test`    | Run all tests                                |
+| `mise run setup`   | Set up Morphir JVM SDK assets                |
 | `mise run default` | Full pipeline: clean → check → setup → build |
 
 ### Build Tasks
 
-| Task | Description |
-|------|-------------|
-| `mise run build:check-elm-docs` | Verify Elm documentation compiles |
-| `mise run build:cli` | Build CLI (Elm → JavaScript) |
-| `mise run build:cli2` | Build CLI2 (TypeScript + Elm in parallel) |
-| `mise run build:treeview` | Build treeview webpack bundle |
-| `mise run build:morphir-ts` | Build Morphir TypeScript library |
-| `mise run build:dev-server` | Build development server Elm components |
-| `mise run build:components` | Build insight web components |
-| `mise run build:try-morphir` | Build Try Morphir web app |
-| `mise run build:bundle` | Create standalone executables (via Bun) |
+| Task                            | Description                               |
+| ------------------------------- | ----------------------------------------- |
+| `mise run build:check-elm-docs` | Verify Elm documentation compiles         |
+| `mise run build:cli`            | Build CLI (Elm → JavaScript)              |
+| `mise run build:cli2`           | Build CLI2 (TypeScript + Elm in parallel) |
+| `mise run build:treeview`       | Build treeview webpack bundle             |
+| `mise run build:morphir-ts`     | Build Morphir TypeScript library          |
+| `mise run build:dev-server`     | Build development server Elm components   |
+| `mise run build:components`     | Build insight web components              |
+| `mise run build:try-morphir`    | Build Try Morphir web app                 |
+| `mise run build:bundle`         | Create standalone executables (via Bun)   |
 
 ### Test Tasks
 
-| Task | Description |
-|------|-------------|
-| `mise run test:unit` | Run Elm unit tests |
-| `mise run test:integration` | Run integration test suite |
-| `mise run test:integration-spark` | Run Spark integration tests (requires mill) |
-| `mise run test:morphir-ir` | Test Morphir IR TypeScript codecs |
-| `mise run test:check-package-lock` | Verify no prohibited dependencies |
+| Task                               | Description                                 |
+| ---------------------------------- | ------------------------------------------- |
+| `mise run test:unit`               | Run Elm unit tests                          |
+| `mise run test:integration`        | Run integration test suite                  |
+| `mise run test:integration-spark`  | Run Spark integration tests (requires mill) |
+| `mise run test:morphir-ir`         | Test Morphir IR TypeScript codecs           |
+| `mise run test:check-package-lock` | Verify no prohibited dependencies           |
 
 ### Setup Tasks
 
-| Task | Description |
-|------|-------------|
+| Task                         | Description                            |
+| ---------------------------- | -------------------------------------- |
 | `mise run setup:morphir-jvm` | Clone and setup Morphir JVM SDK assets |
 
 ## NPM Scripts
@@ -146,7 +146,12 @@ The `build:bundle` task creates standalone executables using Bun's compile featu
 mise run build:bundle
 ```
 
+`mise run build:mep-extension` creates a host-native Morphir Elm frontend for
+local development. Release CI distributes explicit platform and architecture
+artifacts; the platform-neutral npm package does not include this executable.
+
 This creates:
+
 - `dist/morphir/morphir` - Main CLI executable
 - `dist/morphir-server/morphir-server` - Development server executable
 
@@ -157,6 +162,7 @@ These executables don't require Node.js on the target system.
 ### mise not finding tasks
 
 Ensure the project is trusted:
+
 ```bash
 mise trust
 ```
@@ -164,6 +170,7 @@ mise trust
 ### Elm compilation errors
 
 Make sure the pinned Elm tools are installed:
+
 ```bash
 mise install
 ```
