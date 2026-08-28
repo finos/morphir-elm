@@ -15,6 +15,7 @@
 port module Morphir.Elm.CLI exposing (..)
 
 import Dict
+import Elm.Syntax.Range as ElmRange
 import Json.Decode as Decode exposing (field, string)
 import Json.Encode as Encode
 import Morphir.Correctness.Codec as TestCodec
@@ -23,6 +24,7 @@ import Morphir.Elm.Frontend as Frontend exposing (PackageInfo, SourceFile, Sourc
 import Morphir.Elm.Frontend.Codec as FrontendCodec
 import Morphir.Elm.IncrementalFrontend as IncrementalFrontend exposing (Errors, ModuleChange(..), OrderedFileChanges)
 import Morphir.Elm.IncrementalFrontend.Codec as IncrementalFrontendCodec
+import Morphir.Elm.IncrementalFrontend.Mapper as IncrementalMapper
 import Morphir.Elm.Target exposing (decodeOptions, mapDistribution)
 import Morphir.File.FileChanges as FileChanges exposing (FileChanges)
 import Morphir.File.FileChanges.Codec as FileChangesCodec
@@ -288,7 +290,6 @@ process msg =
                 Result.map3
                     (\options packageDist maybeTestSuite ->
                         let
-
                             fileMap : Result Encode.Value FileMap
                             fileMap =
                                 mapDistribution options maybeTestSuite (packageDist |> withDefaultDeps)
@@ -315,7 +316,6 @@ process msg =
             case packageDistroResult of
                 Ok packageDist ->
                     let
-
                         fileMap : FileMap
                         fileMap =
                             Stats.collectFeaturesFromDistribution (packageDist |> withDefaultDeps)
@@ -445,7 +445,7 @@ returnDistribution repoResult =
     repoResult
         |> Result.map Repo.toDistribution
         |> Result.map removeMorphirSDK
-        |> encodeResult (Encode.list IncrementalFrontendCodec.encodeError) DistroCodec.encodeVersionedDistribution
+        |> encodeResult (Encode.list encodeBuildError) DistroCodec.encodeVersionedDistribution
         |> buildCompleted
 
 
@@ -456,7 +456,141 @@ failOrProceed msgResult =
             Process.sleep 0 |> Task.perform (always msg)
 
         Err error ->
-            Encode.list IncrementalFrontendCodec.encodeError error |> buildFailed
+            Encode.list encodeBuildError error |> buildFailed
+
+
+encodeBuildError : IncrementalFrontend.Error -> Encode.Value
+encodeBuildError error =
+    let
+        code =
+            case error of
+                IncrementalFrontend.ModuleCycleDetected _ _ ->
+                    "elm.module-cycle"
+
+                IncrementalFrontend.TypeCycleDetected _ _ ->
+                    "elm.type-cycle"
+
+                IncrementalFrontend.TypeNotFound _ ->
+                    "elm.type-not-found"
+
+                IncrementalFrontend.ValueCycleDetected _ _ ->
+                    "elm.value-cycle"
+
+                IncrementalFrontend.InvalidModuleName _ ->
+                    "elm.invalid-module-name"
+
+                IncrementalFrontend.ParseError _ _ ->
+                    "elm.parser"
+
+                IncrementalFrontend.RepoError _ _ ->
+                    "elm.repository"
+
+                IncrementalFrontend.MappingError _ ->
+                    "elm.mapping"
+
+                IncrementalFrontend.ResolveError _ _ ->
+                    "elm.resolve"
+
+                IncrementalFrontend.InvalidSourceFilePath _ _ ->
+                    "elm.invalid-source-path"
+
+        message =
+            case error of
+                IncrementalFrontend.ParseError _ _ ->
+                    "Elm source contains a syntax error"
+
+                _ ->
+                    "Elm compilation failed"
+
+        maybeLocation =
+            case error of
+                IncrementalFrontend.ParseError path deadEnds ->
+                    deadEnds
+                        |> List.head
+                        |> Maybe.map
+                            (\deadEnd ->
+                                let
+                                    position =
+                                        encodeWorkerPosition { row = deadEnd.row, column = deadEnd.col }
+                                in
+                                ( "location"
+                                , Encode.object
+                                    [ ( "path", Encode.string path )
+                                    , ( "range"
+                                      , Encode.object
+                                            [ ( "start", position )
+                                            , ( "end", position )
+                                            ]
+                                      )
+                                    ]
+                                )
+                            )
+
+                IncrementalFrontend.MappingError errors ->
+                    errors
+                        |> List.head
+                        |> Maybe.andThen mappingErrorRange
+                        |> Maybe.map
+                            (\range ->
+                                ( "location"
+                                , Encode.object [ ( "range", encodeWorkerRange range ) ]
+                                )
+                            )
+
+                _ ->
+                    Nothing
+    in
+    Encode.object
+        ([ ( "code", Encode.string code )
+         , ( "message", Encode.string message )
+         , ( "details", IncrementalFrontendCodec.encodeError error )
+         ]
+            ++ (maybeLocation |> Maybe.map List.singleton |> Maybe.withDefault [])
+        )
+
+
+mappingErrorRange : IncrementalMapper.Error -> Maybe ElmRange.Range
+mappingErrorRange error =
+    case error of
+        IncrementalMapper.EmptyApply sourceLocation ->
+            Just sourceLocation.location
+
+        IncrementalMapper.NotSupported sourceLocation _ ->
+            Just sourceLocation.location
+
+        IncrementalMapper.RecordPatternNotSupported sourceLocation ->
+            Just sourceLocation.location
+
+        IncrementalMapper.ResolveError sourceLocation _ ->
+            Just sourceLocation.location
+
+        IncrementalMapper.SameNameAppearsMultipleTimesInPattern sourceLocation _ ->
+            Just sourceLocation.location
+
+        IncrementalMapper.VariableNameCollision sourceLocation _ ->
+            Just sourceLocation.location
+
+        IncrementalMapper.UnresolvedVariable sourceLocation _ ->
+            Just sourceLocation.location
+
+        IncrementalMapper.TypeCheckError _ _ ->
+            Nothing
+
+
+encodeWorkerPosition : { a | row : Int, column : Int } -> Encode.Value
+encodeWorkerPosition position =
+    Encode.object
+        [ ( "row", Encode.int position.row )
+        , ( "column", Encode.int position.column )
+        ]
+
+
+encodeWorkerRange : ElmRange.Range -> Encode.Value
+encodeWorkerRange range =
+    Encode.object
+        [ ( "start", encodeWorkerPosition range.start )
+        , ( "end", encodeWorkerPosition range.end )
+        ]
 
 
 encodeResult : (e -> Encode.Value) -> (a -> Encode.Value) -> Result e a -> Encode.Value

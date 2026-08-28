@@ -87,6 +87,13 @@ export type Compile = (
   request: CompileRequest
 ) => CompileResult | Promise<CompileResult>;
 
+export class InvalidCompileParamsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCompileParamsError";
+  }
+}
+
 export interface Dispatcher {
   readonly dispatch: (body: Uint8Array) => Promise<JsonRpcResponse | null>;
   readonly state: () => SessionState;
@@ -445,7 +452,10 @@ export function createDispatcher(compile: Compile): Dispatcher {
                   "Elm frontend returned an invalid compile result"
                 )
           );
-        } catch {
+        } catch (error) {
+          if (error instanceof InvalidCompileParamsError) {
+            return respond(invalidParams(id, error.message));
+          }
           return respond(
             failure(id, -32603, "Elm frontend compilation failed internally")
           );

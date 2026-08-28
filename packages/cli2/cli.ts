@@ -8,6 +8,14 @@ import * as Dependencies from "./dependencies.js";
 import { DependencyConfig } from "./dependencies.js";
 import { z } from "zod";
 import { worker } from "./elm-worker.js";
+import { createBuildFromScratch } from "./worker-build.js";
+import type { ElmBuildWorker, WorkerBuildInput } from "./worker-build.js";
+
+export {
+  createBuildFromScratch,
+  ElmWorkerDecodeError,
+} from "./worker-build.js";
+export type { ElmBuildWorker, WorkerBuildInput } from "./worker-build.js";
 
 const fsExists = util.promisify(fs.exists);
 const fsWriteFile = util.promisify(fs.writeFile);
@@ -35,7 +43,6 @@ async function make(
   const hashFilePath: string = path.join(projectDir, "morphir-hashes.json");
   const morphirIrPath: string = path.join(projectDir, "morphir-ir.json");
 
-
   // Load the `morphir.json` file that describes the project
   const morphirJson: MorphirJson = JSON.parse(
     (await fsReadFile(morphirJsonPath)).toString()
@@ -45,9 +52,9 @@ async function make(
   const dependencyConfig = DependencyConfig.parse({
     dependencies: morphirJson.dependencies,
     localDependencies: morphirJson.localDependencies,
-    includes: includes, 
-    projectDir: projectDir
-  })
+    includes: includes,
+    projectDir: projectDir,
+  });
 
   //load List Of Dependency IR
   const dependencies = await Dependencies.loadAllDependencies(dependencyConfig);
@@ -61,11 +68,19 @@ async function make(
     );
 
     const fileSnapshot = FileChanges.toFileSnapshotJson(fileChanges);
-    const newIR: string = await buildFromScratch(
-      morphirJson,
-      fileSnapshot,
-      dependencies,
-      options
+    const distribution = await buildFromScratch(
+      {
+        options: { typesOnly: options.typesOnly },
+        packageInfo: morphirJson,
+        dependencies,
+        fileSnapshot,
+      },
+      console.log
+    );
+    const newIR = JSON.stringify(
+      distribution,
+      null,
+      options.indentJson ? 4 : 0
     );
     await writeContentHashes(
       hashFilePath,
@@ -109,11 +124,19 @@ async function make(
         path.join(projectDir, morphirJson.sourceDirectory)
       );
       const fileSnapshot = FileChanges.toFileSnapshotJson(fileChanges);
-      const newIR: string = await buildFromScratch(
-        morphirJson,
-        fileSnapshot,
-        dependencies,
-        options
+      const distribution = await buildFromScratch(
+        {
+          options: { typesOnly: options.typesOnly },
+          packageInfo: morphirJson,
+          dependencies,
+          fileSnapshot,
+        },
+        console.log
+      );
+      const newIR = JSON.stringify(
+        distribution,
+        null,
+        options.indentJson ? 4 : 0
       );
       await writeContentHashes(
         hashFilePath,
@@ -124,44 +147,15 @@ async function make(
   }
 }
 
-async function buildFromScratch(
-  morphirJson: any,
-  fileSnapshot: { [index: string]: string },
-  dependencies: string[],
-  options: any
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    worker.ports.decodeFailed.subscribe((err: any) => {
-      reject(err);
-    });
+const queuedBuildFromScratch = createBuildFromScratch(
+  worker as unknown as ElmBuildWorker
+);
 
-    worker.ports.buildFailed.subscribe((err: any) => {
-      reject(err);
-    });
-
-    worker.ports.reportProgress.subscribe((message: any) => {
-      console.log(message);
-    });
-
-    worker.ports.buildCompleted.subscribe(([err, ok]: any) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(JSON.stringify(ok, null, options.indentJson ? 4 : 0));
-      }
-    });
-
-    const opts = {
-      typesOnly: options.typesOnly,
-    };
-
-    worker.ports.buildFromScratch.send({
-      options: opts,
-      packageInfo: morphirJson,
-      dependencies: dependencies,
-      fileSnapshot: fileSnapshot,
-    });
-  });
+export function buildFromScratch(
+  input: WorkerBuildInput,
+  onProgress: (message: string) => void
+): Promise<unknown> {
+  return queuedBuildFromScratch(input, onProgress);
 }
 
 async function buildIncrementally(
@@ -489,28 +483,30 @@ async function testCoverage(
   options: CommandOptions
 ) {
   // Morphir IR
-  const morphirIR: Buffer = await fsReadFile(path.resolve(irPath))
-  const morphirIRJson: JSON = JSON.parse(morphirIR.toString())
+  const morphirIR: Buffer = await fsReadFile(path.resolve(irPath));
+  const morphirIRJson: JSON = JSON.parse(morphirIR.toString());
 
   // read Morphir Test
-  const morphirTest: Buffer = await fsReadFile(path.resolve(testsPath))
-  const morphirTestJson: JSON = JSON.parse(morphirTest.toString())
+  const morphirTest: Buffer = await fsReadFile(path.resolve(testsPath));
+  const morphirTestJson: JSON = JSON.parse(morphirTest.toString());
 
-  // output path 
-  const output = path.join(path.resolve(outputPath), "morphir-test-coverage.json")
+  // output path
+  const output = path.join(
+    path.resolve(outputPath),
+    "morphir-test-coverage.json"
+  );
 
   return new Promise((resolve, reject) => {
     worker.ports.testCoverageResult.subscribe(([err, data]: any) => {
       if (err) {
-        reject(err)
+        reject(err);
+      } else {
+        resolve(data);
       }
-      else {
-        resolve(data)
-      }
-    })
+    });
 
     // send files through port
-    worker.ports.testCoverage.send([morphirIRJson, morphirTestJson])
+    worker.ports.testCoverage.send([morphirIRJson, morphirTestJson]);
   });
 }
 

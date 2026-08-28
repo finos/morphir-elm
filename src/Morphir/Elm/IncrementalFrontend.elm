@@ -225,17 +225,12 @@ applyFileChanges packageName fileChanges opts maybeExposedModules repo =
                             |> Set.foldl
                                 (\exposedModule usedModulesSoFar ->
                                     DAG.collectForwardReachableNodes exposedModule modulesDeps
-                                        |> Debug.log "DAG.collectForwardReachableNodes exposedModule"
                                         |> Set.union usedModulesSoFar
                                 )
                                 exposedModules
 
                     modulesToProcess : Set ModuleName -> List ModuleChange
                     modulesToProcess usedModuleSet =
-                        let
-                            _ =
-                                Debug.log "Used Modules:" usedModuleSet
-                        in
                         fileChanges
                             |> List.filter
                                 (\fileChange ->
@@ -706,10 +701,6 @@ processType moduleName typeName typeDef access doc repo =
 
 processValue : Access -> ModuleName -> Name -> SignatureAndValue -> String -> Repo -> Result (List Error) Repo
 processValue access moduleName valueName ( maybeValueType, body ) valueDoc repo =
-    let
-        _ =
-            Debug.log "processing value" (String.concat [ Path.toString Name.toTitleCase "." moduleName, ".", Name.toCamelCase valueName ])
-    in
     case repo |> Repo.modules |> Dict.get moduleName of
         Just existingModDef ->
             case Dict.member valueName existingModDef.value.values of
@@ -763,19 +754,19 @@ parseSource ( path, content ) =
 orderElmModulesByDependency : PackageName -> List ParsedModule -> Result Errors (List ( ModuleName, ParsedModule ))
 orderElmModulesByDependency packageName parsedModules =
     let
+        toLocalIRModuleName elmModuleName =
+            elmModuleName
+                |> ElmModuleName.toIRModuleName packageName
+                |> Maybe.withDefault (elmModuleName |> List.map Name.fromString)
+
         parsedModuleByName : Dict ModuleName ParsedModule
         parsedModuleByName =
             parsedModules
-                |> List.filterMap
+                |> List.map
                     (\parsedModule ->
                         ParsedModule.moduleName parsedModule
-                            |> ElmModuleName.toIRModuleName packageName
-                            |> Maybe.map
-                                (\moduleName ->
-                                    ( moduleName
-                                    , parsedModule
-                                    )
-                                )
+                            |> toLocalIRModuleName
+                            |> (\moduleName -> ( moduleName, parsedModule ))
                     )
                 |> Dict.fromList
 
@@ -795,16 +786,11 @@ orderElmModulesByDependency packageName parsedModules =
                 elmModuleName =
                     ParsedModule.moduleName parsedModule
             in
-            case elmModuleName |> ElmModuleName.toIRModuleName packageName of
-                Nothing ->
-                    graph
-
-                Just fromModuleName ->
-                    graph
-                        |> Result.andThen
-                            (DAG.insertNode fromModuleName moduleDependencies
-                                >> Result.mapError (\(DAG.CycleDetected from to) -> [ ModuleCycleDetected from to ])
-                            )
+            graph
+                |> Result.andThen
+                    (DAG.insertNode (toLocalIRModuleName elmModuleName) moduleDependencies
+                        >> Result.mapError (\(DAG.CycleDetected from to) -> [ ModuleCycleDetected from to ])
+                    )
     in
     parsedModules
         |> List.foldl foldFunction (Ok DAG.empty)
