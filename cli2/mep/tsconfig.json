@@ -16,6 +16,8 @@
     "compiler.ts",
     "framing.ts",
     "protocol.ts",
+    "release.test.ts",
+    "release.ts",
     "../../packages/cli2/worker-build.ts",
     "../../tests-integration/mep-extension.test.ts"
   ]

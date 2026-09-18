@@ -151,6 +151,36 @@ local development. The MEP extension pull-request workflow builds and validates
 CI artifacts for Linux AMD64, macOS ARM64, and Windows ARM64. The
 platform-neutral npm package does not include the native executable.
 
+### Releasing the MEP extension
+
+The extension has its own version and its own release tag. It does not follow
+the morphir-elm package version.
+
+1. Set `version` in `cli2/mep/extension.json` in a pull request to `vnext`. The
+   extension reports this version to the `morphir` CLI.
+2. After the merge, tag that commit on `vnext` and push the tag:
+
+   ```sh
+   git tag -a extension/elm/v0.1.0 -m "Morphir Elm MEP extension v0.1.0"
+   git push origin extension/elm/v0.1.0
+   ```
+
+The `MEP extension release` workflow refuses a tag that is not on `vnext` or
+whose version differs from `extension.json`. It runs
+`mise run release:mep-extension -- <tag>`, which cross-compiles the executable
+for the six platforms the `morphir` CLI is released for, and writes one archive
+and one `.sha256` file per platform plus
+`morphir-elm-extension-<version>.release.json`. The workflow then runs the
+extension suite against the packaged executable on Linux, macOS and Windows,
+and publishes a GitHub release that is not marked as latest. A version with a
+`-` part, such as `0.2.0-rc.1`, is published as a prerelease.
+
+Run the task locally to inspect the files in `dist/mep-extension-release/`:
+
+```sh
+mise run release:mep-extension -- extension/elm/v0.1.0
+```
+
 This creates:
 
 - `dist/morphir/morphir` - Main CLI executable
