@@ -56,6 +56,18 @@ jobs:
       - name: Download dependencies
         run: bun ci
 
+      # Elm 0.19.1 has no lock on ~/.elm. `mise run build` starts several
+      # `elm make` processes at once, and with a cold cache they compile the same
+      # packages into ~/.elm together. One then reads a half-written artifact and
+      # stops with "PROBLEM BUILDING DEPENDENCIES" on a random package. The cache
+      # above is saved only after a green run, so a cold cache never recovered.
+      # One serial `elm make` per elm.json fills ~/.elm first.
+      - name: Build the Elm dependencies one project at a time
+        run: |
+          mise run build:check-elm-docs
+          mise run build:cli2
+          mise run build:try-morphir
+
       - name: Build
         run: mise run build
 

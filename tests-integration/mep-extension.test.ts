@@ -5,12 +5,16 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = join(import.meta.dir, "..");
-const executable = join(
-  root,
-  "dist",
-  "morphir-elm-extension",
-  `morphir-elm-extension${process.platform === "win32" ? ".exe" : ""}`
-);
+// MORPHIR_ELM_EXTENSION_BIN points the suite at another build of the extension, which is how the
+// release workflow tests the executable it unpacked from a release archive.
+const executable =
+  process.env.MORPHIR_ELM_EXTENSION_BIN ??
+  join(
+    root,
+    "dist",
+    "morphir-elm-extension",
+    `morphir-elm-extension${process.platform === "win32" ? ".exe" : ""}`
+  );
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 

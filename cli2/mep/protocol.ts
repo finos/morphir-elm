@@ -1,5 +1,5 @@
 import type { JsonRpcError, JsonRpcId, JsonRpcResponse } from "./framing";
-import packageMetadata from "../../package.json";
+import extensionMetadata from "./extension.json";
 
 export type { JsonRpcError, JsonRpcId, JsonRpcResponse } from "./framing";
 
@@ -108,13 +108,15 @@ interface JsonRpcRequest {
   readonly id: JsonRpcId;
 }
 
+// The extension is released on its own tag, extension/elm/v<version>, so its identity comes from
+// extension.json and not from the morphir-elm package version.
 const MEP_VERSION = "0.1" as const;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
 const extensionInfo = Object.freeze({
-  id: "morphir-elm",
-  name: "Morphir Elm frontend",
-  version: packageMetadata.version,
+  id: extensionMetadata.extensionId,
+  name: extensionMetadata.name,
+  version: extensionMetadata.version,
   types: ["frontend"] as const,
 });
 

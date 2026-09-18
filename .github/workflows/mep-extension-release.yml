@@ -1,0 +1,220 @@
+---
+name: MEP extension release
+
+# The Morphir Elm MEP extension is released on its own tag,
+# extension/elm/v<version>, and not with the morphir-elm package. The version
+# comes from cli2/mep/extension.json. vnext is the release branch for this
+# work: a tag that does not point to a commit on vnext is refused.
+
+on:  # yamllint disable-line rule:truthy
+  push:
+    tags:
+      - "extension/elm/v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, for example extension/elm/v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mep-extension-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  MISE_AUTO_INSTALL: "false"
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RELEASE_BRANCH: vnext
+
+jobs:
+  build:
+    name: Build and package every platform
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - name: Check out the release tag
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require a commit on the release branch
+        id: release
+        run: |
+          commit="$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")"
+          git fetch --no-tags origin "$RELEASE_BRANCH"
+          if ! git merge-base --is-ancestor "$commit" FETCH_HEAD; then
+            echo "::error::${RELEASE_TAG} is not on ${RELEASE_BRANCH}"
+            exit 1
+          fi
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG##*/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install tools from mise.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: "2026.8.14"
+          sha256: >-
+            7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+          experimental: true
+          install_args: bun
+
+      - name: Install Elm
+        run: |
+          mise install elm@0.19.1
+          elm_bin="$(mise where elm@0.19.1)"
+          echo "$elm_bin" >> "$GITHUB_PATH"
+          "$elm_bin/elm" --version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Test the release rules and the protocol
+        run: mise exec -- bun test cli2/mep
+
+      # The task refuses a tag whose version differs from
+      # cli2/mep/extension.json. Bun cross-compiles all six targets here; the
+      # test job runs three of them natively.
+      - name: Build, package and describe the release
+        env:
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+        run: >-
+          mise run release:mep-extension --
+          "$RELEASE_TAG" "$RELEASE_COMMIT"
+
+      - name: Verify the checksums
+        working-directory: dist/mep-extension-release
+        run: sha256sum --check ./*.sha256
+
+      - name: Upload the release files
+        # actions/upload-artifact v4.6.2
+        uses: >-
+          actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mep-extension-release
+          path: dist/mep-extension-release/*
+          if-no-files-found: error
+
+  test:
+    name: Test the packaged executable (${{ matrix.platform }})
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        # Executable hashes come from mise v2026.8.14 SHASUMS256.txt.
+        include:
+          - runner: ubuntu-24.04
+            platform: x86_64-unknown-linux-gnu
+            mise-sha256: >-
+              7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+          - runner: macos-15
+            platform: aarch64-apple-darwin
+            mise-sha256: >-
+              ba93b3fe7e47964e4392d40c8b7bfa5740e8c2a0a575e3e86268e9764082ed3e
+          - runner: windows-11-arm
+            platform: aarch64-pc-windows-msvc
+            mise-sha256: >-
+              48c7e0ca372e51393dc518698cfd4c53791f6f7a42be1fb179179a17489bc237
+    steps:
+      - name: Check out the release tag
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Install tools from mise.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: "2026.8.14"
+          sha256: ${{ matrix.mise-sha256 }}
+          experimental: true
+          install_args: bun
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Download the release files
+        # actions/download-artifact v4.3.0
+        uses: >-
+          actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: mep-extension-release
+          path: release
+
+      - name: Unpack the archive for this platform
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          mkdir unpacked
+          archive="release/morphir-elm-extension-${VERSION}-${PLATFORM}"
+          if [ -f "${archive}.zip" ]; then
+            unzip -q "${archive}.zip" -d unpacked
+            executable="$PWD/unpacked/morphir-elm-extension.exe"
+          else
+            tar -xzf "${archive}.tgz" -C unpacked
+            executable="$PWD/unpacked/morphir-elm-extension"
+          fi
+          test -f "$executable"
+          echo "MORPHIR_ELM_EXTENSION_BIN=$executable" >> "$GITHUB_ENV"
+
+      - name: Run the extension suite against the packaged executable
+        run: mise exec -- bun test tests-integration/mep-extension.test.ts
+
+  publish:
+    name: Publish the GitHub release
+    needs: [build, test]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download the release files
+        # actions/download-artifact v4.3.0
+        uses: >-
+          actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: mep-extension-release
+          path: release
+
+      - name: Create the release, or add the files to it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+          NOTES: >-
+            Morphir Elm MEP process extension for the morphir CLI. Each
+            archive holds one executable for one platform. The .release.json
+            file describes the archives and their SHA-256 digests.
+        run: |
+          flags=()
+          case "$VERSION" in
+            *-*) flags+=(--prerelease) ;;
+          esac
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release/* --clobber
+          else
+            gh release create "$RELEASE_TAG" release/* \
+              --verify-tag \
+              --latest=false \
+              --title "Morphir Elm MEP extension v${VERSION}" \
+              --notes "$NOTES" \
+              "${flags[@]}"
+          fi

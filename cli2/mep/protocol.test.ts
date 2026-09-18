@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import packageMetadata from "../../package.json";
+import extensionMetadata from "./extension.json";
 
 import {
   createDispatcher,
@@ -138,6 +138,20 @@ describe("MEP lifecycle dispatch", () => {
     expect(dispatcher.state()).toEqual({ kind: "loaded" });
   });
 
+  test("the extension is versioned by its own metadata, not by the morphir-elm package", () => {
+    // The release tag extension/elm/v<version> and the release descriptor are built from this
+    // file, and the CLI refuses an extension whose reported version differs from its descriptor.
+    expect(extensionMetadata).toEqual({
+      extensionId: "morphir-elm",
+      shortId: "elm",
+      name: "Morphir Elm frontend",
+      version: expect.stringMatching(/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/),
+      mepVersions: ["0.1"],
+      irVersions: ["3"],
+      languages: [{ id: "elm", fileExtensions: [".elm"] }],
+    });
+  });
+
   test("initializes MEP 0.1 and reports the Elm frontend", async () => {
     const dispatcher = createDispatcher(() => successfulCompile);
 
@@ -151,7 +165,7 @@ describe("MEP lifecycle dispatch", () => {
         extension: {
           id: "morphir-elm",
           name: "Morphir Elm frontend",
-          version: packageMetadata.version,
+          version: extensionMetadata.version,
           types: ["frontend"],
         },
         capabilities: {
