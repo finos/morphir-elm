@@ -79,9 +79,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Test the release rules and the protocol
-        run: mise exec -- bun test cli2/mep
-
       # The task refuses a tag whose version differs from
       # cli2/mep/extension.json. Bun cross-compiles all six targets here; the
       # test job runs three of them natively.
@@ -91,6 +88,11 @@ jobs:
         run: >-
           mise run release:mep-extension --
           "$RELEASE_TAG" "$RELEASE_COMMIT"
+
+      # After the release task, because cli2/mep/compiler.ts imports the
+      # packages/cli2/lib output that build:cli2 creates.
+      - name: Test the release rules and the protocol
+        run: mise exec -- bun test cli2/mep
 
       - name: Verify the checksums
         working-directory: dist/mep-extension-release
