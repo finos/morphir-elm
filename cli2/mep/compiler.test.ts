@@ -52,14 +52,16 @@ function workerIr(
 function request(overrides: Partial<CompileRequest> = {}): CompileRequest {
   return {
     languageId: "elm",
-    documents: [
-      {
-        uri: sourceUri,
-        languageId: "elm",
-        version: 1,
-        text: validSource,
-      },
-    ],
+    sources: {
+      documents: [
+        {
+          uri: sourceUri,
+          languageId: "elm",
+          version: 1,
+          text: validSource,
+        },
+      ],
+    },
     package: { name: "local/example", exposedModules: ["Example"] },
     dependencies: [],
     options: { typesOnly: false, irVersion: "3" },
@@ -411,14 +413,16 @@ describe("Elm MEP compiler", () => {
     const response = await compileThroughDispatcher(
       compileElm,
       request({
-        documents: [
-          {
-            uri: sourceUri,
-            languageId: "elm",
-            version: 2,
-            text: "module Example exposing (add)\n\nadd =",
-          },
-        ],
+        sources: {
+          documents: [
+            {
+              uri: sourceUri,
+              languageId: "elm",
+              version: 2,
+              text: "module Example exposing (add)\n\nadd =",
+            },
+          ],
+        },
       })
     );
 
@@ -440,18 +444,20 @@ describe("Elm MEP compiler", () => {
   test("uses a worker source range for semantic errors", async () => {
     const result = await compileElm(
       request({
-        documents: [
-          {
-            uri: sourceUri,
-            languageId: "elm",
-            version: 2,
-            text: `module Example exposing (value)
+        sources: {
+          documents: [
+            {
+              uri: sourceUri,
+              languageId: "elm",
+              version: 2,
+              text: `module Example exposing (value)
 
 value : Int
 value = missing
 `,
-          },
-        ],
+            },
+          ],
+        },
       })
     );
 
@@ -474,14 +480,16 @@ value = missing
       compileElm(request()),
       compileElm(
         request({
-          documents: [
-            {
-              uri: otherUri,
-              languageId: "elm",
-              version: 1,
-              text: "module Other exposing (answer)\n\nanswer : Int\nanswer = 42\n",
-            },
-          ],
+          sources: {
+            documents: [
+              {
+                uri: otherUri,
+                languageId: "elm",
+                version: 1,
+                text: "module Other exposing (answer)\n\nanswer : Int\nanswer = 42\n",
+              },
+            ],
+          },
           package: { name: "local/other", exposedModules: ["Other"] },
         })
       ),
@@ -521,20 +529,22 @@ value = missing
     const result = await compileThroughDispatcher(
       compileElm,
       request({
-        documents: [
-          {
-            uri: sourceUri,
-            languageId: "elm",
-            version: 2,
-            text: `{-
+        sources: {
+          documents: [
+            {
+              uri: sourceUri,
+              languageId: "elm",
+              version: 2,
+              text: `{-
 module Fake exposing (..)
 -}
 module Example exposing (value)
 
 value = 42
 `,
-          },
-        ],
+            },
+          ],
+        },
       })
     );
 
@@ -664,19 +674,25 @@ value = 42
 
   test.each([
     ["request language", { ...request(), languageId: "gleam" }],
-    ["document count", { ...request(), documents: [] }],
+    [
+      "document count",
+      { ...request(), sources: { ...request().sources, documents: [] } },
+    ],
     [
       "document language",
       {
         ...request(),
-        documents: [
-          {
-            uri: sourceUri,
-            languageId: "gleam",
-            version: 1,
-            text: validSource,
-          },
-        ],
+        sources: {
+          ...request().sources,
+          documents: [
+            {
+              uri: sourceUri,
+              languageId: "gleam",
+              version: 1,
+              text: validSource,
+            },
+          ],
+        },
       },
     ],
     [

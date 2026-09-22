@@ -13,17 +13,25 @@ const encoder = new TextEncoder();
 
 const compileRequest: CompileRequest = {
   languageId: "elm",
-  documents: [
-    {
-      uri: "file:///work/Example.elm",
-      languageId: "elm",
-      version: 1,
-      text: "module Example exposing (add)\n",
-    },
-  ],
+  sources: {
+    documents: [
+      {
+        uri: "file:///work/Example.elm",
+        languageId: "elm",
+        version: 1,
+        text: "module Example exposing (add)\n",
+      },
+    ],
+  },
   package: { name: "local/example", exposedModules: ["Example"] },
   dependencies: [],
   options: { typesOnly: false, irVersion: "3" },
+};
+
+const { sources, ...compileRequestWithoutSources } = compileRequest;
+const legacyCompileRequest = {
+  ...compileRequestWithoutSources,
+  documents: sources.documents,
 };
 
 const successfulCompile: CompileResult = {
@@ -313,6 +321,77 @@ describe("MEP lifecycle dispatch", () => {
       result: sourceFailure,
     });
     expect(response).not.toHaveProperty("error");
+  });
+
+  test("normalizes equivalent legacy and modern compile envelopes to the same request", async () => {
+    const observed: CompileRequest[] = [];
+    const dispatcher = createDispatcher((params) => {
+      observed.push(params);
+      return successfulCompile;
+    });
+    await dispatcher.dispatch(initialize());
+
+    const modern = await dispatcher.dispatch(
+      request("morphir.frontend.compile", compileRequest, "modern")
+    );
+    const legacy = await dispatcher.dispatch(
+      request("morphir.frontend.compile", legacyCompileRequest, "legacy")
+    );
+
+    expect(modern).not.toHaveProperty("error");
+    expect(legacy).not.toHaveProperty("error");
+    expect(observed).toHaveLength(2);
+    expect(observed[1]).toEqual(observed[0]);
+    expect(observed[1]).toHaveProperty("sources.root", undefined);
+  });
+
+  test("preserves a modern source root through validation", async () => {
+    let observed: CompileRequest | undefined;
+    const dispatcher = createDispatcher((params) => {
+      observed = params;
+      return successfulCompile;
+    });
+    await dispatcher.dispatch(initialize());
+    const rootedRequest = {
+      ...compileRequest,
+      sources: { ...compileRequest.sources, root: "file:///work" },
+    };
+
+    const response = await dispatcher.dispatch(
+      request("morphir.frontend.compile", rootedRequest)
+    );
+
+    expect(response).not.toHaveProperty("error");
+    expect(observed).toEqual(rootedRequest);
+  });
+
+  test("rejects a compile request that mixes modern and legacy envelopes", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    await dispatcher.dispatch(initialize());
+
+    const response = await dispatcher.dispatch(
+      request("morphir.frontend.compile", {
+        ...legacyCompileRequest,
+        sources: compileRequest.sources,
+      })
+    );
+
+    expectError(response, -32602);
+    expect(response).toHaveProperty(
+      "error.message",
+      expect.stringMatching(/ambiguous/i)
+    );
+  });
+
+  test("rejects a compile request with neither source envelope", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    await dispatcher.dispatch(initialize());
+
+    const response = await dispatcher.dispatch(
+      request("morphir.frontend.compile", compileRequestWithoutSources)
+    );
+
+    expectError(response, -32602);
   });
 
   test("executes compile notifications and suppresses their response", async () => {

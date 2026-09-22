@@ -76,7 +76,7 @@ export function workerPositionToMep(
 }
 
 export function toWorkerBuildInput(request: CompileRequest): WorkerBuildInput {
-  const document = request.documents[0];
+  const document = request.sources.documents[0];
   if (document === undefined) {
     throw new Error("An Elm worker build requires one source document");
   }
@@ -352,10 +352,12 @@ function validateRequest(request: CompileRequest): ValidatedRequest {
   if (request.languageId !== "elm") {
     invalidParams("Morphir Elm only compiles the elm language");
   }
-  if (request.documents.length !== 1) {
+  // The extension accepts the source root for wire compatibility, but one-document compilation
+  // does not need it. Keep module resolution unchanged until multi-document input is supported.
+  if (request.sources.documents.length !== 1) {
     invalidParams("Morphir Elm requires exactly one source document");
   }
-  const document = request.documents[0] as SourceDocument;
+  const document = request.sources.documents[0] as SourceDocument;
   if (document.languageId !== "elm") {
     invalidParams("The source document language must be elm");
   }

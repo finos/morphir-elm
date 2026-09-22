@@ -10,6 +10,11 @@ export interface SourceDocument {
   readonly text: string;
 }
 
+export interface SourceSet {
+  readonly root?: string;
+  readonly documents: readonly SourceDocument[];
+}
+
 export interface CompilePackage {
   readonly name: string;
   readonly exposedModules: readonly string[];
@@ -29,7 +34,7 @@ export interface CompileOptions {
 
 export interface CompileRequest {
   readonly languageId: string;
-  readonly documents: readonly SourceDocument[];
+  readonly sources: SourceSet;
   readonly package: CompilePackage;
   readonly dependencies: readonly CompileDependency[];
   readonly options: CompileOptions;
@@ -244,21 +249,72 @@ function isCompileDependency(value: unknown): value is CompileDependency {
   );
 }
 
-function isCompileRequest(value: unknown): value is CompileRequest {
-  return (
-    isRecord(value) &&
-    typeof value.languageId === "string" &&
-    Array.isArray(value.documents) &&
-    value.documents.every(isSourceDocument) &&
-    isRecord(value.package) &&
-    typeof value.package.name === "string" &&
-    hasStringArray(value.package.exposedModules) &&
-    Array.isArray(value.dependencies) &&
-    value.dependencies.every(isCompileDependency) &&
-    isRecord(value.options) &&
-    typeof value.options.typesOnly === "boolean" &&
-    typeof value.options.irVersion === "string"
-  );
+type CompileRequestParseResult =
+  | { readonly kind: "valid"; readonly request: CompileRequest }
+  | { readonly kind: "invalid"; readonly message: string };
+
+function parseCompileRequest(value: unknown): CompileRequestParseResult {
+  const invalid = (message = "Invalid morphir.frontend.compile parameters") =>
+    ({ kind: "invalid", message } as const);
+  if (!isRecord(value)) {
+    return invalid();
+  }
+
+  const hasSources = Object.prototype.hasOwnProperty.call(value, "sources");
+  const hasDocuments = Object.prototype.hasOwnProperty.call(value, "documents");
+  if (hasSources && hasDocuments) {
+    return invalid(
+      "Ambiguous morphir.frontend.compile parameters: provide either sources or documents, not both"
+    );
+  }
+  if (!hasSources && !hasDocuments) {
+    return invalid(
+      "Invalid morphir.frontend.compile parameters: missing sources or documents"
+    );
+  }
+
+  const sourceSet = hasSources ? value.sources : undefined;
+  const documents = hasSources
+    ? isRecord(sourceSet)
+      ? sourceSet.documents
+      : undefined
+    : value.documents;
+  if (
+    (hasSources &&
+      (!isRecord(sourceSet) ||
+        ("root" in sourceSet && typeof sourceSet.root !== "string"))) ||
+    !Array.isArray(documents) ||
+    !documents.every(isSourceDocument) ||
+    typeof value.languageId !== "string" ||
+    !isRecord(value.package) ||
+    typeof value.package.name !== "string" ||
+    !hasStringArray(value.package.exposedModules) ||
+    !Array.isArray(value.dependencies) ||
+    !value.dependencies.every(isCompileDependency) ||
+    !isRecord(value.options) ||
+    typeof value.options.typesOnly !== "boolean" ||
+    typeof value.options.irVersion !== "string"
+  ) {
+    return invalid();
+  }
+  const root =
+    hasSources && isRecord(sourceSet) && typeof sourceSet.root === "string"
+      ? sourceSet.root
+      : undefined;
+
+  return {
+    kind: "valid",
+    request: {
+      languageId: value.languageId,
+      sources: { root, documents },
+      package: {
+        name: value.package.name,
+        exposedModules: value.package.exposedModules,
+      },
+      dependencies: value.dependencies,
+      options: value.options as CompileOptions,
+    },
+  };
 }
 
 function isSourcePosition(value: unknown): value is SourcePosition {
@@ -438,13 +494,17 @@ export function createDispatcher(compile: Compile): Dispatcher {
               )
         );
       case "morphir.frontend.compile":
-        if (!request.hasParams || !isCompileRequest(request.params)) {
+        if (!request.hasParams) {
           return respond(
             invalidParams(id, "Invalid morphir.frontend.compile parameters")
           );
         }
+        const compileRequest = parseCompileRequest(request.params);
+        if (compileRequest.kind === "invalid") {
+          return respond(invalidParams(id, compileRequest.message));
+        }
         try {
-          const result = await compile(request.params);
+          const result = await compile(compileRequest.request);
           return respond(
             isCompileResult(result)
               ? success(id, result)
