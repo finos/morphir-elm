@@ -11,7 +11,12 @@ import {
 
 describe("MEP extension release", () => {
   test("a release tag names the extension and the version in extension.json", () => {
-    expect(parseReleaseTag("extension/elm/v0.1.0", extensionMetadata)).toBe("0.1.0");
+    // Derived from the metadata rather than hard-coded, so this keeps asserting
+    // what it is named for -- that a tag names the version in extension.json --
+    // instead of failing on every version bump.
+    expect(
+      parseReleaseTag(`extension/elm/v${extensionMetadata.version}`, extensionMetadata),
+    ).toBe(extensionMetadata.version);
     expect(
       parseReleaseTag("extension/elm/v1.2.3-rc.1", { ...extensionMetadata, version: "1.2.3-rc.1" }),
     ).toBe("1.2.3-rc.1");
