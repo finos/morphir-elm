@@ -4,13 +4,36 @@
 // native provider. Only the ad-hoc-sources purpose is served; manifest discovery stays with the
 // host.
 
+import { canParse, format, parse, parseRange, satisfies } from "@std/semver";
+
 import {
   fallbackModuleName,
   normalizePackageIdentity,
   sourceModuleName,
 } from "./elm-names";
 
-export const WORKSPACE_DISCOVERY_PROTOCOL = 1;
+// The workspace discovery protocol version, a SemVer string. The protocol is a draft, so it is
+// refined in place and a reader names the exact draft it speaks.
+export const WORKSPACE_DISCOVERY_PROTOCOL = "0.1.0-draft.1";
+
+// The versions this extension reads: a caret for a released line, an exact requirement for a
+// draft. A caret alone would also admit later drafts of the same release.
+const SPOKEN = ["=0.1.0-draft.1"].map((requirement) => parseRange(requirement));
+
+// Whether `value` is a version in canonical SemVer spelling. `@std/semver` also parses
+// spellings such as a leading `v`, which the Rust `semver` crate refuses; a version on the wire
+// must read the same in both, so only the spelling `format` writes back is accepted.
+export function isSemVer(value: string): boolean {
+  return canParse(value) && format(parse(value)) === value;
+}
+
+export function speaksWorkspaceDiscoveryProtocol(version: string): boolean {
+  if (!isSemVer(version)) {
+    return false;
+  }
+  const parsed = parse(version);
+  return SPOKEN.some((range) => satisfies(parsed, range));
+}
 
 export type FileEntry =
   | { readonly kind: "directory" }
@@ -40,7 +63,7 @@ export type DiscoveryPurpose =
     };
 
 export interface DiscoveryRequest {
-  readonly protocolVersion: number;
+  readonly protocolVersion: string;
   readonly developmentRoot: FileTree;
   readonly morphirHome: FileTree | null;
   readonly systemConfig: FileTree | null;
@@ -65,7 +88,7 @@ export interface ProjectSnapshot {
 }
 
 export interface WorkspaceSnapshot {
-  readonly protocolVersion: number;
+  readonly protocolVersion: string;
   readonly configAnchor: null;
   readonly name: null;
   readonly state: "open";
@@ -223,13 +246,8 @@ export function parseDiscoveryRequest(
       return invalid("morphir.workspace.discover parameters must be an object");
     }
     const protocolVersion = value.protocolVersion;
-    if (
-      typeof protocolVersion !== "number" ||
-      !Number.isInteger(protocolVersion) ||
-      protocolVersion < 0 ||
-      protocolVersion > 0xffffffff
-    ) {
-      return invalid("protocolVersion must be an unsigned integer");
+    if (typeof protocolVersion !== "string" || !isSemVer(protocolVersion)) {
+      return invalid("protocolVersion must be a SemVer version");
     }
     if (
       has(value, "environment") &&
@@ -494,7 +512,7 @@ function discoverAdHocSources(
 }
 
 function discoverSnapshot(request: DiscoveryRequest): WorkspaceSnapshot {
-  if (request.protocolVersion !== WORKSPACE_DISCOVERY_PROTOCOL) {
+  if (!speaksWorkspaceDiscoveryProtocol(request.protocolVersion)) {
     refuse(
       "workspace.protocol.unsupported",
       `unsupported workspace discovery protocol ${request.protocolVersion}; supported version is ${WORKSPACE_DISCOVERY_PROTOCOL}`,

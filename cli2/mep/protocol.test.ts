@@ -187,7 +187,7 @@ describe("MEP lifecycle dispatch", () => {
             fragments: false,
             multiDocument: false,
           },
-          workspace: { protocolVersions: [1], discover: true },
+          workspace: { protocolVersions: ["0.1.0-draft.1"], discover: true },
           streaming: false,
           incremental: false,
           cancellation: false,
@@ -287,7 +287,7 @@ describe("MEP lifecycle dispatch", () => {
     );
     expect(capabilities).toHaveProperty("result.frontend.irVersions", ["3"]);
     expect(capabilities).toHaveProperty("result.workspace", {
-      protocolVersions: [1],
+      protocolVersions: ["0.1.0-draft.1"],
       discover: true,
     });
     expect(ping).toHaveProperty("result", { ok: true });
@@ -297,7 +297,7 @@ describe("MEP lifecycle dispatch", () => {
     const dispatcher = createDispatcher(() => successfulCompile);
     await dispatcher.dispatch(initialize());
     const discovery = {
-      protocolVersion: 1,
+      protocolVersion: "0.1.0-draft.1",
       developmentRoot: {
         entries: {
           ".": { kind: "directory" },
@@ -355,7 +355,7 @@ describe("MEP lifecycle dispatch", () => {
       requestWithoutParams("morphir.workspace.discover"),
       request("morphir.workspace.discover", []),
       request("morphir.workspace.discover", {
-        protocolVersion: 1,
+        protocolVersion: "0.1.0-draft.1",
         developmentRoot: { entries: { "../x": { kind: "directory" } } },
       }),
     ]) {

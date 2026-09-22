@@ -36,6 +36,7 @@
       },
       "devDependencies": {
         "@morphir/typespec-sdk": "file:redistributable/TypeSpec/sdk",
+        "@std/semver": "npm:@jsr/std__semver@^1.0.8",
         "@types/bun": "latest",
         "@types/data-urls": "^3.0.4",
         "@types/inquirer": "^9.0.3",
@@ -247,6 +248,8 @@
     "@sindresorhus/is": ["@sindresorhus/is@5.6.0", "", {}, "sha512-TV7t8GKYaJWsn00tFDqBw8+Uqmr8A0fRU1tvTQhyZzGv0sJCGRQL3JGMI3ucuKo3XIZdUP+Lx7/gh2t3lewy7g=="],
 
     "@sindresorhus/merge-streams": ["@sindresorhus/merge-streams@2.3.0", "", {}, "sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg=="],
+
+    "@std/semver": ["@jsr/std__semver@1.0.8", "https://npm.jsr.io/~/11/@jsr/std__semver/1.0.8.tgz", {}, "sha512-YhkykPU2Majz66e+rQbP0okYc7kKv+U32aguLPCXZZAL+vEVmBA+khHjPHhLBpWR073gzU3WHqGRgB7a/aXCjg=="],
 
     "@sveltejs/acorn-typescript": ["@sveltejs/acorn-typescript@1.0.9", "", { "peerDependencies": { "acorn": "^8.9.0" } }, "sha512-lVJX6qEgs/4DOcRTpo56tmKzVPtoWAaVbL4hfO7t7NVwl9AAXzQR6cihesW1BmNMPl+bK6dreu2sOKBP2Q9CIA=="],
 

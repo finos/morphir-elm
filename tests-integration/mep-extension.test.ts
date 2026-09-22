@@ -318,7 +318,7 @@ describe("standalone Morphir Elm MEP extension", () => {
         extension: { id: "morphir-elm", types: ["frontend", "workspace"] },
         capabilities: {
           frontend: { languages: [{ id: "elm" }], irVersions: ["3"] },
-          workspace: { protocolVersions: [1], discover: true },
+          workspace: { protocolVersions: ["0.1.0-draft.1"], discover: true },
         },
       },
     });

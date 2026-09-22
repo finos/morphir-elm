@@ -28,7 +28,7 @@ function adHoc({
   project = { kind: "synthesized" } as unknown,
   cliOverlay = {} as unknown,
   languageId = "elm",
-  protocolVersion = 1,
+  protocolVersion = "0.1.0-draft.1" as unknown,
 }: {
   readonly entries?: Record<string, Entry>;
   readonly root?: string;
@@ -36,7 +36,7 @@ function adHoc({
   readonly project?: unknown;
   readonly cliOverlay?: unknown;
   readonly languageId?: string;
-  readonly protocolVersion?: number;
+  readonly protocolVersion?: unknown;
 } = {}) {
   return {
     protocolVersion,
@@ -84,7 +84,7 @@ describe("Elm ad-hoc workspace discovery", () => {
     expect(discoverParams(adHoc())).toEqual({
       status: "success",
       snapshot: {
-        protocolVersion: 1,
+        protocolVersion: "0.1.0-draft.1",
         configAnchor: null,
         name: null,
         state: "open",
@@ -228,8 +228,20 @@ describe("Elm ad-hoc workspace discovery", () => {
 
   test.each([
     [
-      "an unsupported protocol version",
-      adHoc({ protocolVersion: 2 }),
+      "a later draft of the protocol",
+      adHoc({ protocolVersion: "0.1.0-draft.2" }),
+      "workspace.protocol.unsupported",
+      null,
+    ],
+    [
+      "the release the draft leads to",
+      adHoc({ protocolVersion: "0.1.0" }),
+      "workspace.protocol.unsupported",
+      null,
+    ],
+    [
+      "another release line",
+      adHoc({ protocolVersion: "1.0.0" }),
       "workspace.protocol.unsupported",
       null,
     ],
@@ -392,7 +404,7 @@ describe("Elm ad-hoc workspace discovery", () => {
   test.each([
     [
       "protocol before overlay",
-      adHoc({ protocolVersion: 0, cliOverlay: 1 }),
+      adHoc({ protocolVersion: "9.0.0", cliOverlay: 1 }),
       "workspace.protocol.unsupported",
     ],
     [
@@ -525,8 +537,15 @@ describe("Elm discovery request parsing", () => {
       "a missing protocol version",
       (({ protocolVersion: _, ...rest }) => rest)(adHoc()),
     ],
-    ["a fractional protocol version", adHoc({ protocolVersion: 1.5 })],
-    ["a negative protocol version", adHoc({ protocolVersion: -1 })],
+    [
+      "the integer protocol version of earlier drafts",
+      adHoc({ protocolVersion: 1 }),
+    ],
+    ["a protocol version that is not SemVer", adHoc({ protocolVersion: "1" })],
+    [
+      "a protocol version with a leading v",
+      adHoc({ protocolVersion: "v0.1.0-draft.1" }),
+    ],
     [
       "a missing development root",
       (({ developmentRoot: _, ...rest }) => rest)(adHoc()),
