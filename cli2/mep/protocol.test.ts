@@ -157,6 +157,8 @@ describe("MEP lifecycle dispatch", () => {
       mepVersions: ["0.1"],
       irVersions: ["3"],
       languages: [{ id: "elm", fileExtensions: [".elm"] }],
+      // The published descriptor must declare the workspace capability the session advertises.
+      workspaceDiscovery: true,
     });
   });
 
@@ -174,7 +176,7 @@ describe("MEP lifecycle dispatch", () => {
           id: "morphir-elm",
           name: "Morphir Elm frontend",
           version: extensionMetadata.version,
-          types: ["frontend"],
+          types: ["frontend", "workspace"],
         },
         capabilities: {
           frontend: {
@@ -183,7 +185,9 @@ describe("MEP lifecycle dispatch", () => {
             compile: true,
             incremental: false,
             fragments: false,
+            multiDocument: false,
           },
+          workspace: { protocolVersions: ["0.1.0-draft.1"], discover: true },
           streaming: false,
           incremental: false,
           cancellation: false,
@@ -253,6 +257,7 @@ describe("MEP lifecycle dispatch", () => {
       "morphir.extension.info",
       "morphir.extension.capabilities",
       "morphir.frontend.compile",
+      "morphir.workspace.discover",
       "morphir.shutdown",
     ]) {
       const response = await dispatcher.dispatch(
@@ -275,13 +280,87 @@ describe("MEP lifecycle dispatch", () => {
     const ping = await dispatcher.dispatch(request("morphir.ping", {}, "ping"));
 
     expect(info).toHaveProperty("result.id", "morphir-elm");
-    expect(info).toHaveProperty("result.types", ["frontend"]);
+    expect(info).toHaveProperty("result.types", ["frontend", "workspace"]);
     expect(capabilities).toHaveProperty(
       "result.frontend.languages.0.id",
       "elm"
     );
     expect(capabilities).toHaveProperty("result.frontend.irVersions", ["3"]);
+    expect(capabilities).toHaveProperty("result.workspace", {
+      protocolVersions: ["0.1.0-draft.1"],
+      discover: true,
+    });
     expect(ping).toHaveProperty("result", { ok: true });
+  });
+
+  test("answers workspace discovery, including discovery refusals", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    await dispatcher.dispatch(initialize());
+    const discovery = {
+      protocolVersion: "0.1.0-draft.1",
+      developmentRoot: {
+        entries: {
+          ".": { kind: "directory" },
+          "src/Widget.elm": {
+            kind: "file",
+            text: "module Acme.Widget exposing (x)\n",
+          },
+        },
+      },
+      cliOverlay: {},
+      purpose: {
+        kind: "ad-hoc-sources",
+        project: { kind: "synthesized" },
+        sources: { root: "src", paths: ["src/Widget.elm"] },
+        languageId: "elm",
+      },
+    };
+
+    const discovered = await dispatcher.dispatch(
+      request("morphir.workspace.discover", discovery, "discover")
+    );
+    const refused = await dispatcher.dispatch(
+      request(
+        "morphir.workspace.discover",
+        { ...discovery, purpose: { kind: "manifest-projects" } },
+        "refuse"
+      )
+    );
+
+    expect(discovered).toHaveProperty("id", "discover");
+    expect(discovered).toHaveProperty("result.status", "success");
+    expect(discovered).toHaveProperty(
+      "result.snapshot.projects.0.name",
+      "local/acme-widget"
+    );
+    expect(discovered).toHaveProperty(
+      "result.snapshot.projects.0.exposedModules",
+      ["Acme.Widget"]
+    );
+    expect(refused).toHaveProperty("result", {
+      status: "failure",
+      error: {
+        code: "workspace.purpose.unsupported",
+        message: expect.any(String),
+        path: null,
+      },
+    });
+  });
+
+  test("returns invalid params for malformed workspace discovery requests", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    await dispatcher.dispatch(initialize());
+
+    for (const body of [
+      requestWithoutParams("morphir.workspace.discover"),
+      request("morphir.workspace.discover", []),
+      request("morphir.workspace.discover", {
+        protocolVersion: "0.1.0-draft.1",
+        developmentRoot: { entries: { "../x": { kind: "directory" } } },
+      }),
+    ]) {
+      expectError(await dispatcher.dispatch(body), -32602);
+    }
   });
 
   test("returns unknown ready methods as method not found", async () => {

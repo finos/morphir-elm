@@ -6,10 +6,10 @@ import { createBuildFromScratch } from "../../packages/cli2/worker-build";
 import {
   compileElm,
   createElmCompiler,
-  sourceModuleName,
   toWorkerBuildInput,
   workerPositionToMep,
 } from "./compiler";
+import { fallbackModuleName, sourceModuleName } from "./elm-names";
 
 const sourceUri = "file:///workspace/local/example/Example.elm";
 const validSource = `module Example exposing (add)
@@ -184,6 +184,51 @@ port module Example.Worker exposing (main)`,
         '"module Fake exposing (..)"\nmodule Example exposing (value)'
       )
     ).toBeUndefined();
+  });
+
+  // The Rust host scans headers with ASCII whitespace only, so both must refuse the same
+  // headers and agree on the module a discovered source defines.
+  test.each([
+    ["a no-break space", "module\u00a0Example exposing (value)"],
+    ["a vertical tab", "module\u000bExample exposing (value)"],
+    ["a line separator", "\u2028module Example exposing (value)"],
+    ["an ideographic space", "module Example\u3000exposing (value)"],
+  ])("treats %s as part of the header, not trivia", (_, source) => {
+    expect(sourceModuleName(source)).toBeUndefined();
+  });
+
+  test("treats ASCII whitespace, including a form feed, as trivia", () => {
+    expect(sourceModuleName("\t\r\n\f module\fExample exposing (value)")).toBe(
+      "Example"
+    );
+  });
+
+  test.each([
+    ["an unterminated block comment", "{- module Acme.Widget exposing (..)\n"],
+    [
+      "an unterminated nested block comment",
+      "{- outer {- inner -}\nmodule Acme.Widget exposing (..)\n",
+    ],
+    ["a port declaration", "port sendMessage : String -> Cmd msg\n"],
+    ["an identifier that starts with module", "modulesomething = 1\n"],
+    ["a module path that ends in a dot", "module Acme."],
+  ])("finds no module name in %s", (_, source) => {
+    expect(sourceModuleName(source)).toBeUndefined();
+  });
+
+  test.each([
+    ["Widget.elm", "Widget"],
+    ["Acme.Widget.elm", "Acme.Widget"],
+    ["Foo_Bar.elm", "Foo_Bar"],
+    ["not-a-module.elm", "Main"],
+    ["Acme-Widget.elm", "Main"],
+    ["widget.elm", "Main"],
+    ["Acme..elm", "Main"],
+    [".elm", "Main"],
+    ["Widget", "Widget"],
+    ["", "Main"],
+  ])("names a source file %s without a header %s", (fileName, expected) => {
+    expect(fallbackModuleName(fileName)).toBe(expected);
   });
 
   test("cleans earlier subscriptions when a later worker subscribe throws", async () => {

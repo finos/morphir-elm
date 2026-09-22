@@ -80,6 +80,7 @@
   "homepage": "https://github.com/Morgan-Stanley/morphir-elm#readme",
   "devDependencies": {
     "@morphir/typespec-sdk": "file:redistributable/TypeSpec/sdk",
+    "@std/semver": "npm:@jsr/std__semver@^1.0.8",
     "@types/bun": "latest",
     "@types/data-urls": "^3.0.4",
     "@types/inquirer": "^9.0.3",
