@@ -14,6 +14,7 @@
     "../mep-extension.ts",
     "compiler.test.ts",
     "compiler.ts",
+    "elm-names.ts",
     "framing.ts",
     "protocol.ts",
     "release.test.ts",
