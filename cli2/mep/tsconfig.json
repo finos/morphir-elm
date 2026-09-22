@@ -19,6 +19,8 @@
     "protocol.ts",
     "release.test.ts",
     "release.ts",
+    "workspace.test.ts",
+    "workspace.ts",
     "../../packages/cli2/worker-build.ts",
     "../../tests-integration/mep-extension.test.ts"
   ]

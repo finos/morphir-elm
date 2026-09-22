@@ -74,6 +74,8 @@ describe("MEP extension release", () => {
       mepVersions: ["0.1"],
       irVersions: ["3"],
       languages: [{ id: "elm", fileExtensions: [".elm"] }],
+      // The host stops a session whose capability kinds differ from the published record.
+      workspaceDiscovery: true,
       gitCommit: "a".repeat(40),
       // Sorted by platform, so the descriptor does not depend on build order.
       artifacts: [
@@ -81,6 +83,15 @@ describe("MEP extension release", () => {
         { platform: "x86_64-unknown-linux-gnu", artifact: "one.tgz", sha256: "0".repeat(64) },
       ],
     });
+  });
+
+  test("a descriptor leaves out workspace discovery the extension does not serve", () => {
+    const descriptor = releaseDescriptor(
+      { ...extensionMetadata, workspaceDiscovery: false },
+      "a".repeat(40),
+      [{ platform: "x86_64-unknown-linux-gnu", artifact: "one.tgz", sha256: "0".repeat(64) }],
+    );
+    expect(descriptor).not.toHaveProperty("workspaceDiscovery");
   });
 
   test("a descriptor with a bad commit or digest is refused", () => {

@@ -9,6 +9,8 @@ export interface ExtensionMetadata {
   readonly mepVersions: readonly string[];
   readonly irVersions: readonly string[];
   readonly languages: readonly { readonly id: string; readonly fileExtensions: readonly string[] }[];
+  /** Whether the extension answers morphir.workspace.discover for its languages. */
+  readonly workspaceDiscovery: boolean;
 }
 
 export interface ReleaseTarget {
@@ -90,6 +92,8 @@ export function releaseDescriptor(
       id: language.id,
       fileExtensions: [...language.fileExtensions],
     })),
+    // Written only when true, like the morphir release bundle descriptor it mirrors.
+    ...(metadata.workspaceDiscovery ? { workspaceDiscovery: true } : {}),
     gitCommit,
     artifacts: [...artifacts].sort((left, right) => left.platform.localeCompare(right.platform)),
   };

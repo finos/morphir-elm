@@ -1,5 +1,10 @@
 import type { JsonRpcError, JsonRpcId, JsonRpcResponse } from "./framing";
 import extensionMetadata from "./extension.json";
+import {
+  WORKSPACE_DISCOVERY_PROTOCOL,
+  discover,
+  parseDiscoveryRequest,
+} from "./workspace";
 
 export type { JsonRpcError, JsonRpcId, JsonRpcResponse } from "./framing";
 
@@ -122,7 +127,7 @@ const extensionInfo = Object.freeze({
   id: extensionMetadata.extensionId,
   name: extensionMetadata.name,
   version: extensionMetadata.version,
-  types: ["frontend"] as const,
+  types: ["frontend", "workspace"] as const,
 });
 
 const capabilities = Object.freeze({
@@ -134,6 +139,11 @@ const capabilities = Object.freeze({
     compile: true,
     incremental: false,
     fragments: false,
+    multiDocument: false,
+  }),
+  workspace: Object.freeze({
+    protocolVersions: [WORKSPACE_DISCOVERY_PROTOCOL] as const,
+    discover: true,
   }),
   streaming: false,
   incremental: false,
@@ -522,6 +532,21 @@ export function createDispatcher(compile: Compile): Dispatcher {
             failure(id, -32603, "Elm frontend compilation failed internally")
           );
         }
+      case "morphir.workspace.discover": {
+        const discoveryRequest = parseDiscoveryRequest(
+          request.hasParams ? request.params : undefined
+        );
+        if (discoveryRequest.kind === "invalid") {
+          return respond(invalidParams(id, discoveryRequest.message));
+        }
+        try {
+          return respond(success(id, discover(discoveryRequest.request)));
+        } catch {
+          return respond(
+            failure(id, -32603, "Elm workspace discovery failed internally")
+          );
+        }
+      }
       case "morphir.shutdown":
         if (request.hasParams && !hasObjectParams(request.params)) {
           return respond(
