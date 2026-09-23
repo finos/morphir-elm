@@ -10,6 +10,7 @@ import {
   explicitPackageName,
   fallbackModuleName,
   sourceModuleName,
+  trimWhiteSpace,
 } from "./elm-names";
 
 // The workspace discovery protocol version, a SemVer string. The protocol is a draft, so it is
@@ -328,14 +329,15 @@ function explicitProjectName(
       root
     );
   }
-  if (name.trim().length === 0) {
+  const trimmed = trimWhiteSpace(name);
+  if (trimmed.length === 0) {
     return refuse(
       "workspace.project-name.empty",
       "CLI overlay `project.name` must not be empty or whitespace-only",
       root
     );
   }
-  return name.trim();
+  return trimmed;
 }
 
 function normalExplicitName(name: string, root: string): string {

@@ -549,6 +549,9 @@ describe("Elm explicit package name normal form", () => {
     ["acme//widgets", "acme/widgets"],
     [" acme / widgets ", "acme/widgets"],
     ["a.b/c", "a/b/c"],
+    ["acme/\u2003/widgets", "acme/widgets"],
+    ["acme/\u0085/widgets", "acme/widgets"],
+    ["\u0085acme/widgets\u3000", "acme/widgets"],
   ])("reports `%s` as `%s`", (name, normalForm) => {
     const project = expectProject(adHoc({ cliOverlay: { project: { name } } }));
     expect(project.name).toBe(normalForm);
@@ -569,6 +572,15 @@ describe("Elm explicit package name normal form", () => {
       "acme/-/x",
       "project name `acme/-/x` is invalid: segment `-` has no letters or digits",
     ],
+    // U+FEFF is not Unicode White_Space, so trimming keeps it.
+    [
+      "acme/\uFEFF/widgets",
+      "project name `acme/\uFEFF/widgets` is invalid: segment `\uFEFF` has no letters or digits",
+    ],
+    [
+      "\uFEFF",
+      "project name `\uFEFF` is invalid: segment `\uFEFF` has no letters or digits",
+    ],
   ])("refuses `%s`", (name, message) => {
     expect(
       discoverParams(adHoc({ cliOverlay: { project: { name } } }))
@@ -578,13 +590,16 @@ describe("Elm explicit package name normal form", () => {
     });
   });
 
-  test("refuses a blank name as empty, not invalid", () => {
-    expectFailure(
-      adHoc({ cliOverlay: { project: { name: "" } } }),
-      "workspace.project-name.empty",
-      "src"
-    );
-  });
+  test.each(["", "\u0085", " \u00A0\u2028"])(
+    "refuses the blank name %j as empty, not invalid",
+    (name) => {
+      expectFailure(
+        adHoc({ cliOverlay: { project: { name } } }),
+        "workspace.project-name.empty",
+        "src"
+      );
+    }
+  );
 
   test("names the trimmed spelling and the first empty segment", () => {
     expect(

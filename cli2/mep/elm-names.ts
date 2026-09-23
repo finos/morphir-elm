@@ -186,6 +186,15 @@ function samePackageIdentity(
   );
 }
 
+/**
+ * Removes the Unicode `White_Space` characters at both ends, as Rust `str::trim` does, so every
+ * provider reads an explicit name alike. `String.prototype.trim` also removes U+FEFF and keeps
+ * U+0085.
+ */
+export function trimWhiteSpace(value: string): string {
+  return value.replace(/^\p{White_Space}+|\p{White_Space}+$/gu, "");
+}
+
 export type ExplicitPackageName =
   | { readonly kind: "normal"; readonly normalForm: string }
   | { readonly kind: "no-segments" }
@@ -198,7 +207,7 @@ export type ExplicitPackageName =
 export function explicitPackageName(name: string): ExplicitPackageName {
   const pieces = name
     .split(/[./]/u)
-    .map((piece) => piece.trim())
+    .map(trimWhiteSpace)
     .filter((piece) => piece.length > 0);
   if (pieces.length === 0) {
     return { kind: "no-segments" };
