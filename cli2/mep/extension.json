@@ -2,7 +2,7 @@
   "extensionId": "morphir-elm",
   "shortId": "elm",
   "name": "Morphir Elm frontend",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "mepVersions": ["0.1"],
   "irVersions": ["3"],
   "languages": [{ "id": "elm", "fileExtensions": [".elm"] }],
