@@ -186,6 +186,34 @@ function samePackageIdentity(
   );
 }
 
+export type ExplicitPackageName =
+  | { readonly kind: "normal"; readonly normalForm: string }
+  | { readonly kind: "no-segments" }
+  | { readonly kind: "empty-segment"; readonly segment: string };
+
+/**
+ * The normal form of a package name a request states: `.` and `/` both separate package path
+ * segments, as in Morphir, and each segment is its Elm words joined with `-`.
+ */
+export function explicitPackageName(name: string): ExplicitPackageName {
+  const pieces = name
+    .split(/[./]/u)
+    .map((piece) => piece.trim())
+    .filter((piece) => piece.length > 0);
+  if (pieces.length === 0) {
+    return { kind: "no-segments" };
+  }
+  const path = pieces.map(elmNameFromString);
+  const emptyIndex = path.findIndex((words) => words.length === 0);
+  if (emptyIndex !== -1) {
+    return { kind: "empty-segment", segment: pieces[emptyIndex] as string };
+  }
+  return {
+    kind: "normal",
+    normalForm: path.map((words) => words.join("-")).join("/"),
+  };
+}
+
 export function normalizePackageIdentity(
   value: unknown
 ): NormalizedPackageIdentity | undefined {

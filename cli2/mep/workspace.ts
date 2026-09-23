@@ -7,8 +7,8 @@
 import { canParse, format, parse, parseRange, satisfies } from "@std/semver";
 
 import {
+  explicitPackageName,
   fallbackModuleName,
-  normalizePackageIdentity,
   sourceModuleName,
 } from "./elm-names";
 
@@ -338,6 +338,26 @@ function explicitProjectName(
   return name.trim();
 }
 
+function normalExplicitName(name: string, root: string): string {
+  const packageName = explicitPackageName(name);
+  switch (packageName.kind) {
+    case "normal":
+      return packageName.normalForm;
+    case "no-segments":
+      return refuse(
+        "workspace.project-name.invalid",
+        `project name \`${name}\` is invalid: it names no package path segments`,
+        root
+      );
+    case "empty-segment":
+      return refuse(
+        "workspace.project-name.invalid",
+        `project name \`${name}\` is invalid: segment \`${packageName.segment}\` has no letters or digits`,
+        root
+      );
+  }
+}
+
 function segments(path: string): readonly string[] {
   return path === "." ? [] : path.split("/");
 }
@@ -451,15 +471,11 @@ function discoverAdHocSources(
   }
   validateSelection(request.developmentRoot, sources);
 
-  if (explicitName !== undefined) {
-    if (normalizePackageIdentity(explicitName) === undefined) {
-      refuse(
-        "workspace.project-name.invalid",
-        `project name \`${explicitName}\` is invalid: it is not a canonical Morphir package name`,
-        root
-      );
-    }
-  } else if (sources.paths.length !== 1) {
+  const packageName =
+    explicitName === undefined
+      ? undefined
+      : normalExplicitName(explicitName, root);
+  if (explicitName === undefined && sources.paths.length !== 1) {
     refuse(
       "workspace.selection.name-required",
       `ad-hoc selection rooted at \`${root}\` selects ${sources.paths.length} sources but has no explicit name; an unnamed synthesized selection must select exactly one source`,
@@ -493,7 +509,7 @@ function discoverAdHocSources(
     state: "open",
     projects: [
       {
-        name: explicitName ?? synthesizedPackageName(modules[0] as string),
+        name: packageName ?? synthesizedPackageName(modules[0] as string),
         version: null,
         relativePath: root,
         configAnchor: project.kind === "manifest" ? project.path : null,

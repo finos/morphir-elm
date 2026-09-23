@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { normalizePackageIdentity } from "./elm-names";
 import { discover, parseDiscoveryRequest } from "./workspace";
 
 const widget =
@@ -362,7 +363,7 @@ describe("Elm ad-hoc workspace discovery", () => {
     ],
     [
       "an explicit name outside the Elm package contract",
-      adHoc({ cliOverlay: { project: { name: "Acme/Widgets" } } }),
+      adHoc({ cliOverlay: { project: { name: "acme/_" } } }),
       "workspace.project-name.invalid",
       "src",
     ],
@@ -464,7 +465,7 @@ describe("Elm ad-hoc workspace discovery", () => {
       "not a file before the package contract",
       adHoc({
         paths: ["src/Missing.elm"],
-        cliOverlay: { project: { name: "Not Canonical" } },
+        cliOverlay: { project: { name: "acme/_" } },
       }),
       "workspace.selection.invalid",
     ],
@@ -473,7 +474,7 @@ describe("Elm ad-hoc workspace discovery", () => {
       adHoc({
         entries: files({ "src/Widget.elm": widget, "src/Copy.elm": widget }),
         paths: ["src/Widget.elm", "src/Copy.elm"],
-        cliOverlay: { project: { name: "Not Canonical" } },
+        cliOverlay: { project: { name: "acme/_" } },
       }),
       "workspace.project-name.invalid",
     ],
@@ -527,6 +528,123 @@ describe("Elm ad-hoc workspace discovery", () => {
     );
     const { cliOverlay, ...withoutOverlay } = request;
     expect(discoverParams(withoutOverlay).status).toBe("success");
+  });
+});
+
+describe("Elm explicit package name normal form", () => {
+  test.each([
+    ["acme/widgets", "acme/widgets"],
+    ["finos/morphir-sdk", "finos/morphir-sdk"],
+    ["My.Package", "my/package"],
+    ["My/Package", "my/package"],
+    ["Documentation.Decoration", "documentation/decoration"],
+    ["Morphir.Reference.Model", "morphir/reference/model"],
+    ["morphir/sdk.core", "morphir/sdk/core"],
+    ["Acme/Widgets", "acme/widgets"],
+    ["acme/my_widgets", "acme/my-widgets"],
+    ["MyPackage", "my-package"],
+    ["my-package", "my-package"],
+    ["local/mywidget", "local/mywidget"],
+    ["SDK/v2", "s-d-k/v-2"],
+    ["acme//widgets", "acme/widgets"],
+    [" acme / widgets ", "acme/widgets"],
+    ["a.b/c", "a/b/c"],
+  ])("reports `%s` as `%s`", (name, normalForm) => {
+    const project = expectProject(adHoc({ cliOverlay: { project: { name } } }));
+    expect(project.name).toBe(normalForm);
+    expect(project.exposedModules).toEqual(["Acme.Widget"]);
+    // The compile request names the package by this form, so it must pass the compiler's check.
+    expect(normalizePackageIdentity(normalForm)?.canonicalName).toBe(
+      normalForm
+    );
+  });
+
+  test.each([
+    ["/./", "project name `/./` is invalid: it names no package path segments"],
+    [
+      "acme/_",
+      "project name `acme/_` is invalid: segment `_` has no letters or digits",
+    ],
+    [
+      "acme/-/x",
+      "project name `acme/-/x` is invalid: segment `-` has no letters or digits",
+    ],
+  ])("refuses `%s`", (name, message) => {
+    expect(
+      discoverParams(adHoc({ cliOverlay: { project: { name } } }))
+    ).toEqual({
+      status: "failure",
+      error: { code: "workspace.project-name.invalid", message, path: "src" },
+    });
+  });
+
+  test("refuses a blank name as empty, not invalid", () => {
+    expectFailure(
+      adHoc({ cliOverlay: { project: { name: "" } } }),
+      "workspace.project-name.empty",
+      "src"
+    );
+  });
+
+  test("names the trimmed spelling and the first empty segment", () => {
+    expect(
+      discoverParams(adHoc({ cliOverlay: { project: { name: " a/ _ /-" } } }))
+    ).toHaveProperty(
+      "error.message",
+      "project name `a/ _ /-` is invalid: segment `_` has no letters or digits"
+    );
+  });
+
+  test("the normal form is idempotent", () => {
+    for (const name of ["My.Package", "SDK/v2", "acme/my_widgets", "a.b/c"]) {
+      const normalForm = expectProject(
+        adHoc({ cliOverlay: { project: { name } } })
+      ).name;
+      expect(
+        expectProject(adHoc({ cliOverlay: { project: { name: normalForm } } }))
+          .name
+      ).toBe(normalForm);
+    }
+  });
+
+  test("a two-file selection named with dots reports the normal form", () => {
+    const project = expectProject(
+      adHoc({
+        entries: files({ "src/Widget.elm": widget, "src/Gadget.elm": gadget }),
+        paths: ["src/Widget.elm", "src/Gadget.elm"],
+        cliOverlay: { project: { name: "My.Package" } },
+      })
+    );
+    expect(project.name).toBe("my/package");
+    expect(project.origin).toEqual({
+      kind: "synthesized",
+      inputs: ["src/Widget.elm", "src/Gadget.elm"],
+    });
+    expect(project.exposedModules).toEqual(["Acme.Widget", "Acme.Gadget"]);
+  });
+
+  test("a manifest selection reports the normal form of the stated name", () => {
+    const project = expectProject(
+      adHoc({
+        entries: files({ "morphir.toml": "", "src/Widget.elm": widget }),
+        project: { kind: "manifest", path: "morphir.toml" },
+        cliOverlay: { project: { name: "Acme.Widgets" } },
+      })
+    );
+    expect(project.name).toBe("acme/widgets");
+    expect(project.configAnchor).toBe("morphir.toml");
+  });
+
+  test("a module collision in a dotted-name selection still refuses", () => {
+    expectFailure(
+      adHoc({
+        entries: files({ "src/Widget.elm": widget, "src/Copy.elm": widget }),
+        paths: ["src/Widget.elm", "src/Copy.elm"],
+        cliOverlay: { project: { name: "My.Package" } },
+      }),
+      "workspace.selection.module-collision",
+      "src/Copy.elm"
+    );
   });
 });
 
