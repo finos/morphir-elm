@@ -1,10 +1,11 @@
 import type { JsonRpcError, JsonRpcId, JsonRpcResponse } from "./framing";
-import extensionMetadata from "./extension.json";
 import {
-  WORKSPACE_DISCOVERY_PROTOCOL,
-  discover,
-  parseDiscoveryRequest,
-} from "./workspace";
+  MEP_VERSION,
+  extensionInfo,
+  capabilities,
+  capabilityClaims,
+} from "./identity";
+import { discover, parseDiscoveryRequest } from "./workspace";
 
 export type { JsonRpcError, JsonRpcId, JsonRpcResponse } from "./framing";
 
@@ -90,7 +91,7 @@ export type CompileResult = CompileSuccess | CompileFailure;
 
 export type SessionState =
   | { readonly kind: "loaded" }
-  | { readonly kind: "ready"; readonly protocolVersion: "0.1" }
+  | { readonly kind: "ready"; readonly protocolVersion: typeof MEP_VERSION }
   | { readonly kind: "stopped" };
 
 export type Compile = (
@@ -118,38 +119,7 @@ interface JsonRpcRequest {
   readonly id: JsonRpcId;
 }
 
-// The extension is released on its own tag, extension/elm/v<version>, so its identity comes from
-// extension.json and not from the morphir-elm package version.
-const MEP_VERSION = "0.1" as const;
 const decoder = new TextDecoder("utf-8", { fatal: true });
-
-const extensionInfo = Object.freeze({
-  id: extensionMetadata.extensionId,
-  name: extensionMetadata.name,
-  version: extensionMetadata.version,
-  types: ["frontend", "workspace"] as const,
-});
-
-const capabilities = Object.freeze({
-  frontend: Object.freeze({
-    languages: [
-      Object.freeze({ id: "elm", fileExtensions: [".elm"] as const }),
-    ] as const,
-    irVersions: ["3"] as const,
-    compile: true,
-    incremental: false,
-    fragments: false,
-    multiDocument: false,
-  }),
-  workspace: Object.freeze({
-    protocolVersions: [WORKSPACE_DISCOVERY_PROTOCOL] as const,
-    discover: true,
-  }),
-  streaming: false,
-  incremental: false,
-  cancellation: false,
-  progress: false,
-});
 
 const loadedState: SessionState = Object.freeze({ kind: "loaded" });
 const readyState: SessionState = Object.freeze({
@@ -211,8 +181,29 @@ function failure(
   return { jsonrpc: "2.0", id, error };
 }
 
+function protocolMismatch(
+  id: JsonRpcId,
+  hostVersions: readonly string[]
+): JsonRpcResponse {
+  return failure(
+    id,
+    -32011,
+    "No compatible Morphir Extension Protocol version",
+    {
+      hostVersions,
+      extensionVersions: [MEP_VERSION],
+    }
+  );
+}
+
 function invalidRequest(id: JsonRpcId, message: string): JsonRpcResponse {
   return failure(id, -32600, message);
+}
+
+/** A request the lifecycle does not allow yet, or any longer: before
+ * `morphir.initialize`, or after `morphir.shutdown`. */
+function notInitialized(id: JsonRpcId, message: string): JsonRpcResponse {
+  return failure(id, -32014, message);
 }
 
 function invalidParams(id: JsonRpcId, message: string): JsonRpcResponse {
@@ -433,7 +424,22 @@ export function createDispatcher(compile: Compile): Dispatcher {
     const id = request.id;
 
     if (sessionState.kind === "stopped") {
-      return respond(invalidRequest(id, "The MEP session has stopped"));
+      return respond(notInitialized(id, "The MEP session has stopped"));
+    }
+
+    if (request.method === "morphir.extension.describe") {
+      if (
+        !isRecord(request.params) ||
+        !hasStringArray(request.params.protocolVersions)
+      ) {
+        return respond(
+          invalidParams(id, "Invalid morphir.extension.describe parameters")
+        );
+      }
+      if (!request.params.protocolVersions.includes(MEP_VERSION)) {
+        return respond(protocolMismatch(id, request.params.protocolVersions));
+      }
+      return respond(success(id, capabilityClaims()));
     }
 
     if (request.method === "morphir.ping") {
@@ -448,7 +454,7 @@ export function createDispatcher(compile: Compile): Dispatcher {
     if (sessionState.kind === "loaded") {
       if (request.method !== "morphir.initialize") {
         return respond(
-          invalidRequest(id, "The MEP session is not initialized")
+          notInitialized(id, "The MEP session is not initialized")
         );
       }
       if (!request.hasParams || !isInitializeParams(request.params)) {
@@ -457,17 +463,7 @@ export function createDispatcher(compile: Compile): Dispatcher {
         );
       }
       if (!request.params.protocolVersions.includes(MEP_VERSION)) {
-        return respond(
-          failure(
-            id,
-            -32011,
-            "No compatible Morphir Extension Protocol version",
-            {
-              hostVersions: request.params.protocolVersions,
-              extensionVersions: [MEP_VERSION],
-            }
-          )
-        );
+        return respond(protocolMismatch(id, request.params.protocolVersions));
       }
 
       sessionState = readyState;

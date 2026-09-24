@@ -4,9 +4,11 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { capabilityClaims } from "../cli2/mep/identity";
+
 const root = join(import.meta.dir, "..");
 // MORPHIR_ELM_EXTENSION_BIN points the suite at another build of the extension, which is how the
-// release workflow tests the executable it unpacked from a release archive.
+// release workflow tests both the archive executable and the raw bundle executable.
 const executable =
   process.env.MORPHIR_ELM_EXTENSION_BIN ??
   join(
@@ -360,6 +362,27 @@ describe("standalone Morphir Elm MEP extension", () => {
       result: {},
     });
   }, 60_000);
+
+  test("describes and exits cleanly without initializing or closing stdin", async () => {
+    const result = await runExtension(
+      appendFrames([
+        frame(
+          request(
+            "morphir.extension.describe",
+            { protocolVersions: ["0.1"] },
+            "describe"
+          )
+        ),
+        frame(notification("morphir.exit")),
+      ]),
+      false
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).not.toContain('"jsonrpc":"2.0"');
+    expect(decodeCompleteFrames(result.stdout)).toEqual([
+      { jsonrpc: "2.0", id: "describe", result: capabilityClaims() },
+    ]);
+  });
 
   test("stops on an exit notification without writing a response", async () => {
     const result = await runExtension(
