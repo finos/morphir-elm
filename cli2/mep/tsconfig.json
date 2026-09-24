@@ -17,6 +17,8 @@
     "elm-names.ts",
     "framing.ts",
     "protocol.ts",
+    "protocol.test.ts",
+    "identity.ts",
     "release.test.ts",
     "release.ts",
     "workspace.test.ts",

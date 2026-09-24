@@ -96,7 +96,9 @@ jobs:
 
       - name: Verify the checksums
         working-directory: dist/mep-extension-release
-        run: sha256sum --check ./*.sha256
+        run: |
+          sha256sum --check ./*.sha256
+          (cd bundle && sha256sum --check ./*.sha256)
 
       - name: Upload the release files
         # actions/upload-artifact v4.6.2
@@ -104,7 +106,7 @@ jobs:
           actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mep-extension-release
-          path: dist/mep-extension-release/*
+          path: dist/mep-extension-release/
           if-no-files-found: error
 
   test:
@@ -181,6 +183,20 @@ jobs:
       - name: Run the extension suite against the packaged executable
         run: mise exec -- bun test tests-integration/mep-extension.test.ts
 
+      - name: Run the extension suite against the raw bundle executable
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          executable="$PWD/release/bundle/morphir-elm-extension-${VERSION}-${PLATFORM}"
+          if [[ "$PLATFORM" == *-windows-* ]]; then
+            executable="${executable}.exe"
+          fi
+          test -f "$executable"
+          chmod +x "$executable"
+          MORPHIR_ELM_EXTENSION_BIN="$executable" \
+            mise exec -- bun test tests-integration/mep-extension.test.ts
+
   publish:
     name: Publish the GitHub release
     needs: [build, test]
@@ -205,15 +221,27 @@ jobs:
             Morphir Elm MEP process extension for the morphir CLI. Each
             archive holds one executable for one platform. The .release.json
             file describes the archives and their SHA-256 digests.
+            Raw executables and their .sha256 files form a version-2 process
+            bundle with morphir-elm-extension-<version>.bundle.release.json.
+            Put these files in one directory and rename the bundle descriptor
+            to release.json for morphir extension repository publish --bundle.
+            This requires a Morphir CLI that reads 2.0.0-draft.2, the release
+            after 0.4.0-beta.6.
         run: |
+          mv release/bundle/release.json \
+            "release/morphir-elm-extension-${VERSION}.bundle.release.json"
+          assets=(
+            release/*.tgz release/*.zip release/*.sha256 release/*.json
+            release/bundle/*
+          )
           flags=()
           case "$VERSION" in
             *-*) flags+=(--prerelease) ;;
           esac
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" release/* --clobber
+            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
           else
-            gh release create "$RELEASE_TAG" release/* \
+            gh release create "$RELEASE_TAG" "${assets[@]}" \
               --verify-tag \
               --latest=false \
               --title "Morphir Elm MEP extension v${VERSION}" \

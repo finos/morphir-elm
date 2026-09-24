@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { capabilityClaims } from "./identity";
 import extensionMetadata from "./extension.json";
 
 import {
@@ -263,7 +264,7 @@ describe("MEP lifecycle dispatch", () => {
       const response = await dispatcher.dispatch(
         request(method, compileRequest)
       );
-      expectError(response, -32600);
+      expectError(response, -32014);
     }
   });
 
@@ -689,7 +690,7 @@ describe("MEP lifecycle dispatch", () => {
     const rejected = await dispatcher.dispatch(request("morphir.ping", {}));
     const exited = await dispatcher.dispatch(notification("morphir.exit"));
 
-    expectError(rejected, -32600);
+    expectError(rejected, -32014);
     expect(exited).toBeNull();
     expect(dispatcher.state()).toEqual({ kind: "stopped" });
   });
@@ -700,5 +701,153 @@ describe("MEP lifecycle dispatch", () => {
     const response = await dispatcher.dispatch(request("morphir.exit", {}));
 
     expectError(response, -32600);
+  });
+});
+
+describe("MEP capability description", () => {
+  test("describes before initialization without starting a session or compiling", async () => {
+    let compileCalls = 0;
+    const dispatcher = createDispatcher(() => {
+      compileCalls += 1;
+      return successfulCompile;
+    });
+    const response = await dispatcher.dispatch(
+      request("morphir.extension.describe", {
+        protocolVersions: ["unsupported", "0.1"],
+      })
+    );
+    expect(response).toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      result: capabilityClaims(),
+    });
+    expect(response).toHaveProperty(
+      "result.extension.version",
+      extensionMetadata.version
+    );
+    expect(dispatcher.state()).toEqual({ kind: "loaded" });
+    expect(compileCalls).toBe(0);
+    expect(await dispatcher.dispatch(notification("morphir.exit"))).toBeNull();
+    expect(dispatcher.state()).toEqual({ kind: "stopped" });
+  });
+
+  test("refuses incompatible describe versions with the initialize mismatch error", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    const params = { protocolVersions: ["99.0"] };
+    expect(
+      await dispatcher.dispatch(request("morphir.extension.describe", params))
+    ).toEqual(
+      await dispatcher.dispatch(initialize(1, params.protocolVersions))
+    );
+    expect(dispatcher.state()).toEqual({ kind: "loaded" });
+  });
+
+  test.each([null, {}, { protocolVersions: "0.1" }, { protocolVersions: [1] }])(
+    "refuses invalid describe params %j",
+    async (params) => {
+      const dispatcher = createDispatcher(() => successfulCompile);
+      expectError(
+        await dispatcher.dispatch(
+          request("morphir.extension.describe", params)
+        ),
+        -32602
+      );
+    }
+  );
+
+  test("refuses describe after shutdown like other methods", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    await dispatcher.dispatch(initialize());
+    await dispatcher.dispatch(request("morphir.shutdown", {}));
+    expectError(
+      await dispatcher.dispatch(
+        request("morphir.extension.describe", {
+          protocolVersions: ["0.1"],
+        })
+      ),
+      -32014
+    );
+  });
+});
+
+// check_session permits extra claimed object members, but arrays and scalar leaves
+// must equal the reported values. This checks every reported member recursively.
+function expectClaimed(reported: unknown, claimed: unknown): void {
+  if (
+    typeof reported === "object" &&
+    reported !== null &&
+    !Array.isArray(reported)
+  ) {
+    expect(typeof claimed).toBe("object");
+    expect(claimed).not.toBeNull();
+    expect(Array.isArray(claimed)).toBe(false);
+    const claims = claimed as Record<string, unknown>;
+    for (const [key, value] of Object.entries(reported)) {
+      expect(Object.prototype.hasOwnProperty.call(claims, key)).toBe(true);
+      expectClaimed(value, claims[key]);
+    }
+  } else {
+    expect(claimed).toEqual(reported);
+  }
+}
+
+describe("MEP claims agree with the session", () => {
+  test("identity, negotiated protocol, types and every capability member are claimed", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    const response = await dispatcher.dispatch(initialize());
+    if (response === null || !("result" in response))
+      throw new Error("initialize failed");
+    const session = response.result as {
+      readonly protocolVersion: string;
+      readonly extension: {
+        readonly id: string;
+        readonly name: string;
+        readonly version: string;
+        readonly types: readonly string[];
+      };
+      readonly capabilities: unknown;
+    };
+    const claims = capabilityClaims();
+    expect(session.extension.id).toBe(claims.extension.id);
+    expect(session.extension.name).toBe(claims.extension.name);
+    expect(session.extension.version).toBe(claims.extension.version);
+    expect(claims.protocolVersions).toContain(session.protocolVersion);
+    for (const type of session.extension.types)
+      expect(claims.extension.types.some((claimed) => claimed === type)).toBe(
+        true
+      );
+    expectClaimed(session.capabilities, claims.capabilities);
+    const capabilities = await dispatcher.dispatch(
+      request("morphir.extension.capabilities", {})
+    );
+    if (capabilities === null || !("result" in capabilities))
+      throw new Error("capabilities failed");
+    expectClaimed(capabilities.result, claims.capabilities);
+    expect(
+      await dispatcher.dispatch(request("morphir.extension.info", {}))
+    ).toEqual({ jsonrpc: "2.0", id: 1, result: claims.extension });
+    const state = dispatcher.state();
+    expect(
+      await dispatcher.dispatch(
+        request("morphir.extension.describe", { protocolVersions: ["0.1"] })
+      )
+    ).toEqual({ jsonrpc: "2.0", id: 1, result: claims });
+    expect(dispatcher.state()).toBe(state);
+  });
+
+  test("description rejects an empty version offer and missing params", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    expectError(
+      await dispatcher.dispatch(
+        request("morphir.extension.describe", { protocolVersions: [] })
+      ),
+      -32011
+    );
+    expectError(
+      await dispatcher.dispatch(
+        requestWithoutParams("morphir.extension.describe")
+      ),
+      -32602
+    );
   });
 });

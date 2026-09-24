@@ -151,6 +151,12 @@ local development. The MEP extension pull-request workflow builds and validates
 CI artifacts for Linux AMD64, macOS ARM64, and Windows ARM64. The
 platform-neutral npm package does not include the native executable.
 
+The extension answers `morphir.extension.describe` with its capability claim set.
+Send `{ "protocolVersions": ["0.1"] }` before initialization or during a session,
+before shutdown. Description has no side effects and does not initialize a
+session; a probe can send `describe` followed by the `morphir.exit` notification.
+An incompatible version offer receives `-32011`, as for `morphir.initialize`.
+
 ### Releasing the MEP extension
 
 The extension has its own version and its own release tag. It does not follow
@@ -171,9 +177,24 @@ whose version differs from `extension.json`. It runs
 for the six platforms the `morphir` CLI is released for, and writes one archive
 and one `.sha256` file per platform plus
 `morphir-elm-extension-<version>.release.json`. The workflow then runs the
-extension suite against the packaged executable on Linux, macOS and Windows,
+extension suite against both the archive executable and the raw bundle executable
+on Linux, macOS and Windows,
 and publishes a GitHub release that is not marked as latest. A version with a
 `-` part, such as `0.2.0-rc.1`, is published as a prerelease.
+
+The task also writes `dist/mep-extension-release/bundle/`, containing a version-2
+`release.json`, six raw executables named
+`morphir-elm-extension-<version>-<platform>` with `.exe` on Windows, and a
+`.sha256` file for each executable. Digests cover the raw bytes. Each artifact's
+claims come from the same module that supplies `describe` and session metadata.
+The version-1 archives and descriptor remain available for existing consumers.
+
+On GitHub, the bundle descriptor is named
+`morphir-elm-extension-<version>.bundle.release.json`. Download it with all six
+raw executables and their checksum files into one directory, then rename it to
+`release.json` before running `morphir extension repository publish --bundle <dir>`.
+Keep archives out of that directory. Bundle publication requires a Morphir CLI
+that reads `2.0.0-draft.2`, the release after `0.4.0-beta.6`.
 
 Run the task locally to inspect the files in `dist/mep-extension-release/`:
 
