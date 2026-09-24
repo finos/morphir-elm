@@ -1,5 +1,4 @@
-const express = require('express')
-const bodyParser = require('body-parser')
+const fastify = require('fastify')
 const calc = require('./Main').Elm.Main.init({})
 require('isomorphic-fetch')
 
@@ -14,23 +13,30 @@ const STATE_STORE_NAME = 'statestore'
 const stateStoreUrl = `http://localhost:${DAPR_HTTP_PORT}/v1.0/state/${STATE_STORE_NAME}`
 const eventPublishUrl = `http://localhost:${DAPR_HTTP_PORT}/v1.0/publish/${OUTPUT_TOPIC}`
 
-const app = express() // nosemgrep 
+const app = fastify()
 
-app.use(bodyParser.json({ type: 'application/*+json' }))
+app.addContentTypeParser(/^application\/.*\+json(?:\s*;.*)?$/i, { parseAs: 'string' }, (_request, body, done) => {
+    try {
+        done(null, JSON.parse(body))
+    } catch (error) {
+        done(error)
+    }
+})
 
-app.listen(APP_PORT, () => { console.log("Server running on port 3000") })
+app.listen({ port: APP_PORT }, () => { console.log("Server running on port 3000") })
 
-app.get('/dapr/subscribe', (_req, res) => {
-    res.json([INPUT_TOPIC]);
-});
+app.get('/dapr/subscribe', async () => {
+    return [INPUT_TOPIC]
+})
 
-app.post(`/${INPUT_TOPIC}`, (req, res) => {
-    handleCommand(req.body.data, stateStoreUrl)
+app.post(`/${INPUT_TOPIC}`, async (request, reply) => {
+    handleCommand(request.body.data, stateStoreUrl)
         .then(stateCmd => {
             console.log(`Sending command to calculation: ${JSON.stringify(stateCmd)}`)
             calc.ports.stateCommandPort.send(stateCmd)
         })
-    res.sendStatus(200)
+    reply.code(200)
+    return 'OK'
 })
 
 calc.ports.stateEventPort.subscribe(

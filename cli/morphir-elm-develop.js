@@ -12,7 +12,8 @@ const readFile = util.promisify(fs.readFile);
 const fsExists = util.promisify(fs.exists);
 const writeFile = util.promisify(fs.writeFile);
 const commander = require("commander");
-const express = require("express");
+const fastify = require("fastify");
+const fastifyStatic = require("@fastify/static");
 
 // Set up Commander
 const program = new commander.Command();
@@ -30,21 +31,20 @@ program
   )
   .parse(process.argv);
 
-const app = express();
-const port = program.opts().port;
+const app = fastify({ bodyLimit: 100 * 1024 * 1024 });
+const port = Number(program.opts().port);
 
 
 const webDir = path.join(__dirname, "web");
 
 
 
-app.use(express.static(webDir, { index: false }));
-app.use(express.json({limit: "100mb"}));
+app.register(fastifyStatic, { root: webDir, index: false });
 
-app.get("/", wrap(async (req, res, next) => {
-  res.setHeader('Content-type', 'text/html')
-  res.send(await indexHtmlWithVersion());
-}));
+app.get("/", async (request, reply) => {
+  reply.type("text/html");
+  return await indexHtmlWithVersion();
+});
 
 createSimpleGetJsonApi(app, "morphir.json");
 createSimpleGetJsonApi(app, "morphir-ir.json");
@@ -52,11 +52,11 @@ createSimpleGetJsonApi(app, "morphir-tests.json", "[]");
 
 app.get(
   "/server/decorations",
-  wrap(async (req, res, next) => {
+  async (request, reply) => {
     const configJsonContent = await getDecorationConfig();
 
     const decorationIDs = Object.keys(configJsonContent);
-    let responseJson = {};
+    const responseJson = {};
 
     for (const decorationID of decorationIDs) {
       const decorationFilePath = await getDecorationFilePath(decorationID)
@@ -77,80 +77,88 @@ app.get(
         iR: JSON.parse(irFileContent.toString()),
       };
     }
-    res.send(responseJson);
-  })
+    return responseJson;
+  }
 );
 
 app.post(
   "/server/update-decoration/:decorationID",
-  wrap(async (req, res, next) => {
-    const decorationID = req.params.decorationID
-    await writeFile(await getDecorationFilePath(decorationID), JSON.stringify(req.body, null, 4))
-    res.send(req.body);
-  })
+  async (request, reply) => {
+    const decorationID = request.params.decorationID
+    await writeFile(await getDecorationFilePath(decorationID), JSON.stringify(request.body, null, 4))
+    return request.body;
+  }
 );
 
 app.post(
   "/server/morphir-tests.json",
-  wrap(async (req, res, next) => {
+  async (request, reply) => {
     const morphirTestsJsonPath = path.join(
       program.opts().projectDir,
       "morphir-tests.json"
     );
-    var jsonContent = JSON.stringify(req.body, null, 4);
+    const jsonContent = JSON.stringify(request.body, null, 4);
     await writeFile(morphirTestsJsonPath, jsonContent);
     const morphirTestsJsonContent = await readFile(morphirTestsJsonPath);
     const morphirTestsJson = JSON.parse(morphirTestsJsonContent.toString());
-    res.send(morphirTestsJson);
-  })
+    return morphirTestsJson;
+  }
 );
 
 app.post(
   "/server/morphir-ir.json",
-  wrap(async (req, res, next) => {
+  async (request, reply) => {
     const morphirIRJsonPath = path.join(
       program.opts().projectDir,
       "morphir-ir.json"
     );
-    var jsonContent = JSON.stringify(req.body, null, 4);
+    const jsonContent = JSON.stringify(request.body, null, 4);
     await writeFile(morphirIRJsonPath, jsonContent);
     const morphirIRJsonContent = await readFile(morphirIRJsonPath);
     const morphirIRJson = JSON.parse(morphirIRJsonContent.toString());
-    res.send(morphirIRJson);
-  })
+    return morphirIRJson;
+  }
 );
 
-app.get("*", wrap(async (req, res, next) => {
-  res.setHeader('Content-type', 'text/html')
-  res.send(await indexHtmlWithVersion());
-}));
+app.setNotFoundHandler(async (request, reply) => {
+  if (request.method === "GET") {
+    reply.type("text/html");
+    return await indexHtmlWithVersion();
+  }
 
-app.listen(port, program.opts().host, () => {
+  reply.code(404);
+  return { error: "Not Found" };
+});
+
+app.listen({ port, host: program.opts().host }, (err, address) => {
+  if (err) {
+    console.error(err);
+    process.exit(1);
+  }
+
   console.log(
     `Developer server listening at http://${program.opts().host}:${port}`
   );
 });
-
 
 // --- Utility Functions ---
 
 function createSimpleGetJsonApi(app, filePath, defaultContent) {
   app.get(
     "/server/" + filePath,
-    wrap(async (req, res, next) => {
+    async (request, reply) => {
       const jsonPath = path.join(program.opts().projectDir, filePath);
       try {
         const jsonContent = await readFile(jsonPath);
-        res.send(JSON.parse(jsonContent.toString()));
+        return JSON.parse(jsonContent.toString());
       } catch (err) {
         if (defaultContent && err.code === 'ENOENT') {
-          // file does not exist, send default content
-          res.send(defaultContent)
+          return JSON.parse(defaultContent)
         } else {
           throw err
         }
       }
-    })
+    }
   )
 }
 
@@ -186,9 +194,4 @@ async function indexHtmlWithVersion() {
   const _indexHtml = await readFile(path.join(webDir, "index.html"), 'utf8');
   return _indexHtml.replace('__VERSION_NUMBER__', packageJson.version.toString());
 
-}
-
-function wrap(fn) {
-  return (...args) =>
-    fn(...args).catch(args[2]);
 }
