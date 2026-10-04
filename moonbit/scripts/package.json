@@ -1,0 +1,8 @@
+{
+  "name": "morphir-elm-acceptance",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "elm": "0.19.1-6"
+  }
+}

@@ -1,0 +1,19 @@
+import {
+  "finos/morphir-ir" @ir,
+  "moonrockz/krueger/ast",
+  "moonrockz/krueger/printer",
+  "moonbitlang/core/string" @parse,
+  "moonbitlang/core/debug",
+}
+
+import {
+  "finos/morphir-elm/backend" @elm,
+  "finos/morphir-ir" @ir,
+  "moonrockz/krueger",
+  "finos/morphir-elm/fixtures",
+  "moonbitlang/core/json",
+} for "test"
+
+import {
+  "moonrockz/krueger",
+} for "wbtest"

@@ -1,0 +1,7 @@
+pkgtype(kind: "executable")
+
+import {
+  "finos/morphir-elm/backend" @elm,
+  "finos/morphir-elm/fixtures",
+  "finos/morphir-ir" @ir,
+}
