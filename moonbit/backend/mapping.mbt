@@ -8,11 +8,23 @@ pub(all) enum MappingEntry {
 } derive(Eq, Debug)
 
 ///|
+pub extend MappingEntry with Eq::{equal, not_equal}
+
+///|
+pub extend MappingEntry with @debug.Debug::{to_repr}
+
+///|
 /// Types and values have separate namespaces: `basics#never` is both a type and a function.
 pub(all) enum Namespace {
   TypeSpace
   ValueSpace
 } derive(Eq, Debug)
+
+///|
+pub extend Namespace with Eq::{equal, not_equal}
+
+///|
+pub extend Namespace with @debug.Debug::{to_repr}
 
 ///|
 /// Keys are canonical FQName text, for example `morphir/SDK:basics#add`.
@@ -71,9 +83,9 @@ pub fn Mapping::with_overrides(
 pub fn Mapping::lookup(
   self : Mapping,
   name : @ir.FQName,
-  namespace : Namespace,
+  space : Namespace,
 ) -> MappingEntry? {
-  let table = match namespace {
+  let table = match space {
     TypeSpace => self.types
     ValueSpace => self.values
   }

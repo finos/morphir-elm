@@ -6,6 +6,12 @@ pub(all) enum FileRole {
 } derive(Eq, Debug)
 
 ///|
+pub extend FileRole with Eq::{equal, not_equal}
+
+///|
+pub extend FileRole with @debug.Debug::{to_repr}
+
+///|
 pub(all) struct GeneratedFile {
   path : String
   role : FileRole
@@ -13,10 +19,22 @@ pub(all) struct GeneratedFile {
 } derive(Eq, Debug)
 
 ///|
+pub extend GeneratedFile with Eq::{equal, not_equal}
+
+///|
+pub extend GeneratedFile with @debug.Debug::{to_repr}
+
+///|
 pub(all) struct ElmDependency {
   name : String
   range : String
 } derive(Eq, Debug)
+
+///|
+pub extend ElmDependency with Eq::{equal, not_equal}
+
+///|
+pub extend ElmDependency with @debug.Debug::{to_repr}
 
 ///|
 pub(all) struct Output {
@@ -35,7 +53,7 @@ pub fn elm_package_name(package_name : @ir.Path) -> String {
   match parts {
     [] => "morphir/model"
     [single] => "morphir/" + single
-    _ => parts[0] + "/" + parts[1:].to_array().join("-")
+    _ => parts[0] + "/" + parts[1:].to_owned().join("-")
   }
 }
 
@@ -101,16 +119,17 @@ pub fn generate(
       })
       break
     }
-    match (try? generate_module(options, input)) {
-      Ok(module_output) => {
+    try generate_module(options, input) catch {
+      Refused(problem) => problems.push(problem)
+      Failed(more) => problems.append(more)
+    } noraise {
+      module_output => {
         uses_sdk = uses_sdk || module_output.uses_sdk_package
         for p in module_output.foreign_packages {
           foreign[p] = true
         }
         sources.push((input, module_output))
       }
-      Err(Refused(problem)) => problems.push(problem)
-      Err(Failed(more)) => problems.append(more)
     }
   }
   if !problems.is_empty() {
@@ -128,7 +147,11 @@ pub fn generate(
   let warnings = options.warnings.copy()
   for p in foreign_names {
     match options.packages.get(p) {
-      Some(ref) => dependencies.push({ name: ref.name, range: ref.range(), })
+      Some(elm_package) =>
+        dependencies.push({
+          name: elm_package.name,
+          range: elm_package.range(),
+        })
       None =>
         warnings.push(
           "no Elm package is configured for Morphir package " +
@@ -143,7 +166,7 @@ pub fn generate(
     content: s.1.source,
   })
   let exposed = sources
-    .filter(s => public_modules.contains(s.0.module.to_canonical()))
+    .filter(s => public_modules.contains(s.0.module_path.to_canonical()))
     .map(s => Json::string(s.1.elm_module.join(".")))
   let exposed_all = if exposed.is_empty() {
     sources.map(s => Json::string(s.1.elm_module.join(".")))
@@ -183,11 +206,9 @@ pub fn generate(
         "exposedModules",
         Json::array(
           exposed_all.map(m => {
+            guard m is String(text) else { panic() }
             Json::string(
-              m
-              .as_string()
-              .unwrap()
-              .substring(start=package_module.join(".").length() + 1),
+              text[package_module.join(".").length() + 1:].to_owned(),
             )
           }),
         ),

@@ -24,9 +24,9 @@ fn lower_type(
       }
     Reference(_, name, args) =>
       match ctx.resolve(name, TypeName) {
-        Qualified(qualifier, local) =>
+        Qualified(qualifier, local_text) =>
           Typed(
-            node((qualifier[:], local)),
+            node((qualifier[:], local_text)),
             args.map(a => node(lower_type(ctx, a, at)))[:],
           )
         Op(op) =>
@@ -230,7 +230,7 @@ fn custom_type(
 }
 
 ///|
-fn alias(
+fn lower_alias(
   ctx : Ctx,
   name : @ir.Name,
   doc : String?,
@@ -259,7 +259,7 @@ fn lower_type_definition(
   match definition {
     TypeAliasDefinition(params, body) =>
       (
-        alias(ctx, name, doc, params, body, at),
+        lower_alias(ctx, name, doc, params, body, at),
         Some(TypeOrAliasExpose(type_name(name))),
       )
     CustomTypeDefinition(params, constructors) => {
@@ -294,7 +294,7 @@ fn lower_type_specification(
   match spec.body {
     TypeAliasSpecification(params, body) =>
       (
-        alias(ctx, name, doc, params, body, at),
+        lower_alias(ctx, name, doc, params, body, at),
         TypeOrAliasExpose(type_name(name)),
       )
     OpaqueTypeSpecification(params) => {

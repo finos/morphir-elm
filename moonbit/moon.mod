@@ -12,5 +12,5 @@ description = "Morphir IR to Elm generation with moonrockz/krueger"
 
 import {
   "finos/morphir-ir@0.1.0",
-  "moonrockz/krueger@0.4.0",
+  "moonrockz/krueger@0.5.0",
 }

@@ -13,7 +13,7 @@ priv enum ValueSource {
 ///|
 priv struct ModuleInput {
   package_name : @ir.Path
-  module : @ir.Path
+  module_path : @ir.Path
   doc : String?
   types : Array[(@ir.Name, @ir.Access, String?, TypeSource)]
   values : Array[(@ir.Name, @ir.Access, String?, ValueSource)]
@@ -23,13 +23,13 @@ priv struct ModuleInput {
 ///|
 fn ModuleInput::from_definition(
   package_name : @ir.Path,
-  module : @ir.Path,
+  module_path : @ir.Path,
   definition : @ir.ModuleDefinition,
   entry_points : Map[String, @ir.EntryPoint],
 ) -> ModuleInput {
   {
     package_name,
-    module,
+    module_path,
     doc: definition.doc,
     types: definition.types
     .iter()
@@ -55,12 +55,12 @@ fn ModuleInput::from_definition(
 ///|
 fn ModuleInput::from_specification(
   package_name : @ir.Path,
-  module : @ir.Path,
+  module_path : @ir.Path,
   spec : @ir.ModuleSpecification,
 ) -> ModuleInput {
   {
     package_name,
-    module,
+    module_path,
     doc: spec.doc,
     types: spec.types
     .iter()
@@ -99,7 +99,7 @@ fn hex4(code : Int) -> String {
 
 ///|
 fn elm_string(text : String) -> String {
-  let out = StringBuilder::new()
+  let out = StringBuilder()
   out.write_char('"')
   for c in text {
     match c {
@@ -297,12 +297,12 @@ fn generate_module(
   options : Options,
   input : ModuleInput,
 ) -> ModuleOutput raise ElmGenerationError {
-  let ctx = Ctx::new(options, input.package_name, input.module)
-  let elm_module = module_name(input.package_name, input.module)
+  let ctx = Ctx::new(options, input.package_name, input.module_path)
+  let elm_module = module_name(input.package_name, input.module_path)
   let fq = fn(name : @ir.Name) {
     input.package_name.to_canonical() +
     ":" +
-    input.module.to_canonical() +
+    input.module_path.to_canonical() +
     "#" +
     name.to_canonical()
   }

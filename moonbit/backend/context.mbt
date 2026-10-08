@@ -32,7 +32,7 @@ priv enum Resolved {
 priv struct Ctx {
   options : Options
   package_name : @ir.Path
-  module : @ir.Path
+  module_path : @ir.Path
   imports : Map[String, String?]
   mut uses_sdk_package : Bool
   foreign_packages : Map[String, Bool]
@@ -53,12 +53,12 @@ priv struct Ctx {
 fn Ctx::new(
   options : Options,
   package_name : @ir.Path,
-  module : @ir.Path,
+  module_path : @ir.Path,
 ) -> Ctx {
   {
     options,
     package_name,
-    module,
+    module_path,
     imports: Map([]),
     uses_sdk_package: false,
     foreign_packages: Map([]),
@@ -75,15 +75,15 @@ fn Ctx::new(
 ///|
 fn split_qualified(text : String) -> (Array[String], String) {
   let parts = text.split(".").map(p => p.to_owned()).collect()
-  let local = parts.pop().unwrap()
-  (parts, local)
+  let last = parts.pop().unwrap()
+  (parts, last)
 }
 
 ///|
 fn Ctx::add_import_line(self : Ctx, line : String) -> Unit {
   let parts = line.split(" as ").map(p => p.to_owned()).collect()
   match parts {
-    [module, alias] => self.imports[module] = Some(alias)
+    [import_name, alias_name] => self.imports[import_name] = Some(alias_name)
     _ => self.imports[line] = None
   }
 }
@@ -99,12 +99,12 @@ fn Ctx::note_foreign_package(self : Ctx, name : @ir.FQName) -> Unit {
 
 ///|
 fn Ctx::resolve(self : Ctx, name : @ir.FQName, kind : Kind) -> Resolved {
-  let namespace : Namespace = match kind {
+  let space : Namespace = match kind {
     TypeName => TypeSpace
     Value | Constructor => ValueSpace
   }
   if self.options.profile is Model {
-    match self.options.mapping.lookup(name, namespace) {
+    match self.options.mapping.lookup(name, space) {
       Some(Operator(op)) => return Op(op)
       Some(Function(text, import_line)) | Some(Type(text, import_line)) => {
         let (qualifier, name_text) = split_qualified(text)
@@ -117,7 +117,7 @@ fn Ctx::resolve(self : Ctx, name : @ir.FQName, kind : Kind) -> Resolved {
             }
         }
         self.note_foreign_package(name)
-        if !self.options.mapping.is_override(name, namespace) &&
+        if !self.options.mapping.is_override(name, space) &&
           self.can_print_bare(qualifier, name_text) {
           return Qualified([], name_text)
         }
@@ -126,12 +126,13 @@ fn Ctx::resolve(self : Ctx, name : @ir.FQName, kind : Kind) -> Resolved {
       _ => ()
     }
   }
-  let local = match kind {
+  let local_text = match kind {
     Value => value_name(name.local_name)
     Constructor | TypeName => type_name(name.local_name)
   }
-  if name.package_name == self.package_name && name.module_name == self.module {
-    return Qualified([], local)
+  if name.package_name == self.package_name &&
+    name.module_name == self.module_path {
+    return Qualified([], local_text)
   }
   let package_text = name.package_name.to_canonical()
   if package_text == "morphir/SDK" {
@@ -141,7 +142,7 @@ fn Ctx::resolve(self : Ctx, name : @ir.FQName, kind : Kind) -> Resolved {
   }
   let qualifier = module_name(name.package_name, name.module_name)
   self.imports[qualifier.join(".")] = None
-  Qualified(qualifier, local)
+  Qualified(qualifier, local_text)
 }
 
 ///|
@@ -288,11 +289,13 @@ fn value_binders(v : @ir.Value, out : Map[String, Bool]) -> Unit {
 fn Ctx::elm_imports(self : Ctx) -> Array[@ast.Node[@ast.Import]] {
   let names = self.imports.keys().collect()
   names.sort()
-  names.map(module => {
-    let alias = self.imports.get(module).unwrap()
+  names.map(import_name => {
+    let alias_name = self.imports.get(import_name).unwrap()
     node({
-      module_name: node(module.split(".").map(p => p.to_owned()).collect()[:]),
-      module_alias: alias.map(a => node([a][:])),
+      module_name: node(
+        import_name.split(".").map(p => p.to_owned()).collect()[:],
+      ),
+      module_alias: alias_name.map(a => node([a][:])),
       exposing_list: None,
     })
   })

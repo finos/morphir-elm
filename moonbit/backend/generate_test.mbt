@@ -12,6 +12,16 @@ fn parses(source : String) -> Bool {
 }
 
 ///|
+fn string_of(json : Json, key : String) -> String? {
+  guard json is Object(obj) else { return None }
+  if obj.get(key) is Some(String(s)) {
+    Some(s)
+  } else {
+    None
+  }
+}
+
+///|
 test "rentals generate a package project" {
   let output = @elm.generate(
     "rentals",
@@ -28,25 +38,16 @@ test "rentals generate a package project" {
   assert_true(source.contains("Ok requestedQuantity"))
   assert_true(parses(source))
   let elm_json = @json.parse(file(output, "elm.json")) catch { _ => panic() }
-  assert_eq(elm_json.value("type").unwrap().as_string(), Some("package"))
-  assert_eq(
-    elm_json.value("name").unwrap().as_string(),
-    Some("morphir/example-app"),
-  )
+  assert_eq(string_of(elm_json, "type"), Some("package"))
+  assert_eq(string_of(elm_json, "name"), Some("morphir/example-app"))
   assert_eq(output.dependencies, [
     { name: "elm/core", range: "1.0.5 <= v < 2.0.0", },
   ])
   let morphir_json = @json.parse(file(output, "morphir.json")) catch {
     _ => panic()
   }
-  assert_eq(
-    morphir_json.value("name").unwrap().as_string(),
-    Some("Morphir.Example.App"),
-  )
-  assert_eq(
-    morphir_json.value("sourceDirectory").unwrap().as_string(),
-    Some("src"),
-  )
+  assert_eq(string_of(morphir_json, "name"), Some("Morphir.Example.App"))
+  assert_eq(string_of(morphir_json, "sourceDirectory"), Some("src"))
 }
 
 ///|

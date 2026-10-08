@@ -7,10 +7,22 @@ pub(all) struct Problem {
 } derive(Eq, Debug)
 
 ///|
+pub extend Problem with Eq::{equal, not_equal}
+
+///|
+pub extend Problem with @debug.Debug::{to_repr}
+
+///|
 pub(all) suberror ElmGenerationError {
   Refused(Problem)
   Failed(Array[Problem])
 } derive(Eq, Debug)
+
+///|
+pub extend ElmGenerationError with Eq::{equal, not_equal}
+
+///|
+pub extend ElmGenerationError with @debug.Debug::{to_repr}
 
 ///|
 fn[T] refuse(

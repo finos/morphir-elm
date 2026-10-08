@@ -5,16 +5,34 @@ pub(all) enum Profile {
 } derive(Eq, Debug)
 
 ///|
+pub extend Profile with Eq::{equal, not_equal}
+
+///|
+pub extend Profile with @debug.Debug::{to_repr}
+
+///|
 pub(all) enum Placeholders {
   Refuse
   DebugTodo
 } derive(Eq, Debug)
 
 ///|
+pub extend Placeholders with Eq::{equal, not_equal}
+
+///|
+pub extend Placeholders with @debug.Debug::{to_repr}
+
+///|
 pub(all) struct ElmPackageRef {
   name : String
   version : String
 } derive(Eq, Debug)
+
+///|
+pub extend ElmPackageRef with Eq::{equal, not_equal}
+
+///|
+pub extend ElmPackageRef with @debug.Debug::{to_repr}
 
 ///|
 fn is_decimal(text : String) -> Bool {
@@ -32,7 +50,7 @@ pub fn ElmPackageRef::parse(
     !author.is_empty() &&
     !project.is_empty() &&
     version.split(".").count() == 3 &&
-    version.split(".").all(n => is_decimal(n.to_string())) else {
+    version.split(".").all(n => is_decimal(n.to_owned())) else {
     refuse(
       "invalid_option",
       at,

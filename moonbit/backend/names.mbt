@@ -12,7 +12,7 @@ let constraint_prefixes : Array[String] = [
 ///|
 /// Names are ASCII by the v4 name grammar, so only `a`..`z` change.
 fn upper_first(word : String) -> String {
-  let buffer = StringBuilder::new()
+  let buffer = StringBuilder()
   let mut first = true
   for c in word {
     if first && c >= 'a' && c <= 'z' {
@@ -36,7 +36,7 @@ fn escape_reserved(name : String) -> String {
 
 ///|
 pub fn value_name(name : @ir.Name) -> String {
-  let buffer = StringBuilder::new()
+  let buffer = StringBuilder()
   for i, segment in name.to_segments() {
     match segment {
       Word(word) =>
@@ -50,7 +50,7 @@ pub fn value_name(name : @ir.Name) -> String {
 
 ///|
 pub fn type_name(name : @ir.Name) -> String {
-  let buffer = StringBuilder::new()
+  let buffer = StringBuilder()
   for segment in name.to_segments() {
     match segment {
       Word(word) => buffer.write_string(upper_first(word))
@@ -61,8 +61,11 @@ pub fn type_name(name : @ir.Name) -> String {
 }
 
 ///|
-pub fn module_name(package_name : @ir.Path, module : @ir.Path) -> Array[String] {
-  package_name.to_names().map(type_name) + module.to_names().map(type_name)
+pub fn module_name(
+  package_name : @ir.Path,
+  module_path : @ir.Path,
+) -> Array[String] {
+  package_name.to_names().map(type_name) + module_path.to_names().map(type_name)
 }
 
 ///|

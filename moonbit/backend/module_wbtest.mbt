@@ -23,7 +23,7 @@ fn module_with(
     package_name: @ir.Path::parse("acme/app") catch {
       _ => panic()
     },
-    module: @ir.Path::parse("orders") catch {
+    module_path: @ir.Path::parse("orders") catch {
       _ => panic()
     },
     doc,
@@ -579,7 +579,7 @@ test "attribute strings cannot open a nested comment" {
 ///|
 fn one_constructor_type(
   name : String,
-  constructor : String,
+  constructor_name : String,
 ) -> (@ir.Name, @ir.Access, String?, TypeSource) {
   (
     n(name),
@@ -588,7 +588,7 @@ fn one_constructor_type(
     Defined(
       CustomTypeDefinition([], {
         access: Public,
-        value: Map::from_array([(n(constructor), [])]),
+        value: Map::from_array([(n(constructor_name), [])]),
       }),
     ),
   )
