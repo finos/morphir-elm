@@ -1,0 +1,7 @@
+[mcp_servers.morphir]
+command = "npx"
+args = ["-y", "-p", "morphir-elm", "morphir-mcp", "--root-dir", "."]
+# Codex defaults: 10 s to start, 60 s per tool call. A cold npx download or a
+# large model can exceed them.
+startup_timeout_sec = 60
+tool_timeout_sec = 180
