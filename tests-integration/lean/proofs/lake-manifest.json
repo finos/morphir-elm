@@ -1,0 +1,14 @@
+{"version": "1.3.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"type": "path",
+   "scope": "",
+   "name": "«morphir-example-lean»",
+   "manifestFile": "lake-manifest.json",
+   "inherited": false,
+   "dir": "../generated",
+   "copy": false,
+   "configFile": "lakefile.toml"}],
+ "name": "«morphir-example-lean-proofs»",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}

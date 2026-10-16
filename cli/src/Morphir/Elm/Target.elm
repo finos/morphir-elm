@@ -10,6 +10,8 @@ import Morphir.Graph.SemanticBackend as SemanticBackend
 import Morphir.IR.Distribution exposing (Distribution)
 import Morphir.JsonSchema.Backend exposing (Errors)
 import Morphir.JsonSchema.Backend.Codec
+import Morphir.Lean.Backend
+import Morphir.Lean.Backend.Codec
 import Morphir.Scala.Backend
 import Morphir.Scala.Backend.Codec
 import Morphir.Scala.Spark.Backend
@@ -36,6 +38,7 @@ type BackendOptions
     | JsonSchemaOptions Morphir.JsonSchema.Backend.Options
     | TypeSpecOptions Morphir.TypeSpec.Backend.Options
     | SnowparkOptions Morphir.Snowpark.Backend.Options
+    | LeanOptions Morphir.Lean.Backend.Options
 
 
 decodeOptions : Result Error String -> Decode.Decoder BackendOptions
@@ -64,6 +67,9 @@ decodeOptions gen =
 
         Ok "TypeSpec" ->
             Decode.map TypeSpecOptions (Decode.succeed Morphir.TypeSpec.Backend.Options)
+
+        Ok "Lean" ->
+            Decode.map LeanOptions Morphir.Lean.Backend.Codec.decodeOptions
 
         _ ->
             Decode.map (\options -> ScalaOptions options) Morphir.Scala.Backend.Codec.decodeOptions
@@ -101,3 +107,7 @@ mapDistribution back dist =
         TypeSpecOptions options ->
             Morphir.TypeSpec.Backend.mapDistribution options dist
                 |> Result.mapError Morphir.TypeSpec.Backend.Codec.encodeErrors
+
+        LeanOptions options ->
+            Morphir.Lean.Backend.mapDistribution options dist
+                |> Result.mapError Morphir.Lean.Backend.Codec.encodeErrors
