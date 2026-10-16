@@ -1,0 +1,49 @@
+[
+    [
+        [[["morphir"], ["example"], ["lean"]], [["pricing"]], ["discount", "percent"]],
+        [
+            { "inputs": [["gold"], 120], "expectedOutput": 25, "description": "tier and volume discount are capped" },
+            { "inputs": [["silver"], 50], "expectedOutput": 10, "description": "" },
+            { "inputs": [["standard"], 3], "expectedOutput": 0, "description": "no discount" }
+        ]
+    ],
+    [
+        [[["morphir"], ["example"], ["lean"]], [["pricing"]], ["line", "total"]],
+        [
+            { "inputs": [["gold"], { "quantity": 120, "unitPrice": 250 }], "expectedOutput": 22500, "description": "" },
+            { "inputs": [["silver"], { "quantity": 3, "unitPrice": 999 }], "expectedOutput": 2848, "description": "discount is rounded towards zero" }
+        ]
+    ],
+    [
+        [[["morphir"], ["example"], ["lean"]], [["pricing"]], ["order", "total"]],
+        [
+            {
+                "inputs": [{ "tier": ["gold"], "items": [{ "quantity": 120, "unitPrice": 250 }, { "quantity": 3, "unitPrice": 1000 }] }],
+                "expectedOutput": 25200,
+                "description": ""
+            }
+        ]
+    ],
+    [
+        [[["morphir"], ["example"], ["lean"]], [["pricing"]], ["validate", "item"]],
+        [
+            { "inputs": [{ "quantity": 2, "unitPrice": -5 }], "expectedOutput": ["err", ["invalidPrice", -5]], "description": "" }
+        ]
+    ],
+    [
+        [[["morphir"], ["example"], ["lean"]], [["pricing"]], ["validate", "order"]],
+        [
+            { "inputs": [{ "tier": ["standard"], "items": [] }], "expectedOutput": ["err", ["emptyOrder"]], "description": "empty order" },
+            {
+                "inputs": [{ "tier": ["silver"], "items": [{ "quantity": 0, "unitPrice": 100 }] }],
+                "expectedOutput": ["err", ["invalidQuantity", 0]],
+                "description": ""
+            },
+            {
+                "inputs": [{ "tier": ["gold"], "items": [{ "quantity": 1, "unitPrice": 100 }] }],
+                "expectedOutput": ["ok", { "tier": ["gold"], "items": [{ "quantity": 1, "unitPrice": 100 }] }],
+                "description": "valid order is returned unchanged"
+            }
+        ]
+    ]
+]
