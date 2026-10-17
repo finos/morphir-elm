@@ -30,7 +30,7 @@ try {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, file.content);
     }
-    const sources = project.files.filter(f => f.path.endsWith('.elm')).map(f => f.path);
+    const sources = project.files.filter((f: {path: string;content: string}) => f.path.endsWith('.elm')).map((f: {path: string;content: string}) => f.path);
     const result = spawnSync(elm, ['make', ...sources, `--output=${nowhere}`, '--report=json'], {
       cwd: root, encoding: 'utf8',
     });
