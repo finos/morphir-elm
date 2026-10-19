@@ -29,12 +29,43 @@ program
     .parse(process.argv);
 
 const options = program.opts();
-const elmCommand = options.elmCommand;
+const elmCommand: string = options.elmCommand ?? "elm";
 const rootDir = options.rootDir; // Capture the new option
 
 if (!rootDir) {
     throw new Error("Root directory is not specified. Use the --root-dir option.");
 }
+
+// JSON values as the model will send them. Written as a bounded-depth union
+// (no $ref, no untyped schema) because several model APIs and agent harnesses
+// reject recursive or typeless JSON Schema in tool definitions.
+function jsonValue(depth: number): z.ZodTypeAny {
+    const scalar = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+    if (depth === 0) return scalar;
+    // Separate instances on purpose: sharing one makes the generated schema use $ref.
+    return z.union([scalar, z.array(jsonValue(depth - 1)), z.record(z.string(), jsonValue(depth - 1))]);
+}
+
+// Run a command with an argument vector. On Windows, tools such as elm are
+// installed as .cmd shims that only a shell can resolve, so arguments are
+// quoted by hand there; elsewhere no shell is involved.
+async function run(command: string, args: string[], cwd: string): Promise<{ stdout: string }> {
+    const { execFile } = await import("child_process");
+    const useShell = process.platform === "win32" && command !== process.execPath;
+    const finalArgs = useShell ? args.map(a => `"${a}"`) : args;
+    return new Promise((resolve, reject) => {
+        execFile(command, finalArgs, { cwd, shell: useShell, windowsHide: true }, (error, stdout, stderr) => {
+            if (error) reject(Object.assign(error, { stderr: stderr || stdout }));
+            else resolve({ stdout });
+        });
+    });
+}
+
+// "morphir make" is run through the same Node binary and install that is
+// running this server, so it does not depend on PATH (npx, GUI-launched
+// harnesses and sandboxes frequently have a different PATH from the shell).
+const morphirCli = path.join(__dirname, "morphir.js");
+const runMorphir = (args: string[], cwd: string) => run(process.execPath, [morphirCli, ...args], cwd);
 
 // Create an MCP server
 const server = new McpServer(
@@ -46,10 +77,31 @@ const server = new McpServer(
         // Define the server's resources
         instructions:
             `
-        This is a Morphir MCP server. It provides tools to interact with Morphir projects.
-        The server supports the following tools:
-        - addModule: Adds a module to the Morphir project. A module can contain types and
-        functions defined using the syntax of the Elm programming language.
+        Morphir MCP server: build deterministic, auditable business logic as a Morphir model.
+        Business rules are written as pure Elm functions, compiled to the Morphir IR, and
+        checked with test cases.
+
+        Workflow:
+        1. Clarify the rule with the user before writing code. Ask about thresholds, units,
+           rounding, boundary conditions and effective dates instead of guessing.
+        2. Call addModule with the types and functions. A module that does not compile is
+           rejected and removed, and the compiler message is returned with isError set.
+           Read the message, fix the code and call addModule again.
+        3. Call setTestCases for each function, with at least one case per branch and per
+           boundary. Every case needs a description a compliance reader can understand.
+        4. Report to the user what was modelled and which assumptions you made.
+
+        Modelling rules:
+        - Pure functions only: no randomness, clocks, IO or hidden state. Pass dates and other
+          context in as arguments.
+        - Model domain concepts with custom types (for example type Tier = Retail | Institutional)
+          instead of strings or booleans.
+        - Prefer positional arguments to records in custom type constructors.
+        - Implement only what the user asked for. Do not add helper or testing functions.
+
+        Tools:
+        - addModule: add or replace a module (types and functions in Elm syntax, no module line).
+        - setTestCases: record test cases for one function of a module.
         `
     }
 );
@@ -141,9 +193,6 @@ server.tool("addModule",
         }
         const fs = await import("fs/promises");
         const path = await import("path");
-        const { exec } = await import("child_process");
-        const { promisify } = await import("util");
-        const execAsync = promisify(exec);
 
         // Ensure morphir.json exists in the root directory, create if missing
         await ensureMorphirJson(rootDir);
@@ -179,7 +228,7 @@ server.tool("addModule",
 
         // Run "elm make" on the saved module file
         try {
-            await execAsync(`${elmCommand} make ${modulePath}`, { cwd: rootDir });
+            await run(elmCommand, ["make", modulePath], rootDir);
         } catch (error) {
             await fs.unlink(modulePath).catch(() => { });
             if (!elmJsonExisted) {
@@ -187,13 +236,14 @@ server.tool("addModule",
                 await fs.unlink(elmJsonPath).catch(() => { });
             }
             return {
+                isError: true,
                 content: [{ type: "text", text: `Elm compile error:\n${(error as any).stderr || (error as any).message}` }]
             };
         }
 
         // Run "morphir make" in the root directory
         try {
-            const { stdout } = await execAsync("morphir make", { cwd: rootDir });
+            const { stdout } = await runMorphir(["make"], rootDir);
             return {
                 content: [{ type: "text", text: `Module ${moduleName} added successfully.\n${stdout}` }]
             };
@@ -204,6 +254,7 @@ server.tool("addModule",
                 await fs.unlink(elmJsonPath).catch(() => { });
             }
             return {
+                isError: true,
                 content: [{ type: "text", text: `Failed to run "morphir make":\n${(error as any).stderr || (error as any).message}` }]
             };
         }
@@ -230,8 +281,8 @@ server.tool("setTestCases",
         moduleName: z.string(),
         functionName: z.string(),
         testCases: z.array(z.object({
-            inputs: z.array(z.any()),
-            expectedOutput: z.any(),
+            inputs: z.array(jsonValue(4)),
+            expectedOutput: jsonValue(4),
             description: z.string()
         }))
     },
