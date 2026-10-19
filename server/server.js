@@ -1,7 +1,8 @@
 'use strict';
 
-const express = require('express');
-var path = require('path');
+const fastify = require('fastify');
+const fastifyStatic = require('@fastify/static');
+const path = require('path');
 
 // Constants
 const PORT = 8080;
@@ -13,144 +14,113 @@ const fs = require('fs');
 const transp = require('morphir-bsq-transpiler');
 
 
-const app = express(); 
-app.use(express.json({limit: '50mb'}));
+const app = fastify({ bodyLimit: 50 * 1024 * 1024 });
 
-// Endpoints
-app.get('/', (req, res) => {
-    res.send('Hello World');
+app.register(fastifyStatic, {
+    root: path.join(__dirname, 'web'),
+    prefix: '/static/'
 });
 
-app.post('/insight', function (request, response) {
+function serializeErrorLike(value) {
+    if(value instanceof Error) {
+        try {
+            return JSON.parse(JSON.stringify(value));
+        } catch (ex) {
+            return {};
+        }
+    }
+
+    return value;
+}
+
+// Endpoints
+app.get('/', (request, reply) => {
+    reply.send('Hello World');
+});
+
+app.post('/insight', async function (request, reply) {
     console.log("IR:");
     const ir = JSON.stringify(request.body);
 
-    var options = {
-        root: path.join(__dirname)
-    };
+    const irFile = 'web/morphir-ir.json';
+    const irPath = path.join(__dirname, irFile);
 
-    var irFile = 'web/morphir-ir.json';
+    await fs.promises.writeFile(irPath, ir);
+    console.log('Wrote:', irFile);
 
-    fs.writeFile(irFile, ir, function (err) {
-      if (err) return console.log(err);
-      else
-            console.log('Wrote:', irFile);
-    });
-
-    var fileName = 'web/index.html';
-    response.sendFile(fileName, options, function (err) {
-        if (err) {
-            next(err);
-        } else {
-            console.log('Sent:', fileName);
-        }
-    });
+    const fileName = 'index.html';
+    return reply.sendFile(fileName);
 });
 
 
 
-app.get('/insight', (req, res) => {
-    var options = {
-        root: path.join(__dirname)
-    };
-    var fileName = 'web/index.html';
-    res.sendFile(fileName, options, function (err) {
-        if (err) {
-            next(err);
-        } else {
-            console.log('Sent:', fileName);
-        }
-    });
+app.get('/insight', (request, reply) => {
+    const fileName = 'index.html';
+    reply.sendFile(fileName);
 });
 
 
-app.get('/insight.html', (req, res) => {
-    var options = {
-        root: path.join(__dirname)
-    };
-    var fileName = 'web/insight.html';
-    res.sendFile(fileName, options, function (err) {
-        if (err) {
-            next(err);
-        } else {
-            console.log('Sent:', fileName);
-        }
-    });
+app.get('/insight.html', (request, reply) => {
+    const fileName = 'insight.html';
+    reply.sendFile(fileName);
 });
 
 
-app.get('/insight.js', (req, res) => {
-    var options = {
-        root: path.join(__dirname)
-    };
-    var fileName = 'web/insight.js';
-    res.sendFile(fileName, options, function (err) {
-        if (err) {
-            next(err);
-        } else {
-            console.log('Sent:', fileName);
-        }
-    });
+app.get('/insight.js', (request, reply) => {
+    const fileName = 'insight.js';
+    reply.sendFile(fileName);
 });
 
 
 
-app.get('/server/morphir-ir.json', (req, res) => {
-    var options = {
-        root: path.join(__dirname)
-    };
-    var fileName = 'web/morphir-ir.json';
-    res.sendFile(fileName, options, function (err) {
-        if (err) {
-            next(err);
-        } else {
-            console.log('Sent:', fileName);
-        }
-    });
+app.get('/server/morphir-ir.json', (request, reply) => {
+    const fileName = 'morphir-ir.json';
+    reply.sendFile(fileName);
 });
 
 
 
-app.get('/assets/2020_Morphir_Logo_Icon_WHT.svg', (req, res) => {
-    var options = {
-        root: path.join(__dirname)
-    };
-    var fileName = 'web/assets/2020_Morphir_Logo_Icon_WHT.svg';
-    res.sendFile(fileName, options, function (err) {
-        if (err) {
-            next(err);
-        } else {
-            console.log('Sent:', fileName);
-        }
-    });
+app.get('/assets/2020_Morphir_Logo_Icon_WHT.svg', (request, reply) => {
+    const fileName = 'assets/2020_Morphir_Logo_Icon_WHT.svg';
+    reply.sendFile(fileName);
 });
 
 
 
-app.post('/verify', function (request, response) {
+app.post('/verify', async function (request, reply) {
     console.log("IR:");
     const ir = request.body;
-    
-    try {
-        transp.bosque_check_ir(ir, (err, data) => {
-            if(err) {
-                console.log("err:");
-                console.log(err);
-                response.send(err); 
-            }
-            else if(data) {
-                console.log("data:");
-                console.log(data);
-                response.send(data); 
-            }
-            else {
-                response.send('OK'); 
-            }
-        });
-    } catch (ex) {
-        response.send(ex);
-    }
+
+    const result = await new Promise((resolve) => {
+        try {
+            transp.bosque_check_ir(ir, (err, data) => {
+                if(err) {
+                    console.log("err:");
+                    console.log(err);
+                    resolve(serializeErrorLike(err));
+                }
+                else if(data) {
+                    console.log("data:");
+                    console.log(data);
+                    resolve(data);
+                }
+                else {
+                    resolve('OK');
+                }
+            });
+        } catch (ex) {
+            resolve(serializeErrorLike(ex));
+        }
+    });
+
+    reply.send(result);
 });
 
-app.listen(PORT, HOST);
-console.log(`Running on http://${HOST}:${PORT}`);
+app.listen({ port: PORT, host: HOST }, function (err) {
+    if (err) {
+        console.log(err);
+        process.exit(1);
+    }
+
+    console.log(`Running on http://${HOST}:${PORT}`);
+});
