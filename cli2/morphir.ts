@@ -43,4 +43,5 @@ program
   .command("scala-gen", "Generate scala code from Morphir IR")
   .command("snowpark-gen", "Generate Scala with Snowpark code from Morphir IR")
   .command("typescript-gen", "Generate typescript code from Morphir IR")
+  .command("lean-gen", "Generate Lean 4 code from Morphir IR")
   .parse(process.argv);

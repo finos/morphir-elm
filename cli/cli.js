@@ -145,6 +145,8 @@ function copyRedistributables(options, outputPath) {
         copyFiles('TypeScript/', outputPath)
     } else if (options.target == 'Snowpark') {
         copyFiles('Snowpark/', outputPath)
+    } else if (options.target == 'Lean') {
+        copyFiles('Lean/', outputPath)
     }
 }
 
