@@ -1,0 +1,91 @@
+# Spec Delta
+
+## Purpose
+
+Defines how the MoonBit Elm extension is versioned, bundled, attested and published from this repository, apart from
+the JavaScript Elm extension.
+
+## ADDED Requirements
+
+### Requirement: A release comes from a version tag on vnext
+
+A release SHALL start only from a tag `extension/elm-moonbit/v<version>`, where `<version>` is SemVer and equals the
+version in `moonbit/moon.mod`, on a commit reachable from `vnext`. Any other tag or commit SHALL stop the release
+before anything is published.
+
+#### Scenario: Version mismatch
+
+- **WHEN** tag `extension/elm-moonbit/v0.2.0` is pushed and `moonbit/moon.mod` says `0.1.0`
+- **THEN** the release fails and names both versions
+
+#### Scenario: Tag not on vnext
+
+- **WHEN** a valid tag points to a commit that is not on `vnext`
+- **THEN** the release fails and publishes nothing
+
+### Requirement: The two Elm extensions release apart
+
+Tags `extension/elm/v*` SHALL start only the JavaScript extension's release, and tags `extension/elm-moonbit/v*`
+SHALL start only the MoonBit extension's release.
+
+#### Scenario: JavaScript tag
+
+- **WHEN** tag `extension/elm/v0.4.2` is pushed
+- **THEN** the MoonBit release workflow does not run
+
+#### Scenario: MoonBit tag
+
+- **WHEN** tag `extension/elm-moonbit/v0.1.0-preview.1` is pushed
+- **THEN** the JavaScript release workflow does not run
+
+### Requirement: The bundle descriptor describes one Wasm artifact
+
+The release SHALL include a `release.json` with `schemaVersion` `2.0.0-draft.2`, `extensionId`
+`morphir-elm-moonbit`, `shortId` `elm-moonbit`, the release version, the full tagged commit as `gitCommit`,
+`platformDifferences` `none`, and one artifact with `runtime` `wasm`, no `platform`, its file name, its SHA-256, and
+the claims that the guest reports in describe.
+
+#### Scenario: Descriptor content
+
+- **WHEN** the descriptor of release `0.1.0-preview.1` is read
+- **THEN** it has one artifact, `runtime` is `wasm`, the artifact has no `platform` member, and its `claims` equal the guest's describe claims
+
+### Requirement: Every artifact has a checksum file
+
+For each artifact the release SHALL include `<filename>.sha256`, whose content is exactly the lowercase hexadecimal
+SHA-256, two spaces, the file name and a newline. The digest SHALL equal the one in `release.json`.
+
+#### Scenario: Checksum check
+
+- **WHEN** a user downloads the release and runs `sha256sum --check` on each `.sha256` file
+- **THEN** every check passes
+
+### Requirement: Released bytes are the tested bytes
+
+The release SHALL publish the same Wasm bytes that its test jobs ran. A digest that differs from the one built and
+tested SHALL stop the release.
+
+#### Scenario: Digest match
+
+- **WHEN** the release is published
+- **THEN** the published artifact's SHA-256 equals the SHA-256 of the module the test jobs ran
+
+### Requirement: Artifacts carry GitHub attestations
+
+Each artifact SHALL have a GitHub artifact attestation made by this repository's MoonBit Elm release workflow, so a
+repository owner can verify the publisher as `finos/morphir-elm` and that workflow.
+
+#### Scenario: Verify an artifact
+
+- **WHEN** a user runs `gh attestation verify <artifact> --repo finos/morphir-elm`
+- **THEN** verification passes, and the signer workflow is `.github/workflows/moonbit-elm-extension-release.yml`
+
+### Requirement: Previews are prereleases
+
+A release whose version has a prerelease part SHALL be published as a GitHub prerelease. No release of this extension
+SHALL be marked as the repository's latest release.
+
+#### Scenario: Preview release
+
+- **WHEN** `extension/elm-moonbit/v0.1.0-preview.1` is released
+- **THEN** the GitHub release is a prerelease and is not marked latest
