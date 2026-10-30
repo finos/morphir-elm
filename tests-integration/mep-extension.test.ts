@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 
 import { capabilityClaims } from "../cli2/mep/identity";
+import { readFrames } from "../cli2/mep/framing";
 
 const root = join(import.meta.dir, "..");
 // MORPHIR_ELM_EXTENSION_BIN points the suite at another build of the extension, which is how the
@@ -257,7 +259,7 @@ describe("standalone Morphir Elm MEP extension", () => {
     ).toBe(false);
   });
 
-  test("compiles real Elm, reports source errors, and stops after shutdown", async () => {
+  test("compiles real Elm, reports source errors, and exits after shutdown", async () => {
     const fixtureDir = join(import.meta.dir, "mep-extension");
     const validPath = join(fixtureDir, "Example.elm");
     const invalidPath = join(fixtureDir, "Invalid.elm");
@@ -301,6 +303,7 @@ describe("standalone Morphir Elm MEP extension", () => {
         ),
         frameBody('{"jsonrpc":'),
         frame(request("morphir.shutdown", {}, "shutdown")),
+        frame(notification("morphir.exit")),
       ]),
       false
     );
@@ -362,6 +365,73 @@ describe("standalone Morphir Elm MEP extension", () => {
       result: {},
     });
   }, 60_000);
+
+  test("acknowledges shutdown and stays alive until a delayed exit notification", async () => {
+    const child = Bun.spawn([executable], {
+      cwd: root,
+      env: process.env,
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [observed, captured] = child.stdout.tee();
+    const responses = readFrames(Readable.from(observed));
+    const collected = collectChildProcess({
+      exited: child.exited,
+      stdout: captured,
+      stderr: child.stderr,
+      kill: () => child.kill(),
+    });
+    const exchange = async (message: unknown): Promise<unknown> => {
+      child.stdin.write(frame(message));
+      await child.stdin.flush();
+      const response = await responses.next();
+      if (response.done) {
+        throw new Error("MEP extension exited before responding");
+      }
+      return JSON.parse(decoder.decode(response.value));
+    };
+
+    try {
+      expect(
+        await exchange(
+          request(
+            "morphir.initialize",
+            {
+              protocolVersions: ["0.1"],
+              host: { name: "shutdown-test", version: "0.1.0" },
+            },
+            "initialize"
+          )
+        )
+      ).toHaveProperty("result.protocolVersion", "0.1");
+      expect(
+        await exchange(request("morphir.shutdown", {}, "shutdown"))
+      ).toEqual({ jsonrpc: "2.0", id: "shutdown", result: {} });
+
+      // An already-buffered exit would hide a provider that exits on shutdown.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(child.exitCode).toBeNull();
+      expect(
+        await exchange(request("morphir.ping", {}, "after-shutdown"))
+      ).toMatchObject({
+        jsonrpc: "2.0",
+        id: "after-shutdown",
+        error: { code: -32014 },
+      });
+
+      child.stdin.write(frame(notification("morphir.exit")));
+      await child.stdin.flush();
+      const result = await collected;
+      expect(result.exitCode).toBe(0);
+      expect(decodeCompleteFrames(result.stdout)).toHaveLength(3);
+      expect(result.stderr).not.toContain("morphir-elm-extension:");
+    } finally {
+      child.kill();
+      await Promise.allSettled([collected]);
+      await responses.return(undefined);
+    }
+  });
 
   test("describes and exits cleanly without initializing or closing stdin", async () => {
     const result = await runExtension(
@@ -451,6 +521,7 @@ describe("standalone Morphir Elm MEP extension", () => {
           )
         ),
         frame(request("morphir.shutdown", {}, "shutdown")),
+        frame(notification("morphir.exit")),
       ]),
       false
     );

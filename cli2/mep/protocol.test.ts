@@ -631,14 +631,14 @@ describe("MEP lifecycle dispatch", () => {
     expect(response).toHaveProperty("result", failedCompile);
   });
 
-  test("shutdown stops the session", async () => {
+  test("shutdown stops work and waits for exit", async () => {
     const dispatcher = createDispatcher(() => successfulCompile);
     await dispatcher.dispatch(initialize());
 
     const response = await dispatcher.dispatch(request("morphir.shutdown", {}));
 
     expect(response).toEqual({ jsonrpc: "2.0", id: 1, result: {} });
-    expect(dispatcher.state()).toEqual({ kind: "stopped" });
+    expect(dispatcher.state()).toEqual({ kind: "shutdown" });
   });
 
   test("distinguishes omitted shutdown params from explicit null", async () => {
@@ -658,7 +658,7 @@ describe("MEP lifecycle dispatch", () => {
       requestWithoutParams("morphir.shutdown", 3)
     );
     expect(omitted).toHaveProperty("result", {});
-    expect(dispatcher.state()).toEqual({ kind: "stopped" });
+    expect(dispatcher.state()).toEqual({ kind: "shutdown" });
   });
 
   test("executes a valid shutdown notification without responding", async () => {
@@ -670,7 +670,7 @@ describe("MEP lifecycle dispatch", () => {
     );
 
     expect(response).toBeNull();
-    expect(dispatcher.state()).toEqual({ kind: "stopped" });
+    expect(dispatcher.state()).toEqual({ kind: "shutdown" });
   });
 
   test("exit is an accepted notification before initialization", async () => {
@@ -687,10 +687,22 @@ describe("MEP lifecycle dispatch", () => {
     await dispatcher.dispatch(initialize());
     await dispatcher.dispatch(request("morphir.shutdown", {}));
 
-    const rejected = await dispatcher.dispatch(request("morphir.ping", {}));
+    for (const method of [
+      "morphir.initialize",
+      "morphir.ping",
+      "morphir.extension.info",
+      "morphir.extension.capabilities",
+      "morphir.frontend.compile",
+      "morphir.workspace.discover",
+      "morphir.shutdown",
+    ]) {
+      expectError(await dispatcher.dispatch(request(method, {})), -32014);
+      expect(dispatcher.state()).toEqual({ kind: "shutdown" });
+    }
+    expectError(await dispatcher.dispatch(request("morphir.exit", {})), -32600);
+    expect(dispatcher.state()).toEqual({ kind: "shutdown" });
     const exited = await dispatcher.dispatch(notification("morphir.exit"));
 
-    expectError(rejected, -32014);
     expect(exited).toBeNull();
     expect(dispatcher.state()).toEqual({ kind: "stopped" });
   });
