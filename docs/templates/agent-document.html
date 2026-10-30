@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document title</title>
+<!--
+  Agent document template (docs/templates/agent-document.html). Specs, plans and reports that a person reviews
+  start from this file: copy it, keep the <head> as it is, and write the content inside <main>.
+  Styles and scripts are files in docs/templates/assets/, referenced and not embedded. In a copy, change the
+  "assets/" prefix of each href and src to the relative path from the copy to that directory, for example
+  "../../docs/templates/assets/" from .dev/beads-specs/. See AGENTS.md, "Specs and plans are HTML documents".
+  Code goes in <pre><code class="language-elm"> (or typescript, json, toml, bash, diff). Give sections an id and
+  list them in nav.toc.
+-->
+<link rel="stylesheet" href="assets/agent-document.css">
+<link rel="stylesheet" href="assets/highlight/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="assets/highlight/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<script defer src="assets/highlight/highlight.min.js"></script>
+<script defer src="assets/highlight/languages/elm.min.js"></script>
+<script defer src="assets/agent-document.js"></script>
+</head>
+<body>
+<main>
+<h1>Document title</h1>
+<p class="meta">Bead id · date · status</p>
+
+<nav class="toc" aria-label="Contents">
+<ul>
+<li><a href="#goal">Goal</a></li>
+</ul>
+</nav>
+
+<h2 id="goal">Goal</h2>
+<p>One paragraph on the outcome.</p>
+
+<pre><code class="language-elm">example : String
+example =
+    "code blocks name their language"
+</code></pre>
+
+</main>
+</body>
+</html>
