@@ -92,6 +92,7 @@ export type CompileResult = CompileSuccess | CompileFailure;
 export type SessionState =
   | { readonly kind: "loaded" }
   | { readonly kind: "ready"; readonly protocolVersion: typeof MEP_VERSION }
+  | { readonly kind: "shutdown" }
   | { readonly kind: "stopped" };
 
 export type Compile = (
@@ -126,6 +127,7 @@ const readyState: SessionState = Object.freeze({
   kind: "ready",
   protocolVersion: MEP_VERSION,
 });
+const shutdownState: SessionState = Object.freeze({ kind: "shutdown" });
 const stoppedState: SessionState = Object.freeze({ kind: "stopped" });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -426,6 +428,9 @@ export function createDispatcher(compile: Compile): Dispatcher {
     if (sessionState.kind === "stopped") {
       return respond(notInitialized(id, "The MEP session has stopped"));
     }
+    if (sessionState.kind === "shutdown") {
+      return respond(notInitialized(id, "The MEP session has shut down"));
+    }
 
     if (request.method === "morphir.extension.describe") {
       if (
@@ -549,7 +554,7 @@ export function createDispatcher(compile: Compile): Dispatcher {
             invalidParams(id, "morphir.shutdown parameters must be an object")
           );
         }
-        sessionState = stoppedState;
+        sessionState = shutdownState;
         return respond(success(id, {}));
       default:
         return respond(

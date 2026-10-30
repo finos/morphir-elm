@@ -157,6 +157,10 @@ before shutdown. Description has no side effects and does not initialize a
 session; a probe can send `describe` followed by the `morphir.exit` notification.
 An incompatible version offer receives `-32011`, as for `morphir.initialize`.
 
+To end a session, send `morphir.shutdown` and wait for its response, then send
+the `morphir.exit` notification. Shutdown stops work and rejects further requests
+with `-32014`; the process stays alive until exit or clean standard-input EOF.
+
 ### Releasing the MEP extension
 
 The extension has its own version and its own release tag. It does not follow
