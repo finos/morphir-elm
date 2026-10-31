@@ -157,6 +157,95 @@ When making architectural decisions:
 - [Morphir SDK Reference](https://package.elm-lang.org/packages/finos/morphir-elm/latest/)
 - [DEVELOPING.md](DEVELOPING.md) - Build system and development workflow
 
+## Issue tracking with beads
+
+Work is tracked with [beads](https://github.com/steveyegge/beads) (`bd`) in the **shared Morphir tracker**, not
+in a database of this repository. The database lives in finos/morphir and syncs over its `refs/dolt/data` ref.
+`.beads/config.yaml` points `bd` at it, so you do not need a finos/morphir checkout.
+
+### Set up and sync
+
+```shell
+bd bootstrap          # first time on a machine: clones the shared database
+bd dolt pull          # before you start work
+bd dolt push          # after you change issues
+```
+
+The readable JSONL mirror on the `beads-sync` branch is published from finos/morphir, so pushing the database is
+all you need to do here. Run `bd prime` for the full command reference.
+
+### Worktrees
+
+All worktrees use one database: `.beads/embeddeddolt` in the main checkout. A worktree finds it through the git
+common directory, inside or outside the repository, so it needs no `.beads/redirect` file.
+
+Run `bd bootstrap` in the main checkout before you open a worktree or start an agent session. Any `bd` command,
+including the SessionStart `bd prime` hook, makes an empty local database when it finds none. An empty database in
+the main checkout stops `bd bootstrap` ("Database already exists"), and a database in a worktree hides the shared
+one.
+
+To repair, move the empty `embeddeddolt` (and `backup`) directory aside and run `bd bootstrap` in the main
+checkout again. Use `bd count` to make sure that a database is empty before you move it.
+
+### Find this repository's work
+
+Issues whose work happens here carry the label `repo:morphir-elm`:
+
+```shell
+bd ready --label repo:morphir-elm        # unblocked work
+bd list --label repo:morphir-elm --all   # everything, including closed
+bd show <id> --long                      # description, design, notes and comments
+```
+
+## Specs and plans are HTML documents
+
+Write superpowers specs, implementation plans and other documents a person reviews as HTML pages, not Markdown.
+A long Markdown plan gets skimmed; an HTML page with a table of contents, tables, collapsible sections and
+highlighted code gets read, questioned and corrected, and its explicit structure lets an agent re-read and edit
+its own document reliably on every later pass. HTML costs more output tokens per document, so the rule covers
+specs, plans and reports, not commit messages, issue text or notes.
+
+- Start from [docs/templates/agent-document.html](docs/templates/agent-document.html). Keep its `<head>` as it is,
+  so every document looks the same and the effort goes into content.
+- Reference styles and scripts; do not embed them. They are files in the project, in `docs/templates/assets/`: the
+  document styles, the highlight.js setup and highlight.js 11.12.0 with its Elm grammar (vendored from
+  `@highlightjs/cdn-assets`, with its license). A document holds only its content, so an agent that reads it does not read the CSS and JavaScript
+  too. In a copy of the template, change each `assets/` prefix to the relative path from the copy to
+  `docs/templates/assets/`, for example `../../docs/templates/assets/` from `.dev/beads-specs/`. Add no `<style>`
+  element, no inline script, no other script and no external resource. If the files do not load, the page shows
+  unstyled content and plain code blocks.
+- Put code in `<pre><code class="language-elm">` (also `typescript`, `json`, `toml`, `bash`, `diff`).
+- Escape `<`, `>` and `&`. Give every section an `id` and list the sections in `nav.toc`.
+- A plan has one `<section class="task" id="task-N">` with an `<h3>Task N: title</h3>` heading per task.
+- Files: `.dev/beads-specs/<epic>.html` and `.dev/beads-plans/<plan-epic>.html`. `.dev/` is gitignored; beads is
+  the record (next section).
+
+OpenSpec changes follow this rule only for the design. The `openspec` CLI parses `proposal.md`, `tasks.md` and the
+`spec.md` files, so those stay Markdown: they are the contract the tool validates and merges, not the review page.
+The design is the HTML page for review. The project schema `openspec/schemas/html-design/`, which
+`openspec/config.yaml` selects, makes each change write `design.html` from a copy of this template. Its `<head>`
+references the same assets from `openspec/changes/<name>/`, and the archive guidance in `openspec/config.yaml`
+adds one `../` when the change moves to `openspec/changes/archive/`. When you change the template's `<head>`, copy
+the change into `openspec/schemas/html-design/templates/design.html`. The generated `openspec-*` skills say
+`design.md`; in this repository that file is `design.html`.
+
+### Specs, plans and ledgers live in beads
+
+Superpowers specs, implementation plans and execution ledgers are stored in beads, not committed here. This
+overrides the superpowers skill defaults for spec, plan and ledger location. OpenSpec changes and specs are
+different: they live in `openspec/` and are committed. See [OpenSpec](.github/AGENTS.md#openspec). Beads still
+track them. Each change has an epic bead whose spec id is `openspec/changes/<name>`, named in the proposal's
+`## Beads` section and in the design's meta line. Each `## N.` group in `tasks.md` is a child task bead, with its
+id at the end of the group heading. A requirement that comes from a bead ends with `(bead: <id>)`. The
+`html-design` schema instructions and the archive guidance in `openspec/config.yaml` say when to create, claim,
+close and relink these beads. Sync tracker changes with `bd dolt push`.
+
+### Working rules
+
+- Commits use Conventional Commits, in plain English, with no AI attribution and no `Co-Authored-By` lines.
+- Merges, releases and anything irreversible wait for the maintainer's approval unless a beads memory records it
+  (`bd memories approval`).
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
@@ -169,7 +258,7 @@ When making architectural decisions:
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
+   bd dolt push
    git push
    git status  # MUST show "up to date with origin"
    ```
