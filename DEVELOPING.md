@@ -45,6 +45,7 @@ This project uses [mise](https://mise.jdx.dev/) with [Bun](https://bun.sh/) for 
 | `mise run build:check-elm-docs` | Verify Elm documentation compiles |
 | `mise run build:cli` | Build CLI (Elm → JavaScript) |
 | `mise run build:cli2` | Build CLI2 (TypeScript + Elm in parallel) |
+| `mise run build:visualize` | Bundle the `morphir visualize` Lit components ([morphir-visualize/](morphir-visualize/README.md)) |
 | `mise run build:treeview` | Build treeview webpack bundle |
 | `mise run build:morphir-ts` | Build Morphir TypeScript library |
 | `mise run build:dev-server` | Build development server Elm components |

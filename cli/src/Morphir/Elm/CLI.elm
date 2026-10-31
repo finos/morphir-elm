@@ -31,12 +31,15 @@ import Morphir.File.FileMap.Codec exposing (encodeFileMap)
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
 import Morphir.IR.FQName as FQName
 import Morphir.IR.FormatVersion.Codec as DistributionCodec
+import Morphir.IR.Name as Name
 import Morphir.IR.Package as Package exposing (PackageName)
+import Morphir.IR.Path as Path
 import Morphir.IR.SDK as SDK
 import Morphir.IR.Type exposing (Type)
 import Morphir.IR.Value as Value
 import Morphir.SDK.ResultList as ResultList
 import Morphir.Type.Infer as Infer
+import Morphir.Value.Exhaustiveness as Exhaustiveness
 import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
 import Morphir.IR.NameConstructorArguments as NameConstructorArguments
 
@@ -135,6 +138,7 @@ update msg model =
                                             |> Package.mapDefinitionAttributes (\_ -> ()) identity
                                             |> Infer.inferPackageDefinition ir
                                     )
+                                |> Result.andThen (checkExhaustiveness packageInfo.name)
                     in
                     ( model
                     , typedResult
@@ -312,6 +316,61 @@ subscriptions _ =
         , generate Generate
         , runTestCases RunTestCases
         ]
+
+
+checkExhaustiveness :
+    PackageName
+    -> Package.Definition () ( Frontend.SourceLocation, Type () )
+    -> Result (List Compiler.Error) (Package.Definition () ( Frontend.SourceLocation, Type () ))
+checkExhaustiveness packageName packageDef =
+    let
+        lookup : Exhaustiveness.ConstructorLookup
+        lookup =
+            Exhaustiveness.constructorLookup
+                (Library packageName
+                    Frontend.defaultDependencies
+                    (packageDef |> Package.mapDefinitionAttributes identity Tuple.second)
+                )
+
+        errors : List Compiler.Error
+        errors =
+            packageDef.modules
+                |> Dict.toList
+                |> List.concatMap
+                    (\( moduleName, accessControlledModuleDef ) ->
+                        accessControlledModuleDef.value.values
+                            |> Dict.toList
+                            |> List.concatMap
+                                (\( valueName, accessControlledValueDef ) ->
+                                    Exhaustiveness.check lookup accessControlledValueDef.value.value.body
+                                        |> List.map
+                                            (\issue ->
+                                                let
+                                                    ( sourceLocation, _ ) =
+                                                        issue.attributes
+                                                in
+                                                Compiler.ErrorsInSourceFile sourceLocation.source.path
+                                                    [ { errorMessage =
+                                                            String.concat
+                                                                [ "Non-exhaustive pattern match in "
+                                                                , moduleName |> Path.toString Name.toTitleCase "."
+                                                                , "."
+                                                                , Name.toCamelCase valueName
+                                                                , ". Missing patterns: "
+                                                                , String.join ", " issue.missing
+                                                                ]
+                                                      , sourceLocations = [ sourceLocation.range ]
+                                                      }
+                                                    ]
+                                            )
+                                )
+                    )
+    in
+    if List.isEmpty errors then
+        Ok packageDef
+
+    else
+        Err errors
 
 
 encodeResult : (e -> Encode.Value) -> (a -> Encode.Value) -> Result e a -> Encode.Value

@@ -429,4 +429,84 @@ describe('Testing Morphir make command', () => {
 		const doc: string = irUtils.getValueDoc(foo)
 		expect(doc).toMatch(/.*foo documentation.*/)
 	})
+
+	describe('Static checks', () => {
+		const statusType = concat(
+			'module Package.Types exposing (Status(..))',
+			'',
+			'type Status = Active | Civilian | Exempt'
+		)
+
+		const writeRules = async (body: string, exposing: string = 'isProtected') =>
+			writeFile(
+				path.join(PATH_TO_PROJECT, 'src/Package', 'Rules.elm'),
+				concat(
+					`module Package.Rules exposing (${exposing})`,
+					'',
+					'import Package.Types exposing (..)',
+					'',
+					'isProtected : Status -> Bool',
+					'isProtected status =',
+					'    case status of',
+					body
+				)
+			)
+
+		const failedWith = async (): Promise<any[]> => {
+			try {
+				await cli.make(PATH_TO_PROJECT, { typesOnly: false })
+			} catch (errors) {
+				return errors as any[]
+			}
+			throw new Error('make was expected to fail')
+		}
+
+		beforeEach(async () => {
+			morphirJSON.exposedModules = ['Types', 'Rules']
+			await writeFile(path.join(PATH_TO_PROJECT, 'morphir.json'), JSON.stringify(morphirJSON))
+			await writeFile(path.join(PATH_TO_PROJECT, 'src/Package', 'Types.elm'), statusType)
+		})
+
+		afterEach(async () => {
+			morphirJSON.exposedModules = ['Rentals']
+			await util.promisify(fs.rm)(path.join(PATH_TO_PROJECT, 'src/Package', 'Rules.elm'), { force: true })
+			await util.promisify(fs.rm)(path.join(PATH_TO_PROJECT, 'src/Package', 'Types.elm'), { force: true })
+		})
+
+		test('should fail when a case expression does not cover every constructor', async () => {
+			await writeRules(concat('        Active ->', '            True', '', '        Civilian ->', '            False'))
+			const errors = await failedWith()
+			expect(errors).toHaveLength(1)
+			expect(errors[0]).toMatchObject({
+				kind: 'NonExhaustivePatternMatch',
+				module: ['Package', 'Rules'],
+				definition: 'isProtected',
+				type: ['Package', 'Types', 'Status'],
+				missing: ['Exempt']
+			})
+			expect(errors[0].range.start.row).toBeGreaterThan(0)
+		})
+
+		test('should fail when an exposed value is not defined', async () => {
+			await writeRules(
+				concat('        _ ->', '            True'),
+				'isProtected, notDefinedAnywhere'
+			)
+			const errors = await failedWith()
+			expect(errors).toHaveLength(1)
+			expect(errors[0]).toMatchObject({
+				kind: 'UnknownExport',
+				module: ['Package', 'Rules'],
+				name: 'notDefinedAnywhere'
+			})
+		})
+
+		test('should succeed when all constructors are covered', async () => {
+			await writeRules(
+				concat('        Active ->', '            True', '', '        Civilian ->', '            False', '', '        Exempt ->', '            False')
+			)
+			const IR = await cli.make(PATH_TO_PROJECT, { typesOnly: false })
+			expect(irUtils.getModules(JSON.parse(IR))).toHaveLength(2)
+		})
+	})
 })

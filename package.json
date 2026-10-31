@@ -64,6 +64,7 @@
     "src/Morphir/SDK/*",
     "redistributable/**",
     "cli2/lib/*",
+    "morphir-visualize/dist/**",
     "cli2/Morphir.Elm.CLI.js",
     "morphir-ts/dist/**"
   ],
@@ -78,7 +79,9 @@
   },
   "homepage": "https://github.com/Morgan-Stanley/morphir-elm#readme",
   "devDependencies": {
+    "@dagrejs/dagre": "^3.1.3",
     "@morphir/typespec-sdk": "file:redistributable/TypeSpec/sdk",
+    "@shoelace-style/shoelace": "^2.20.1",
     "@types/bun": "latest",
     "@types/data-urls": "^3.0.4",
     "@types/inquirer": "^9.0.3",
@@ -90,6 +93,7 @@
     "elm-test": "^0.19.1-revision6",
     "elm-tooling": "^1.17.0",
     "json-schema": "^0.4.0",
+    "lit": "^3.3.3",
     "node-elm-compiler": "^5.0.6",
     "package-json": "^8.1.1",
     "ts-loader": "^9.5.2",

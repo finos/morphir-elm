@@ -19,17 +19,41 @@ export function make(dir: string, opts: any) {
         }
     })
     .catch((err: { code: string; path: any }) => {
-        if (err.code == 'ENOENT') {
+        if (opts.report === 'json' && Array.isArray(err)) {
+            process.stderr.write(JSON.stringify(err) + '\n')
+        } else if (err.code == 'ENOENT') {
             console.error(`Could not find file at '${err.path}'`)
         } else {
             if (err instanceof Error) {
                 console.error(err)
+            } else if (Array.isArray(err) && err.some(isStructuredError)) {
+                err.forEach((e: unknown) => console.error(describeError(e)))
             } else {
                 console.error(`Error: ${JSON.stringify(err, null, 2)}`)
             }
         }
         process.exit(1)
     })
+}
+
+function isStructuredError(error: any): boolean {
+    return typeof error === 'object' && error !== null && typeof error.kind === 'string'
+}
+
+function describeError(error: any): string {
+    if (!isStructuredError(error)) {
+        return `Error: ${JSON.stringify(error, null, 2)}`
+    }
+    const location = error.range ? ` (line ${error.range.start.row}, column ${error.range.start.column})` : ''
+    switch (error.kind) {
+        case 'NonExhaustivePatternMatch':
+            return `Non-exhaustive pattern match in ${error.module.join('.')}.${error.definition}${location}: ` +
+                `missing ${error.missing.join(', ')}` + (error.type ? ` of type ${error.type.join('.')}` : '')
+        case 'UnknownExport':
+            return `Unknown export in ${error.module.join('.')}${location}: ${error.exposes} '${error.name}' is exposed but not defined`
+        default:
+            return `Error: ${JSON.stringify(error, null, 2)}`
+    }
 }
 
 export function dockerize(dir: string, opts: any) {
