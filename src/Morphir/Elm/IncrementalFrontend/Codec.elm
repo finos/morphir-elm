@@ -1,11 +1,15 @@
 module Morphir.Elm.IncrementalFrontend.Codec exposing (..)
 
+import Elm.Syntax.Range exposing (Range)
 import Json.Encode as Encode
 import Morphir.Elm.IncrementalFrontend as IncrementalFrontend
 import Morphir.Elm.IncrementalFrontend.Mapper.Codec as MapperCodec
 import Morphir.Elm.IncrementalResolve.Codec as IncrementalResolveCodec
 import Morphir.IR.FQName.Codec exposing (encodeFQName)
+import Morphir.IR.KindOfName as KindOfName
+import Morphir.IR.Name as Name
 import Morphir.IR.Name.Codec exposing (encodeName)
+import Morphir.IR.Path exposing (Path)
 import Morphir.IR.Path.Codec exposing (encodePath)
 import Morphir.IR.Repo.Codec as RepoCodec
 import Parser
@@ -141,3 +145,57 @@ encodeError error =
                 [ Encode.string "TypeNotFound"
                 , encodeFQName fQName
                 ]
+
+        IncrementalFrontend.NonExhaustivePatternMatch details ->
+            Encode.object
+                [ ( "kind", Encode.string "NonExhaustivePatternMatch" )
+                , ( "module", encodeTitleCasePath details.moduleName )
+                , ( "definition", Encode.string (Name.toCamelCase details.definition) )
+                , ( "range", details.range |> Maybe.map encodeRange |> Maybe.withDefault Encode.null )
+                , ( "type"
+                  , details.typeName
+                        |> Maybe.map (\( packageName, moduleName, localName ) -> encodeTitleCasePath (packageName ++ moduleName ++ [ localName ]))
+                        |> Maybe.withDefault Encode.null
+                  )
+                , ( "missing", Encode.list Encode.string details.missing )
+                ]
+
+        IncrementalFrontend.UnknownExport details ->
+            Encode.object
+                [ ( "kind", Encode.string "UnknownExport" )
+                , ( "module", encodeTitleCasePath details.moduleName )
+                , ( "name", Encode.string details.name )
+                , ( "exposes"
+                  , Encode.string
+                        (case details.kindOfName of
+                            KindOfName.Type ->
+                                "type"
+
+                            _ ->
+                                "value"
+                        )
+                  )
+                , ( "range", encodeRange details.range )
+                ]
+
+
+encodeTitleCasePath : Path -> Encode.Value
+encodeTitleCasePath path =
+    path
+        |> List.map Name.toTitleCase
+        |> Encode.list Encode.string
+
+
+encodeRange : Range -> Encode.Value
+encodeRange range =
+    let
+        encodeLocation location =
+            Encode.object
+                [ ( "row", Encode.int location.row )
+                , ( "column", Encode.int location.column )
+                ]
+    in
+    Encode.object
+        [ ( "start", encodeLocation range.start )
+        , ( "end", encodeLocation range.end )
+        ]
