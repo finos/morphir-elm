@@ -86,7 +86,7 @@
     "@vscode/test-electron": "^2.2.3",
     "concurrently": "^7.6.0",
     "eslint": "^8.34.0",
-    "glob": "^8.1.0",
+    "glob": "^11.0.0",
     "mocha": "^10.2.0",
     "svelte-check": "^3.8.6",
     "svelte-preprocess": "^5.1.4",
