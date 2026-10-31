@@ -1,0 +1,3 @@
+# The MoonBit Elm extension: Elm sources and expected IR are test input, and
+# their bytes reach the module, so keep LF on every platform.
+moonbit/** text=auto eol=lf
