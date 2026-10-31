@@ -146,6 +146,54 @@ The `build:bundle` task creates standalone executables using Bun's compile featu
 mise run build:bundle
 ```
 
+### Releasing the Elm extension
+
+The Elm extension, `morphir-elm`, is built from `moonbit/` as one portable WebAssembly module (see
+[moonbit/README.md](moonbit/README.md)). It has its own version, in `moonbit/moon.mod`, and its own tags,
+`extension/elm/v<version>`. Versions must be greater than `0.4.1`, the last JavaScript release on those tags.
+
+1. Set `version` in `moonbit/moon.mod`, and `VERSION` in `moonbit/mep/claims.mbt` to the same value, in a pull
+   request to `vnext`. A test fails when they differ. Run `MISE_ENV=moonbit mise run moonbit:check` and commit the
+   updated `moonbit/mep/pkg.generated.mbti`, which records `VERSION`.
+2. After the merge, tag that commit on `vnext` and push the tag:
+
+   ```sh
+   git tag -a extension/elm/v0.5.0-preview.1 -m "Morphir Elm extension v0.5.0-preview.1"
+   git push origin extension/elm/v0.5.0-preview.1
+   ```
+
+The `Elm extension release` workflow refuses a tag that:
+
+- is not on `vnext`;
+- already has a GitHub release;
+- has a version that differs from `moon.mod`;
+- has a version that is not greater than `0.4.1`.
+
+It tests the module's sources. It runs `mise run release:elm-extension -- <tag>`, which packages the module and
+writes `dist/elm-extension-release/`:
+
+- `morphir-elm-<version>.wasm`;
+- its `.sha256` file;
+- `morphir-elm-<version>.release.json`, a version-2 bundle descriptor with one `wasm` artifact and no `platform`,
+  whose claims come from the module's own `describe` answer.
+
+It then tests the packaged module. On Linux, macOS and Windows it checks that the module's bytes and its answers to
+a fixed set of sessions are the same. It attests the module with GitHub artifact attestations, and publishes a GitHub
+release that is not marked as latest. A version with a `-` part is published as a prerelease.
+
+To publish the bundle to an extension repository, put the three files in one directory and rename the descriptor to
+`release.json`. Check the attestation with:
+
+```sh
+gh attestation verify morphir-elm-<version>.wasm --repo finos/morphir-elm
+```
+
+Run the task locally to inspect the files:
+
+```sh
+MISE_ENV=moonbit mise run release:elm-extension -- extension/elm/v0.5.0-preview.1
+```
+
 ### The Elm classic extension
 
 The Elm classic extension, `morphir-elm-classic`, is the JavaScript Elm frontend in `cli2/mep`, released as an
@@ -227,8 +275,8 @@ These executables don't require Node.js on the target system.
 
 ### The MoonBit Elm module
 
-`moonbit/` holds the MoonBit module `finos/morphir-elm`: an Elm frontend and an Elm backend, which will be released
-as the Elm extension for the MoonBit Morphir CLI. See [moonbit/README.md](moonbit/README.md).
+`moonbit/` holds the MoonBit module `finos/morphir-elm`: an Elm frontend and an Elm backend, released as the Elm
+extension, `morphir-elm`, for the MoonBit Morphir CLI. See [moonbit/README.md](moonbit/README.md).
 
 Its tools come from `mise.moonbit.toml`, so run its tasks with `MISE_ENV=moonbit`. Other tasks do not need it.
 Linux and macOS on Apple silicon are supported.
