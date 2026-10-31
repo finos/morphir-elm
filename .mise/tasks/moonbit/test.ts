@@ -12,7 +12,6 @@ if (requested !== undefined && !(TARGETS as readonly string[]).includes(requeste
 }
 
 const packages = modulePackages();
-await moon(["update"]);
 for (const target of requested === undefined ? TARGETS : [requested]) {
   log("moonbit:test", `Testing on ${target}`);
   await moon(["test", "--target", target, ...packages]);
