@@ -105,10 +105,17 @@ describe("generate", () => {
       const modules = reply.result.artifacts
         .map((a: { path: string }) => a.path)
         .filter((p: string) => p.startsWith("src/") && p.endsWith(".elm"));
-      const made = spawnSync(elm, ["make", ...modules, `--output=${process.platform === "win32" ? "NUL" : "/dev/null"}`], {
-        cwd: dir,
-        encoding: "utf8",
-      });
+      const make = () =>
+        spawnSync(elm, ["make", ...modules, `--output=${process.platform === "win32" ? "NUL" : "/dev/null"}`], {
+          cwd: dir,
+          encoding: "utf8",
+        });
+      // Elm 0.19.1 sometimes fails to lock its own elm-stuff/0.19.1/d.dat ("resource busy (file is locked)").
+      // Retry only that internal error; any other failure fails at once.
+      let made = make();
+      for (let attempt = 1; attempt < 3 && made.status !== 0 && /resource busy \(file is locked\)/.test(made.stdout + made.stderr); attempt++) {
+        made = make();
+      }
       expect(made.status, made.stdout + made.stderr).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
