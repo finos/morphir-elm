@@ -16,8 +16,8 @@ const executable =
   join(
     root,
     "dist",
-    "morphir-elm-extension",
-    `morphir-elm-extension${process.platform === "win32" ? ".exe" : ""}`
+    "elm-classic-extension",
+    `morphir-elm-classic-extension${process.platform === "win32" ? ".exe" : ""}`
   );
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -251,10 +251,10 @@ describe("standalone Morphir Elm MEP extension", () => {
       readonly files?: readonly string[];
     };
 
-    expect(packageMetadata.bin).not.toHaveProperty("morphir-elm-extension");
+    expect(packageMetadata.bin).not.toHaveProperty("morphir-elm-classic-extension");
     expect(
       packageMetadata.files?.some((file) =>
-        file.startsWith("dist/morphir-elm-extension")
+        file.startsWith("dist/elm-classic-extension")
       )
     ).toBe(false);
   });
@@ -320,7 +320,7 @@ describe("standalone Morphir Elm MEP extension", () => {
       id: 1,
       result: {
         protocolVersion: "0.1",
-        extension: { id: "morphir-elm", types: ["frontend", "workspace"] },
+        extension: { id: "morphir-elm-classic", types: ["frontend", "workspace"] },
         capabilities: {
           frontend: { languages: [{ id: "elm" }], irVersions: ["3"] },
           workspace: { protocolVersions: ["0.1.0-draft.1"], discover: true },
@@ -425,7 +425,7 @@ describe("standalone Morphir Elm MEP extension", () => {
       const result = await collected;
       expect(result.exitCode).toBe(0);
       expect(decodeCompleteFrames(result.stdout)).toHaveLength(3);
-      expect(result.stderr).not.toContain("morphir-elm-extension:");
+      expect(result.stderr).not.toContain("morphir-elm-classic-extension:");
     } finally {
       child.kill();
       await Promise.allSettled([collected]);

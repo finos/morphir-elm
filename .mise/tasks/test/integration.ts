@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Run integration tests"
-//MISE depends=["build:cli", "build:cli2", "build:mep-extension"]
+//MISE depends=["build:cli", "build:cli2", "build:elm-classic-extension"]
 
 import {
   del,

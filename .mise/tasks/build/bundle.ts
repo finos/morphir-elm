@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Create single-file executables for CLI distribution"
-//MISE depends=["build:cli", "build:cli2", "build:mep-extension"]
+//MISE depends=["build:cli", "build:cli2", "build:elm-classic-extension"]
 
 import { $, mkdir, log, PATHS, ROOT_DIR, join } from "../_lib.ts";
 

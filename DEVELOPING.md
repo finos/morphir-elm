@@ -146,8 +146,19 @@ The `build:bundle` task creates standalone executables using Bun's compile featu
 mise run build:bundle
 ```
 
-`mise run build:mep-extension` creates a host-native Morphir Elm frontend for
-local development. The MEP extension pull-request workflow builds and validates
+### The Elm classic extension
+
+The Elm classic extension, `morphir-elm-classic`, is the JavaScript Elm frontend in `cli2/mep`, released as an
+MEP process extension.
+
+**BREAKING (from `0.5.0`):** it was named `morphir-elm` and released on `extension/elm/v*` tags until `0.4.1`.
+That id and those tags now belong to the Elm extension built from `moonbit/`. The releases
+`extension/elm/v0.1.0` to `v0.4.1` are unchanged, so existing pins keep working. To take newer classic releases,
+change the extension id to `morphir-elm-classic`, the tag prefix to `extension/elm-classic/`, and the file and
+executable names to `morphir-elm-classic-extension`.
+
+`mise run build:elm-classic-extension` creates a host-native Elm classic frontend for
+local development. The Elm classic extension pull-request workflow builds and validates
 CI artifacts for Linux AMD64, macOS ARM64, and Windows ARM64. The
 platform-neutral npm package does not include the native executable.
 
@@ -161,7 +172,7 @@ To end a session, send `morphir.shutdown` and wait for its response, then send
 the `morphir.exit` notification. Shutdown stops work and rejects further requests
 with `-32014`; the process stays alive until exit or clean standard-input EOF.
 
-### Releasing the MEP extension
+### Releasing the Elm classic extension
 
 The extension has its own version and its own release tag. It does not follow
 the morphir-elm package version.
@@ -171,39 +182,40 @@ the morphir-elm package version.
 2. After the merge, tag that commit on `vnext` and push the tag:
 
    ```sh
-   git tag -a extension/elm/v0.1.0 -m "Morphir Elm MEP extension v0.1.0"
-   git push origin extension/elm/v0.1.0
+   git tag -a extension/elm-classic/v0.5.0 -m "Morphir Elm classic extension v0.5.0"
+   git push origin extension/elm-classic/v0.5.0
    ```
 
-The `MEP extension release` workflow refuses a tag that is not on `vnext` or
+The `Elm classic extension release` workflow refuses a tag that is not on `vnext` or
 whose version differs from `extension.json`. It runs
-`mise run release:mep-extension -- <tag>`, which cross-compiles the executable
+`mise run release:elm-classic-extension -- <tag>`, which cross-compiles the executable
 for the six platforms the `morphir` CLI is released for, and writes one archive
 and one `.sha256` file per platform plus
-`morphir-elm-extension-<version>.release.json`. The workflow then runs the
+`morphir-elm-classic-extension-<version>.release.json`. The workflow then runs the
 extension suite against both the archive executable and the raw bundle executable
 on Linux, macOS and Windows,
-and publishes a GitHub release that is not marked as latest. A version with a
+attests the archives and the raw executables with GitHub artifact attestations, and publishes a GitHub release
+that is not marked as latest. A version with a
 `-` part, such as `0.2.0-rc.1`, is published as a prerelease.
 
-The task also writes `dist/mep-extension-release/bundle/`, containing a version-2
+The task also writes `dist/elm-classic-extension-release/bundle/`, containing a version-2
 `release.json`, six raw executables named
-`morphir-elm-extension-<version>-<platform>` with `.exe` on Windows, and a
+`morphir-elm-classic-extension-<version>-<platform>` with `.exe` on Windows, and a
 `.sha256` file for each executable. Digests cover the raw bytes. Each artifact's
 claims come from the same module that supplies `describe` and session metadata.
 The version-1 archives and descriptor remain available for existing consumers.
 
 On GitHub, the bundle descriptor is named
-`morphir-elm-extension-<version>.bundle.release.json`. Download it with all six
+`morphir-elm-classic-extension-<version>.bundle.release.json`. Download it with all six
 raw executables and their checksum files into one directory, then rename it to
 `release.json` before running `morphir extension repository publish --bundle <dir>`.
 Keep archives out of that directory. Bundle publication requires a Morphir CLI
 that reads `2.0.0-draft.2`, the release after `0.4.0-beta.6`.
 
-Run the task locally to inspect the files in `dist/mep-extension-release/`:
+Run the task locally to inspect the files in `dist/elm-classic-extension-release/`:
 
 ```sh
-mise run release:mep-extension -- extension/elm/v0.1.0
+mise run release:elm-classic-extension -- extension/elm-classic/v0.5.0
 ```
 
 This creates:

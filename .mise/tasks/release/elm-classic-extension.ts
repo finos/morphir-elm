@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-//MISE description="Build, package and describe the Morphir Elm MEP extension for every release platform"
+//MISE description="Build, package and describe the Elm classic extension for every release platform"
 //MISE depends=["build:cli2"]
 
-// Usage: mise run release:mep-extension -- <tag> [git-commit]
+// Usage: mise run release:elm-classic-extension -- <tag> [git-commit]
 //
-// Writes dist/mep-extension-release/ with one archive and one .sha256 file per platform, and the
+// Writes dist/elm-classic-extension-release/ with one archive and one .sha256 file per platform, and the
 // version-1 release descriptor, plus bundle/ with raw executables, checksums and release.json.
 // Bun cross-compiles every target, so one runner builds all six. The Elm
 // compile that build:cli2 does produces plain JavaScript, which is the same for every platform.
@@ -16,6 +16,7 @@ import {
   assetName,
   checksumLine,
   executableName,
+  FILE_STEM,
   processBundleDescriptor,
   type ProcessBundleArtifact,
   parseReleaseTag,
@@ -35,17 +36,17 @@ import {
   writeFile,
 } from "../_lib.ts";
 
-const TASK = "release:mep-extension";
+const TASK = "release:elm-classic-extension";
 const [tag, commitArgument] = process.argv.slice(2);
 if (tag === undefined) {
-  console.error("usage: mise run release:mep-extension -- <tag> [git-commit]");
+  console.error("usage: mise run release:elm-classic-extension -- <tag> [git-commit]");
   process.exit(2);
 }
 
 const version = parseReleaseTag(tag, extensionMetadata);
 const gitCommit =
   commitArgument ?? (await $`git -C ${ROOT_DIR} rev-parse HEAD`.text()).trim();
-const output = join(PATHS.dist, "mep-extension-release");
+const output = join(PATHS.dist, "elm-classic-extension-release");
 const bundle = join(output, "bundle");
 const staging = join(output, ".staging");
 await rm(output, { recursive: true, force: true });
@@ -96,7 +97,7 @@ for (const target of RELEASE_TARGETS) {
 await rm(staging, { recursive: true, force: true });
 const descriptorPath = join(
   output,
-  `morphir-elm-extension-${version}.release.json`
+  `${FILE_STEM}-${version}.release.json`
 );
 await writeFile(
   descriptorPath,

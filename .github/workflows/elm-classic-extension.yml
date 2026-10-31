@@ -1,5 +1,5 @@
 ---
-name: MEP extension
+name: Elm classic extension
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
@@ -21,7 +21,7 @@ on:  # yamllint disable-line rule:truthy
       - "package-lock.json"
       - "tests-integration/mep-extension.test.ts"
       - "tests-integration/mep-extension/**"
-      - ".github/workflows/mep-extension.yml"
+      - ".github/workflows/elm-classic-extension.yml"
 
 permissions:
   contents: read
@@ -51,7 +51,7 @@ jobs:
               7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
             platform: linux
             arch: amd64
-            executable: dist/morphir-elm-extension/morphir-elm-extension
+            executable: dist/elm-classic-extension/morphir-elm-classic-extension
           - runner: macos-15
             mise-env: ""
             runner-os: macOS
@@ -62,7 +62,7 @@ jobs:
               ba93b3fe7e47964e4392d40c8b7bfa5740e8c2a0a575e3e86268e9764082ed3e
             platform: darwin
             arch: arm64
-            executable: dist/morphir-elm-extension/morphir-elm-extension
+            executable: dist/elm-classic-extension/morphir-elm-classic-extension
           - runner: windows-11-arm
             mise-env: ci-windows
             runner-os: Windows
@@ -73,7 +73,7 @@ jobs:
               48c7e0ca372e51393dc518698cfd4c53791f6f7a42be1fb179179a17489bc237
             platform: windows
             arch: arm64
-            executable: dist/morphir-elm-extension/morphir-elm-extension.exe
+            executable: dist/elm-classic-extension/morphir-elm-classic-extension.exe
 
     steps:
       - name: Assert runner platform and architecture
@@ -150,7 +150,7 @@ jobs:
         run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Build native extension
-        run: mise run build:mep-extension
+        run: mise run build:elm-classic-extension
 
       - name: Test native extension
         run: mise exec -- bun test tests-integration/mep-extension.test.ts
@@ -202,6 +202,6 @@ jobs:
         uses: >-
           actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: morphir-elm-extension-${{ matrix.platform }}-${{ matrix.arch }}
+          name: morphir-elm-classic-extension-${{ matrix.platform }}-${{ matrix.arch }}
           path: ${{ matrix.executable }}
           if-no-files-found: error

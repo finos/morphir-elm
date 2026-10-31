@@ -1,19 +1,21 @@
 ---
-name: MEP extension release
+name: Elm classic extension release
 
-# The Morphir Elm MEP extension is released on its own tag,
-# extension/elm/v<version>, and not with the morphir-elm package. The version
-# comes from cli2/mep/extension.json. vnext is the release branch for this
-# work: a tag that does not point to a commit on vnext is refused.
+# The Elm classic extension (morphir-elm-classic, the JavaScript Elm frontend
+# in cli2/mep) is released on its own tag, extension/elm-classic/v<version>,
+# and not with the morphir-elm package. The version comes from
+# cli2/mep/extension.json. vnext is the release branch for this work: a tag
+# that does not point to a commit on vnext is refused. Its releases up to
+# 0.4.1 used extension/elm/v* tags, which now belong to the Elm extension.
 
 on:  # yamllint disable-line rule:truthy
   push:
     tags:
-      - "extension/elm/v*"
+      - "extension/elm-classic/v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag, for example extension/elm/v0.1.0
+        description: Existing release tag, for example extension/elm-classic/v0.5.0
         required: true
         type: string
 
@@ -21,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: mep-extension-release-${{ inputs.tag || github.ref_name }}
+  group: elm-classic-extension-release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 env:
@@ -86,7 +88,7 @@ jobs:
         env:
           RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
         run: >-
-          mise run release:mep-extension --
+          mise run release:elm-classic-extension --
           "$RELEASE_TAG" "$RELEASE_COMMIT"
 
       # After the release task, because cli2/mep/compiler.ts imports the
@@ -95,7 +97,7 @@ jobs:
         run: mise exec -- bun test cli2/mep
 
       - name: Verify the checksums
-        working-directory: dist/mep-extension-release
+        working-directory: dist/elm-classic-extension-release
         run: |
           sha256sum --check ./*.sha256
           (cd bundle && sha256sum --check ./*.sha256)
@@ -105,8 +107,8 @@ jobs:
         uses: >-
           actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: mep-extension-release
-          path: dist/mep-extension-release/
+          name: elm-classic-extension-release
+          path: dist/elm-classic-extension-release/
           if-no-files-found: error
 
   test:
@@ -160,7 +162,7 @@ jobs:
         uses: >-
           actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: mep-extension-release
+          name: elm-classic-extension-release
           path: release
 
       - name: Unpack the archive for this platform
@@ -169,13 +171,13 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           mkdir unpacked
-          archive="release/morphir-elm-extension-${VERSION}-${PLATFORM}"
+          archive="release/morphir-elm-classic-extension-${VERSION}-${PLATFORM}"
           if [ -f "${archive}.zip" ]; then
             unzip -q "${archive}.zip" -d unpacked
-            executable="$PWD/unpacked/morphir-elm-extension.exe"
+            executable="$PWD/unpacked/morphir-elm-classic-extension.exe"
           else
             tar -xzf "${archive}.tgz" -C unpacked
-            executable="$PWD/unpacked/morphir-elm-extension"
+            executable="$PWD/unpacked/morphir-elm-classic-extension"
           fi
           test -f "$executable"
           echo "MORPHIR_ELM_EXTENSION_BIN=$executable" >> "$GITHUB_ENV"
@@ -188,7 +190,7 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
           PLATFORM: ${{ matrix.platform }}
         run: |
-          executable="$PWD/release/bundle/morphir-elm-extension-${VERSION}-${PLATFORM}"
+          executable="$PWD/release/bundle/morphir-elm-classic-extension-${VERSION}-${PLATFORM}"
           if [[ "$PLATFORM" == *-windows-* ]]; then
             executable="${executable}.exe"
           fi
@@ -203,14 +205,29 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Download the release files
         # actions/download-artifact v4.3.0
         uses: >-
           actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: mep-extension-release
+          name: elm-classic-extension-release
           path: release
+
+      # A repository owner verifies the publisher as finos/morphir-elm and
+      # this workflow.
+      - name: Attest the archives and the raw executables
+        # actions/attest v4.2.2
+        uses: >-
+          actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: |
+            release/*.tgz
+            release/*.zip
+            release/bundle/morphir-elm-classic-extension-*
+            !release/bundle/*.sha256
 
       - name: Create the release, or add the files to it
         env:
@@ -218,18 +235,19 @@ jobs:
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.build.outputs.version }}
           NOTES: >-
-            Morphir Elm MEP process extension for the morphir CLI. Each
+            Morphir Elm classic extension (morphir-elm-classic), the
+            JavaScript Elm frontend, as an MEP process extension. Each
             archive holds one executable for one platform. The .release.json
             file describes the archives and their SHA-256 digests.
             Raw executables and their .sha256 files form a version-2 process
-            bundle with morphir-elm-extension-<version>.bundle.release.json.
+            bundle with morphir-elm-classic-extension-<version>.bundle.release.json.
             Put these files in one directory and rename the bundle descriptor
             to release.json for morphir extension repository publish --bundle.
             This requires a Morphir CLI that reads 2.0.0-draft.2, the release
             after 0.4.0-beta.6.
         run: |
           mv release/bundle/release.json \
-            "release/morphir-elm-extension-${VERSION}.bundle.release.json"
+            "release/morphir-elm-classic-extension-${VERSION}.bundle.release.json"
           assets=(
             release/*.tgz release/*.zip release/*.sha256 release/*.json
             release/bundle/*
@@ -244,7 +262,7 @@ jobs:
             gh release create "$RELEASE_TAG" "${assets[@]}" \
               --verify-tag \
               --latest=false \
-              --title "Morphir Elm MEP extension v${VERSION}" \
+              --title "Morphir Elm classic extension v${VERSION}" \
               --notes "$NOTES" \
               "${flags[@]}"
           fi
