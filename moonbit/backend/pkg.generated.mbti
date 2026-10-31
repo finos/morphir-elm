@@ -79,7 +79,7 @@ pub fn Mapping::with_overrides(Self, Map[String, @mapping.MappingEntry]) -> Self
 pub(all) struct Options {
   profile : Profile
   placeholders : Placeholders
-  width : Int
+  width : Int32
   elm_package : ElmPackageRef
   mapping : Mapping
   packages : Map[String, ElmPackageRef]

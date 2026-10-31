@@ -1,0 +1,9 @@
+// The MoonBit Elm extension and the finos/morphir-moonbit modules it needs that
+// are not on mooncakes yet. `mise run moonbit:deps` checks those out from the
+// commit pinned in deps.toml. Remove a member when its module is published.
+members = [
+  ".",
+  "./.deps/morphir-moonbit/pkgs/morphir-ir",
+  "./.deps/morphir-moonbit/pkgs/morphir-sdk-spec",
+  "./.deps/morphir-moonbit/pkgs/morphir-typing",
+]

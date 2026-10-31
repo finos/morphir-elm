@@ -11,7 +11,7 @@ import {
 // Values
 pub fn doc_text(@ast.Node[String]?) -> String?
 
-pub fn let_groups(Array[Array[Int]]) -> Array[LetGroup]
+pub fn let_groups(Array[Array[Int32]]) -> Array[LetGroup]
 
 pub fn lower_type(@resolve.Scope, @ast.Node[@ast.TypeAnnotation], Array[String]?) -> @v4.Type raise LowerError
 
@@ -33,8 +33,8 @@ pub fn LowerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum LetGroup {
-  Single(Int)
-  Recursive(Array[Int])
+  Single(Int32)
+  Recursive(Array[Int32])
 } derive(Eq, @debug.Debug)
 pub fn LetGroup::equal(Self, Self) -> Bool
 pub fn LetGroup::not_equal(Self, Self) -> Bool
