@@ -1,7 +1,28 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describeClaims, githubGlobMatches, parseReleaseTag, releaseDescriptor } from "./release";
+import { compareVersions, describeClaims, githubGlobMatches, parseReleaseTag, releaseDescriptor } from "./release";
+
+describe("compareVersions", () => {
+  test.each([
+    ["0.5.0-preview.1", "0.4.1", 1],
+    ["0.4.1", "0.4.1", 0],
+    ["0.4.1-rc.1", "0.4.1", -1],
+    ["1.0.0-alpha", "1.0.0-alpha.1", -1],
+    ["1.0.0-alpha.1", "1.0.0-alpha.beta", -1],
+    ["1.0.0-beta.2", "1.0.0-beta.11", -1],
+    ["1.0.0-rc.1", "1.0.0", -1],
+    ["0.10.0", "0.9.9", 1],
+    ["1.0.0+build.1", "1.0.0", 0],
+  ])("%s compared with %s is %d", (a, b, expected) => {
+    expect(Math.sign(compareVersions(a, b))).toBe(expected);
+  });
+
+  test("refuses a version that is not SemVer", () => {
+    expect(() => compareVersions("1.0", "1.0.0")).toThrow(/SemVer/);
+    expect(() => compareVersions("01.0.0", "1.0.0")).toThrow(/SemVer/);
+  });
+});
 
 describe("parseReleaseTag", () => {
   test("returns the version that the tag and moon.mod agree on", () => {

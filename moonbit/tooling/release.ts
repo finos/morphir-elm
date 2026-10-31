@@ -1,6 +1,5 @@
 // Pure rules for releasing the Elm extension. The release task and workflow do the building and publishing;
 // what a release must agree on is decided here and tested.
-import { greaterThan, parse, tryParse } from "@std/semver";
 import { BytesSession, type BytesExports, type BytesImports } from "./bytes-host";
 
 export const EXTENSION_ID = "morphir-elm";
@@ -9,17 +8,53 @@ export const SHORT_ID = "elm";
 /** The JavaScript extension released 0.1.0 to 0.4.1 on these tags, before it became the Elm classic extension. */
 export const LAST_CLASSIC_VERSION = "0.4.1";
 
+// SemVer 2.0.0: MAJOR.MINOR.PATCH, an optional pre-release and optional build metadata.
+const SEMVER =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
+function parseVersion(version: string): { core: number[]; pre: string[] } {
+  const match = SEMVER.exec(version);
+  if (match === null) {
+    throw new Error(`'${version}' is not a SemVer version`);
+  }
+  return { core: [match[1], match[2], match[3]].map(Number), pre: match[4] === undefined ? [] : match[4].split(".") };
+}
+
+/** SemVer precedence: negative, zero or positive as a is lower than, equal to or higher than b. */
+export function compareVersions(a: string, b: string): number {
+  const left = parseVersion(a);
+  const right = parseVersion(b);
+  for (let i = 0; i < 3; i++) {
+    if (left.core[i] !== right.core[i]) return left.core[i] - right.core[i];
+  }
+  // A version without a pre-release is higher than one with a pre-release.
+  if (left.pre.length === 0 || right.pre.length === 0) return right.pre.length - left.pre.length;
+  for (let i = 0; i < Math.min(left.pre.length, right.pre.length); i++) {
+    const x = left.pre[i];
+    const y = right.pre[i];
+    const xNumeric = /^\d+$/.test(x);
+    const yNumeric = /^\d+$/.test(y);
+    if (xNumeric && yNumeric) {
+      if (Number(x) !== Number(y)) return Number(x) - Number(y);
+    } else if (xNumeric !== yNumeric) {
+      return xNumeric ? -1 : 1;
+    } else if (x !== y) {
+      return x < y ? -1 : 1;
+    }
+  }
+  return left.pre.length - right.pre.length;
+}
+
 /** The version a tag releases: the tag must be extension/elm/v<version>, equal to moon.mod, above 0.4.1. */
 export function parseReleaseTag(tag: string, moduleVersion: string): string {
   const match = /^extension\/elm\/v(.+)$/.exec(tag);
-  const version = match === null ? undefined : tryParse(match[1]);
-  if (match === null || version === undefined) {
+  if (match === null || !SEMVER.test(match[1])) {
     throw new Error(`'${tag}' is not a release tag; expected extension/elm/v<version>`);
   }
   if (match[1] !== moduleVersion) {
     throw new Error(`tag version ${match[1]} does not match moonbit/moon.mod ${moduleVersion}`);
   }
-  if (!greaterThan(version, parse(LAST_CLASSIC_VERSION))) {
+  if (compareVersions(match[1], LAST_CLASSIC_VERSION) <= 0) {
     throw new Error(
       `version ${match[1]} must be greater than ${LAST_CLASSIC_VERSION}, the last JavaScript release on these tags`
     );
