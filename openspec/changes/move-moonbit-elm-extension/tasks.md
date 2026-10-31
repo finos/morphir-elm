@@ -32,8 +32,8 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
   - the freeze.
 
   Add a "MoonBit Elm module" section to `DEVELOPING.md`, a table to `README.md` that names the Elm extension (MoonBit, `moonbit/`, in development) and the Elm classic extension (JavaScript, `cli2/mep`), and the MoonBit dependencies to `NOTICE`. Verify that every path these docs name exists.
-- [ ] 3.3 Push the branch and open pull request 1 to `vnext` as a draft. The body says to merge with a merge commit. Verify that the `test` and `elm` jobs and EasyCLA pass.
-- [ ] 3.4 Mark the pull request ready and ask Damian to review. Do not merge.
+- [x] 3.3 Push the branch and open pull request 1 to `vnext` as a draft. The body says to merge with a merge commit. Verify that the `test` and `elm` jobs and EasyCLA pass.
+- [x] 3.4 Mark the pull request ready and ask Damian to review. Do not merge.
 
 ## 4. Spike: build and run the Elm guest under the host limits (morphir-ukvn.1.15.4)
 
