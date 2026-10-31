@@ -16,7 +16,7 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
 - [x] 2.3 Add `moonbit/deps.toml` (commit `IMPORT_SHA`; paths `pkgs/morphir-ir`, `pkgs/morphir-sdk-spec`, `pkgs/morphir-typing`, `pkgs/morphir-sdk/conformance`) and `moonbit/tooling/deps.ts`, with tests for an invalid commit, no paths, a path outside `pkgs/`, a missing copy, a current copy, another commit and fewer paths. Verify that `bun test moonbit/tooling` passes.
 - [x] 2.4 Add the `moonbit:deps` task and `moonbit/moon.work`. Verify that a second run of `moonbit:deps` fetches nothing, and that `moon check --target wasm` in `moonbit/` succeeds. `moon` must not see packages under `.deps` or `tooling`.
 - [x] 2.5 Add the `moonbit:check` (check, `moon fmt`, `moon info` with `git diff --exit-code`) and `moonbit:test` (wasm, wasm-gc, js, native) tasks. Verify that both pass with 0 failed tests, also when started from `moonbit/frontend`.
-- [ ] 2.6 Point `test-elm-make.mts`, `elm-parity-refresh.mbtx` and the two Python generators at `moonbit/` and the pinned checkout. Remove the engine acceptance output. Add the `moonbit:test:elm` and `moonbit:parity-refresh` tasks. Verify four things:
+- [x] 2.6 Point `test-elm-make.mts`, `elm-parity-refresh.mbtx` and the two Python generators at `moonbit/` and the pinned checkout. Remove the engine acceptance output. Add the `moonbit:test:elm` and `moonbit:parity-refresh` tasks. Verify four things:
   - a frozen `bun install --cwd moonbit/scripts` changes no lockfile, and `elm --version` prints `0.19.1`;
   - `moonbit:test:elm` compiles at least seven projects;
   - the parity refresh leaves `moonbit/conformance` unchanged;
