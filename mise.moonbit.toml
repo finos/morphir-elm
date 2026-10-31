@@ -8,7 +8,7 @@
 # Windows is not supported here.
 
 [tools."http:moonbit"]
-version = "0.10.17+d971670cd"
+version = "0.10.18+6c83a7f62"
 bin_path = "bin"
 # The archive alone has no core or moonx. The upstream Unix installer completes
 # the install for the exact version.
@@ -17,9 +17,13 @@ bash -c 'set -euo pipefail; export PATH="$MISE_TOOL_INSTALL_PATH/bin:$PATH"; cur
 """
 
 [tools."http:moonbit".platforms]
-linux-x64 = { url = "https://cli.moonbitlang.com/binaries/0.10.17%2Bd971670cd/moonbit-linux-x86_64.tar.gz" }
-linux-arm64 = { url = "https://cli.moonbitlang.com/binaries/0.10.17%2Bd971670cd/moonbit-linux-aarch64.tar.gz" }
-macos-arm64 = { url = "https://cli.moonbitlang.com/binaries/0.10.17%2Bd971670cd/moonbit-darwin-aarch64.tar.gz" }
+linux-x64 = { url = "https://cli.moonbitlang.com/binaries/0.10.18%2B6c83a7f62/moonbit-linux-x86_64.tar.gz" }
+linux-arm64 = { url = "https://cli.moonbitlang.com/binaries/0.10.18%2B6c83a7f62/moonbit-linux-aarch64.tar.gz" }
+macos-arm64 = { url = "https://cli.moonbitlang.com/binaries/0.10.18%2B6c83a7f62/moonbit-darwin-aarch64.tar.gz" }
 
 [env]
 MOON_HOME = { value = "{{ tools['http:moonbit'].path }}", tools = true }
+# From 0.10.18, moon links wasm executables for WASI by default, which adds a
+# wasi_snapshot_preview1.fd_write import. The Elm extension's morphir-bytes-v1
+# ABI allows only its three morphir_bytes_v1 imports, so turn that off.
+MOON_WASI_LINK = "0"
