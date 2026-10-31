@@ -5,14 +5,16 @@ import { BytesSession, wasmGuest } from "../tooling/bytes-host";
 
 export const MOONBIT = join(import.meta.dir, "..");
 
-// Bun's JavaScriptCore miscompiles this module in its top WebAssembly tier (OMG): once a function tiers up, the same
-// request can get different answers, for example parse errors in a valid Elm module. Node (V8), and Bun with OMG
-// off, always give the same answers. Refuse to run under Bun with OMG on, so that no test or digest depends on it.
-if (typeof Bun !== "undefined" && process.env.BUN_JSC_useOMGJIT !== "0") {
-  throw new Error(
-    "Run the Elm extension's module under Bun with BUN_JSC_useOMGJIT=0; JavaScriptCore's OMG tier gives wrong answers for it"
-  );
+// Bun 1.4.0 and 1.4.1 miscompile this module in JavaScriptCore's top WebAssembly tier (OMG): when OMG inlines a SIMD
+// function into a non-SIMD one, the same request can get different answers (WebKit 319839@main, fixed in Bun 1.4.2).
+// Refuse those versions, so that no test or digest depends on them.
+if (typeof Bun !== "undefined") {
+  const [major, minor, patch] = Bun.version.split(/[.-]/).map(Number);
+  if (major === 1 && (minor < 4 || (minor === 4 && patch < 2))) {
+    throw new Error(`Bun ${Bun.version} miscompiles the Elm extension's module; use Bun 1.4.2 or later (mise.toml pins it)`);
+  }
 }
+
 export const PROJECTS = join(MOONBIT, "conformance", "projects");
 const DIGEST = "0".repeat(64);
 const LIMITS = { maxEncodedBytes: 2796204, maxDecodedBytes: 2097152, maxDepth: 128, maxNodes: 100000 };

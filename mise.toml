@@ -2,7 +2,7 @@ min_version = "2024.11.0"
 
 [tools]
 node = "20"       # Matches lts/iron from .nvmrc
-bun = "1.4.0"     # Task executor
+bun = "1.4.4"     # Task executor; 1.4.2+ fixes a JavaScriptCore Wasm miscompile
 elm = "0.19.1"
 "github:avh4/elm-format" = "0.8.7"
 "github:zwilias/elm-json" = "0.2.13"
