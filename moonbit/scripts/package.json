@@ -1,0 +1,10 @@
+{
+  "name": "morphir-elm-acceptance",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "elm": "0.19.1-6",
+    "morphir-elm": "2.100.0"
+  },
+  "packageManager": "bun@1.4.4"
+}
