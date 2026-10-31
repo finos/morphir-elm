@@ -22,6 +22,7 @@ const run = (task: string) =>
 await run("build:check-elm-docs");
 await run("build:cli");
 await run("build:cli2");
+await run("build:visualize"); // bun bundle only, no elm
 await run("build:dev-server");
 await run("build:try-morphir");
 await run("build:components"); // concat: depends on dev-server output

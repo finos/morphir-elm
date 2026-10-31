@@ -1,0 +1,9 @@
+{
+  "name": "@finos/morphir-visualize",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Business-user oriented Lit web components for exploring Morphir logic and authoring test cases",
+  "type": "module",
+  "main": "dist/morphir-visualize.js",
+  "license": "Apache-2.0"
+}
