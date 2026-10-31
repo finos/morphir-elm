@@ -366,6 +366,51 @@ describe("standalone Morphir Elm MEP extension", () => {
     });
   }, 60_000);
 
+  test("compiles without exposedModules, as the MoonBit CLI's worker host sends it", async () => {
+    const validPath = join(import.meta.dir, "mep-extension", "Example.elm");
+    const validSource = await readFile(validPath, "utf8");
+    const params = compileParams(pathToFileURL(validPath).href, validSource, "Example");
+    const result = await runExtension(
+      appendFrames([
+        frame(
+          request(
+            "morphir.initialize",
+            {
+              protocolVersions: ["0.1"],
+              host: { name: "integration-test", version: "0.1.0" },
+            },
+            1
+          )
+        ),
+        frame(
+          request(
+            "morphir.frontend.compile",
+            { ...params, package: { name: params.package.name } },
+            2
+          )
+        ),
+        frame(request("morphir.shutdown", {}, 3)),
+        frame(notification("morphir.exit")),
+      ]),
+      false
+    );
+    const responses = decodeCompleteFrames(result.stdout) as readonly Record<
+      string,
+      unknown
+    >[];
+
+    expect(result.exitCode).toBe(0);
+    expect(responses[1]).toMatchObject({
+      jsonrpc: "2.0",
+      id: 2,
+      result: { success: true, irVersion: "3", diagnostics: [], modules: ["Example"] },
+    });
+    expect(responses[1]).toHaveProperty(
+      "result.ir.distribution.3.modules.0.1.access",
+      "Public"
+    );
+  }, 60_000);
+
   test("acknowledges shutdown and stays alive until a delayed exit notification", async () => {
     const child = Bun.spawn([executable], {
       cwd: root,

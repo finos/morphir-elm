@@ -23,7 +23,8 @@ export interface SourceSet {
 
 export interface CompilePackage {
   readonly name: string;
-  readonly exposedModules: readonly string[];
+  /** Absent exposes every module; an empty list exposes none (MEP CompilePackage). */
+  readonly exposedModules?: readonly string[];
 }
 
 export interface CompileDependency {
@@ -291,7 +292,8 @@ function parseCompileRequest(value: unknown): CompileRequestParseResult {
     typeof value.languageId !== "string" ||
     !isRecord(value.package) ||
     typeof value.package.name !== "string" ||
-    !hasStringArray(value.package.exposedModules) ||
+    ("exposedModules" in value.package &&
+      !hasStringArray(value.package.exposedModules)) ||
     !Array.isArray(value.dependencies) ||
     !value.dependencies.every(isCompileDependency) ||
     !isRecord(value.options) ||
@@ -310,10 +312,13 @@ function parseCompileRequest(value: unknown): CompileRequestParseResult {
     request: {
       languageId: value.languageId,
       sources: { root, documents },
-      package: {
-        name: value.package.name,
-        exposedModules: value.package.exposedModules,
-      },
+      package:
+        "exposedModules" in value.package
+          ? {
+              name: value.package.name,
+              exposedModules: value.package.exposedModules as string[],
+            }
+          : { name: value.package.name },
       dependencies: value.dependencies,
       options: value.options as CompileOptions,
     },
