@@ -21,23 +21,33 @@ plan (A6) would have moved here, lowers type declarations only, and the Rust CLI
   targets, `elm make` checks, and the parity check against `morphir-elm` 2.100.0).
 - Add a portable Wasm MEP guest in `moonbit/extension` that serves the Elm frontend and backend over the
   `morphir-bytes-v1` ABI. It compiles a whole Elm project, with many documents, in one request.
-- Release the guest as extension `morphir-elm-moonbit` (short id `elm-moonbit`) on tags `extension/elm-moonbit/v*`,
-  as a bundle with `release.json` 2.0.0-draft.2, a `.sha256` file per artifact, and GitHub artifact attestations.
-  The first release is a preview, `0.1.0-preview.1`.
-- Document the two Elm extensions side by side. The JavaScript extension (`morphir-elm`, `extension/elm/v*`,
-  `cli2/mep`) does not change.
+- Release the guest as **the** Elm extension: id `morphir-elm`, short id `elm`, tags `extension/elm/v*`, as a bundle
+  with `release.json` 2.0.0-draft.2, a `.sha256` file per artifact, and GitHub artifact attestations. Versions continue
+  above the JavaScript releases on that tag line (`0.1.0` to `0.4.1`); the first release is the preview
+  `0.5.0-preview.1`.
+- **BREAKING**: rename the JavaScript extension in `cli2/mep` to the Elm classic extension: id `morphir-elm-classic`,
+  short id `elm-classic`, tags `extension/elm-classic/v*`, file names `morphir-elm-classic-extension-*`, and workflows
+  `elm-classic-extension.yml` and `elm-classic-extension-release.yml`. Its next release is `0.5.0`, with attestations.
+  - Reason: the MoonBit CLI is now the main Morphir CLI, and the MoonBit implementation is the Elm frontend it will
+    use, so it takes the plain Elm name.
+  - Migration: the releases `extension/elm/v0.1.0` to `v0.4.1` stay unchanged, so pins to them keep working. A
+    consumer that wants newer JavaScript releases changes `morphir-elm` to `morphir-elm-classic`, the tag prefix to
+    `extension/elm-classic/`, and the file and executable names to `morphir-elm-classic-extension`.
+- Document the Elm extension and the Elm classic extension side by side.
 - Freeze the morphir-moonbit copy: after the import lands, Elm changes are made here only.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `moonbit-elm/module`: the MoonBit Elm module in this repository: how it is built and tested, and the checks that
+- `elm-extension/module`: the MoonBit Elm module in this repository: how it is built and tested, and the checks that
   keep its output equal to `morphir-elm` and its generated Elm valid.
-- `moonbit-elm/mep-guest`: the portable Wasm MEP extension: its ABI, the claims it reports, and how it answers
+- `elm-extension/mep-guest`: the portable Wasm MEP extension: its ABI, the claims it reports, and how it answers
   compile and generate requests.
-- `moonbit-elm/release`: how the extension is versioned, bundled, attested and published, and how its releases stay
-  apart from the JavaScript extension's releases.
+- `elm-extension/release`: how the Elm extension is versioned, bundled, attested and published, and how its releases
+  stay apart from the Elm classic extension's releases.
+- `elm-classic-extension/release`: the Elm classic extension's identity, tags, file names and attestations, and the
+  rule that the earlier `extension/elm/v*` releases stay unchanged.
 
 ### Modified Capabilities
 
@@ -56,14 +66,20 @@ None.
 
 ## Impact
 
-- New: `moonbit/`, `mise.moonbit.toml`, `.mise/tasks/moonbit/`, and the `moonbit-elm.yml` and
-  `moonbit-elm-extension-release.yml` workflows.
+- New: `moonbit/`, `mise.moonbit.toml`, `.mise/tasks/moonbit/`, and the `elm-extension.yml` and
+  `elm-extension-release.yml` workflows.
+- Changed (Elm classic): `cli2/mep/extension.json`, `cli2/mep/release.ts` and its tests,
+  `tests-integration/mep-extension.test.ts`, `.mise/tasks/build/mep-extension.ts` and
+  `.mise/tasks/release/mep-extension.ts` (renamed), and `mep-extension.yml` and `mep-extension-release.yml` (renamed).
 - Docs: `README.md`, `DEVELOPING.md` and `NOTICE`.
 - Dependencies: MoonBit `0.10.17+d971670cd`, mooncakes modules `moonrockz/krueger`, `moonrockz/expect` and
   `moonbitlang/x`, and finos/morphir-moonbit (pinned commit) for `finos/morphir-ir`, `finos/morphir-sdk-spec` and
   `finos/morphir-typing` until they are published.
-- No change to the JavaScript extension, its workflows or its tags.
 - Other repositories, as follow-ups that are not part of this change:
   - finos/morphir-moonbit publishes the three modules, then removes `pkgs/morphir-elm`, `pkgs/morphir-engine/elm` and
     the built-in registration (`morphir-ukvn.5.64.34.7`).
   - The `finos` extension index admits the release.
+  - finos/morphir: decision 0001 and `.config/published-extension-bundles.toml` say `morphir-elm` for the JavaScript
+    extension. They need the classic name when they move past `v0.4.1`.
+  - finos/morphir-moonbit's `acquire-extensions-from-repositories` uses `extension/elm/v0.4.1` as its Elm fixture;
+    that release is now an Elm classic release.

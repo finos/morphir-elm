@@ -26,13 +26,13 @@ in module `morphir_bytes_v1`, and whose exports include `handle`. It SHALL have 
 ### Requirement: Describe reports the extension's claims
 
 The guest SHALL answer `morphir.extension.describe` with claim set `0.1.0-draft.2`, extension id
-`morphir-elm-moonbit`, the version of its module, types `frontend` and `backend`, and a frontend claim for language
+`morphir-elm`, the version of its module, types `frontend` and `backend`, and a frontend claim for language
 `elm` with file extension `.elm` and `multiDocument` set to true.
 
 #### Scenario: Describe
 
 - **WHEN** a host sends `morphir.extension.describe` offering protocol `0.2.0-draft.1`
-- **THEN** the answer has `claimsVersion` `0.1.0-draft.2`, `extension.id` `morphir-elm-moonbit` and `extension.version` equal to the module version
+- **THEN** the answer has `claimsVersion` `0.1.0-draft.2`, `extension.id` `morphir-elm` and `extension.version` equal to the module version
 - **AND** its frontend claim lists language `elm` with `.elm` and `multiDocument: true`
 
 ### Requirement: The guest follows the MEP session lifecycle
