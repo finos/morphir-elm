@@ -49,7 +49,7 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
 - [x] 5.3 Implement `morphir.frontend.compileModel` for many documents. Verify that, for each clean conformance project, the guest's model equals the module frontend's IR.
 - [x] 5.4 Return source problems as diagnostics, and refuse package dependencies. Verify with tests for a port module (`elm.unsupported` with a location) and for a request with a dependency.
 - [x] 5.5 Implement `morphir.backend.generateModel`. Verify that the files it returns for the acceptance projects compile with `elm make` 0.19.1.
-- [ ] 5.6 Add the `moonbit:package` task (it writes the module and its SHA-256 to `dist/elm-extension/artifacts/`) and a `guest` job in `elm-extension.yml`. Verify that the job passes in CI.
+- [x] 5.6 Add the `moonbit:package` task (it writes the module and its SHA-256 to `dist/elm-extension/artifacts/`) and a `guest` job in `elm-extension.yml`. Verify that the job passes in CI.
 - [ ] 5.7 Document the guest in `moonbit/README.md`: the ABI, the methods, the claims and the refusals. Open pull request 2 to `vnext`, then verify that CI passes and ask Damian to review.
 
 ## 6. Rename the JavaScript Elm extension to Elm classic (morphir-ukvn.1.15.7)
