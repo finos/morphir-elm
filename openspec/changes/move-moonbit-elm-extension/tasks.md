@@ -61,7 +61,7 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
   - `mise run release:elm-classic-extension -- extension/elm-classic/v0.5.0` writes `morphir-elm-classic-extension-0.5.0-*` files that pass `sha256sum --check`;
   - the task refuses `extension/elm/v0.5.0`.
 - [x] 6.4 Rename the MEP section of `DEVELOPING.md` to "Elm classic extension", with the new tag, task and file names and the migration note from the proposal, and update the release notes text in the workflow. Verify that `git grep -n 'extension/elm/v' -- cli2 .github .mise DEVELOPING.md` finds only the migration note's mention of the earlier releases.
-- [ ] 6.5 Open the pull request to `vnext`, verify that CI and EasyCLA pass, and ask Damian to review. After the merge, Damian decides when to tag `extension/elm-classic/v0.5.0`. Then verify that release with `sha256sum --check` and `gh attestation verify`.
+- [x] 6.5 Open the pull request to `vnext`, verify that CI and EasyCLA pass, and ask Damian to review. After the merge, Damian decides when to tag `extension/elm-classic/v0.5.0`. Then verify that release with `sha256sum --check` and `gh attestation verify`.
 
 ## 7. Release workflow, attestations and docs for the Elm extension (morphir-ukvn.1.15.6)
 
@@ -70,7 +70,7 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
 - [x] 7.3 Add the `release:elm-extension` task and `.github/workflows/elm-extension-release.yml` (design REL-2), with `actions/attest@v4` on `dist/artifacts/*`. The build job refuses a tag that already has a GitHub release. Verify that `actionlint` reports nothing, and that a local dry run with a test tag writes the three files and passes `sha256sum --check`.
 - [x] 7.4 Add a test that checks the GitHub tag filters: `extension/elm/v*` must not match `extension/elm-classic/v0.5.0`, and `extension/elm-classic/v*` must not match `extension/elm/v0.5.0-preview.1`. Verify that the test passes.
 - [x] 7.5 Set `moonbit/moon.mod` to `0.5.0-preview.1`. Document the release steps in `DEVELOPING.md` in an "Elm extension" section before the Elm classic section. Verify that describe reports `0.5.0-preview.1`.
-- [ ] 7.6 Open pull request 3 to `vnext`, verify that CI passes, and ask Damian to review. After the merge, Damian decides when to tag `extension/elm/v0.5.0-preview.1`. Then verify the release with `gh attestation verify` and `sha256sum --check`.
+- [x] 7.6 Open pull request 3 to `vnext`, verify that CI passes, and ask Damian to review. After the merge, Damian decides when to tag `extension/elm/v0.5.0-preview.1`. Then verify the release with `gh attestation verify` and `sha256sum --check`.
 
 ## Workflow follow-up
 
