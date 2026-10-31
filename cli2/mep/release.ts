@@ -33,8 +33,11 @@ export interface ReleaseArtifact {
   readonly sha256: string;
 }
 
-const unix = "morphir-elm-extension";
-const windows = "morphir-elm-extension.exe";
+/** Every file of a classic release is named from this stem. */
+export const FILE_STEM = "morphir-elm-classic-extension";
+
+const unix = FILE_STEM;
+const windows = `${FILE_STEM}.exe`;
 
 export const RELEASE_TARGETS: readonly ReleaseTarget[] = Object.freeze([
   {
@@ -100,7 +103,7 @@ export function parseReleaseTag(
 }
 
 export function assetName(version: string, target: ReleaseTarget): string {
-  return `morphir-elm-extension-${version}-${target.platform}.${target.archive}`;
+  return `${FILE_STEM}-${version}-${target.platform}.${target.archive}`;
 }
 
 /** One line in the format `sha256sum --check` reads. */
@@ -155,7 +158,7 @@ export interface ProcessBundleArtifact {
 /** A versioned raw executable, not an archive. */
 export function executableName(version: string, target: ReleaseTarget): string {
   const suffix = target.executable.endsWith(".exe") ? ".exe" : "";
-  return `morphir-elm-extension-${version}-${target.platform}${suffix}`;
+  return `${FILE_STEM}-${version}-${target.platform}${suffix}`;
 }
 
 /** Version-2 bundle shape consumed by morphir extension repository publish. */

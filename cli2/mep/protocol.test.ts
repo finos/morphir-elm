@@ -148,12 +148,12 @@ describe("MEP lifecycle dispatch", () => {
   });
 
   test("the extension is versioned by its own metadata, not by the morphir-elm package", () => {
-    // The release tag extension/elm/v<version> and the release descriptor are built from this
+    // The release tag extension/elm-classic/v<version> and the release descriptor are built from this
     // file, and the CLI refuses an extension whose reported version differs from its descriptor.
     expect(extensionMetadata).toEqual({
-      extensionId: "morphir-elm",
-      shortId: "elm",
-      name: "Morphir Elm frontend",
+      extensionId: "morphir-elm-classic",
+      shortId: "elm-classic",
+      name: "Morphir Elm classic frontend",
       version: expect.stringMatching(/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/),
       mepVersions: ["0.1"],
       irVersions: ["3"],
@@ -174,8 +174,8 @@ describe("MEP lifecycle dispatch", () => {
       result: {
         protocolVersion: "0.1",
         extension: {
-          id: "morphir-elm",
-          name: "Morphir Elm frontend",
+          id: "morphir-elm-classic",
+          name: "Morphir Elm classic frontend",
           version: extensionMetadata.version,
           types: ["frontend", "workspace"],
         },
@@ -280,7 +280,7 @@ describe("MEP lifecycle dispatch", () => {
     );
     const ping = await dispatcher.dispatch(request("morphir.ping", {}, "ping"));
 
-    expect(info).toHaveProperty("result.id", "morphir-elm");
+    expect(info).toHaveProperty("result.id", "morphir-elm-classic");
     expect(info).toHaveProperty("result.types", ["frontend", "workspace"]);
     expect(capabilities).toHaveProperty(
       "result.frontend.languages.0.id",

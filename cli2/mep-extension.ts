@@ -47,6 +47,6 @@ async function serve(): Promise<void> {
 try {
   await serve();
 } catch (error) {
-  process.stderr.write(`morphir-elm-extension: ${errorMessage(error)}\n`);
+  process.stderr.write(`morphir-elm-classic-extension: ${errorMessage(error)}\n`);
   process.exitCode = 1;
 }

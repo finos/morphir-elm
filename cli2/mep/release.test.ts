@@ -19,12 +19,12 @@ describe("MEP extension release", () => {
     // instead of failing on every version bump.
     expect(
       parseReleaseTag(
-        `extension/elm/v${extensionMetadata.version}`,
+        `extension/elm-classic/v${extensionMetadata.version}`,
         extensionMetadata
       )
     ).toBe(extensionMetadata.version);
     expect(
-      parseReleaseTag("extension/elm/v1.2.3-rc.1", {
+      parseReleaseTag("extension/elm-classic/v1.2.3-rc.1", {
         ...extensionMetadata,
         version: "1.2.3-rc.1",
       })
@@ -32,10 +32,12 @@ describe("MEP extension release", () => {
   });
 
   test.each([
-    ["v0.1.0", /extension\/elm\/v<version>/],
-    ["extension/elm-native/v0.1.0", /extension\/elm\/v<version>/],
-    ["extension/elm/0.1.0", /extension\/elm\/v<version>/],
-    ["extension/elm/v9.9.9", /does not match .*0\.1\.0/],
+    ["v0.1.0", /extension\/elm-classic\/v<version>/],
+    ["extension/elm-native/v0.1.0", /extension\/elm-classic\/v<version>/],
+    // The Elm extension's tags, which classic releases used up to 0.4.1.
+    ["extension/elm/v0.1.0", /extension\/elm-classic\/v<version>/],
+    ["extension/elm-classic/0.1.0", /extension\/elm-classic\/v<version>/],
+    ["extension/elm-classic/v9.9.9", /does not match .*0\.1\.0/],
   ])("the tag %s is refused", (tag, message) => {
     expect(() =>
       parseReleaseTag(tag, { ...extensionMetadata, version: "0.1.0" })
@@ -57,7 +59,7 @@ describe("MEP extension release", () => {
         /^bun-(linux|darwin|windows)-(x64|arm64)$/
       );
       expect(target.executable).toBe(
-        windows ? "morphir-elm-extension.exe" : "morphir-elm-extension"
+        windows ? "morphir-elm-classic-extension.exe" : "morphir-elm-classic-extension"
       );
       expect(target.archive).toBe(windows ? "zip" : "tgz");
     }
@@ -71,10 +73,10 @@ describe("MEP extension release", () => {
       (target) => target.platform === "aarch64-pc-windows-msvc"
     )!;
     expect(assetName("0.1.0", linux)).toBe(
-      "morphir-elm-extension-0.1.0-x86_64-unknown-linux-gnu.tgz"
+      "morphir-elm-classic-extension-0.1.0-x86_64-unknown-linux-gnu.tgz"
     );
     expect(assetName("0.1.0", windows)).toBe(
-      "morphir-elm-extension-0.1.0-aarch64-pc-windows-msvc.zip"
+      "morphir-elm-classic-extension-0.1.0-aarch64-pc-windows-msvc.zip"
     );
   });
 
@@ -99,9 +101,9 @@ describe("MEP extension release", () => {
     ]);
     expect(descriptor).toEqual({
       schemaVersion: 1,
-      shortId: "elm",
-      extensionId: "morphir-elm",
-      name: "Morphir Elm frontend",
+      shortId: "elm-classic",
+      extensionId: "morphir-elm-classic",
+      name: "Morphir Elm classic frontend",
       version: extensionMetadata.version,
       runtime: "process",
       mepVersions: ["0.1"],
@@ -167,7 +169,7 @@ describe("MEP version-2 process bundle", () => {
     (target) => {
       const suffix = target.platform.includes("windows") ? ".exe" : "";
       expect(executableName("1.2.3-rc.1", target)).toBe(
-        `morphir-elm-extension-1.2.3-rc.1-${target.platform}${suffix}`
+        `morphir-elm-classic-extension-1.2.3-rc.1-${target.platform}${suffix}`
       );
     }
   );
@@ -181,8 +183,8 @@ describe("MEP version-2 process bundle", () => {
     const descriptor = processBundleDescriptor(artifacts);
     expect(descriptor).toEqual({
       schemaVersion: "2.0.0-draft.2",
-      extensionId: "morphir-elm",
-      shortId: "elm",
+      extensionId: "morphir-elm-classic",
+      shortId: "elm-classic",
       version: extensionMetadata.version,
       platformDifferences: "none",
       artifacts: [...artifacts]
@@ -206,7 +208,7 @@ describe("MEP version-2 process bundle", () => {
   test("refuses an empty, malformed or duplicated artifact list", () => {
     const artifact = {
       platform: "x86_64-unknown-linux-gnu",
-      filename: "morphir-elm-extension-1.0.0-x86_64-unknown-linux-gnu",
+      filename: "morphir-elm-classic-extension-1.0.0-x86_64-unknown-linux-gnu",
       sha256: "a".repeat(64),
     };
     expect(() => processBundleDescriptor([])).toThrow("no artifacts");

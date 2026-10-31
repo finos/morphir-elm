@@ -1,7 +1,7 @@
 import extensionMetadata from "./extension.json";
 import { WORKSPACE_DISCOVERY_PROTOCOL } from "./workspace";
 
-// The extension is released on its own tag, extension/elm/v<version>, so its identity comes from
+// The extension is released on its own tag, extension/elm-classic/v<version>, so its identity comes from
 // extension.json and not from the morphir-elm package version.
 export const MEP_VERSION = extensionMetadata.mepVersions[0];
 
