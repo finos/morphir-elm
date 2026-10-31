@@ -21,22 +21,26 @@ import Morphir.SDK.StatefulApp exposing (StatefulApp)
 
 {- Type aliases for modeling in the language of the business -}
 
+{-| Identifies a deal -}
 type alias ID =
     String
 
 
+{-| Identifies the product being traded -}
 type alias ProductID =
     String
 
 
+{-| The price at which a deal is struck -}
 type alias Price =
     Float
 
 
+{-| The number of units in a deal -}
 type alias Quantity =
     Int
 
-{- Identifies a structure that can be associated to a persistance entity -}
+{-| Identifies a structure that can be associated to a persistance entity -}
 type alias Deal =
     { id : ID
     , product : ProductID
@@ -44,12 +48,12 @@ type alias Deal =
     , quantity : Quantity
     }
 
-{- These define the requests that can be made of this service -}
+{-| These define the requests that can be made of this service -}
 type DealCmd
     = OpenDeal ID ProductID Price Quantity
     | CloseDeal ID
 
-{- These define the responses that would result from requests -}
+{-| These define the responses that would result from requests -}
 type DealEvent
     = DealOpened ID ProductID Price Quantity
     | DealClosed ID
@@ -58,7 +62,7 @@ type DealEvent
     | DuplicateDeal ID
     | DealNotFound ID
 
-{- Defines that this is a stateful application that uses ID as the entity key (for possible partioning), 
+{-| Defines that this is a stateful application that uses ID as the entity key (for possible partioning), 
    accepts requests of type DealCmd,
    manages data in the form of a Deal,
    and produces events of type DealEvent.
@@ -74,7 +78,7 @@ app =
     StatefulApp logic
 
 
-{- Defines the business logic of this app. 
+{-| Defines the business logic of this app. 
    That is whether or not to accept a request to open or close a deal. 
 -}
 logic : ID -> Maybe Deal -> DealCmd -> ( ID, Maybe Deal, DealEvent )
