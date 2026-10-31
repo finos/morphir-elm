@@ -140,8 +140,8 @@ jobs:
         env:
           EXPECTED_BUN_ARCH: ${{ matrix.bun-arch }}
         run: |
-          test "$(mise exec bun@1.4.0 -- bun --version)" = "1.4.0"
-          bun_arch="$(mise exec bun@1.4.0 -- \
+          test "$(mise exec bun@1.4.4 -- bun --version)" = "1.4.4"
+          bun_arch="$(mise exec bun@1.4.4 -- \
             bun -e 'process.stdout.write(process.arch)')"
           test "$bun_arch" = "$EXPECTED_BUN_ARCH"
           test "$(mise exec -- elm --version)" = "0.19.1"
