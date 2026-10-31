@@ -16,7 +16,7 @@ pub const TARGET : String = "elm"
 
 pub const UNSUPPORTED_DEPENDENCIES : String = "elm.unsupported_dependencies"
 
-pub const VERSION : String = "0.5.0-preview.1"
+pub const VERSION : String = "0.5.0-preview.2"
 
 pub fn claims() -> Json
 

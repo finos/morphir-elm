@@ -57,7 +57,14 @@ describe("releaseDescriptor", () => {
       gitCommit: commit,
       platformDifferences: "none",
       artifacts: [
-        { runtime: "wasm", filename: "morphir-elm-0.5.0.wasm", sha256, claims, claimCheck: "checked" },
+        {
+          runtime: "wasm",
+          abi: "morphir-bytes-v1",
+          filename: "morphir-elm-0.5.0.wasm",
+          sha256,
+          claims,
+          claimCheck: "checked",
+        },
       ],
     });
   });

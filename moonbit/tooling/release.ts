@@ -98,6 +98,9 @@ export function releaseDescriptor(input: DescriptorInput) {
     artifacts: [
       {
         runtime: "wasm",
+        // The host also recognises the ABI from the module's imports; naming it lets a publisher, an index or a
+        // contract 0.2.0 pin (runtime.abi) read it without inspecting the module.
+        abi: "morphir-bytes-v1",
         filename: input.filename,
         sha256: input.sha256,
         claims: input.claims,
