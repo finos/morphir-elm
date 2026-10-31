@@ -167,6 +167,25 @@ and its SHA-256.</p>
 <code>manifest.ion</code> and depends on that repository's in-process compiler.</p>
 <p>Plan 2 starts with a spike that proves three things: the link options, that the import list is exactly the three
 <code>morphir_bytes_v1</code> functions with no WASI, and that a conformance project fits the host limits.</p>
+<p><strong>Spike results (task group 4, 2026-10-30, MoonBit 0.10.17).</strong></p>
+<ul>
+<li><strong>Link options.</strong> <code>options(link: { "wasm": { "exports": [...], "export-memory-name": "memory",
+  "memory-limits": { "min": 1, "max": 4096 } } })</code> in <code>moon.pkg</code> gives:
+  <ul>
+  <li>exactly the three <code>morphir_bytes_v1</code> imports;</li>
+  <li>the exports <code>handle</code>, <code>memory</code> (maximum 4096 pages) and <code>_start</code>.</li>
+  </ul>
+  No post-build rewrite is needed.</li>
+<li><strong>Initialisation.</strong> Top-level values are set up by the module's start section during instantiation.
+  The worker host calls only <code>handle</code>, so the session can be a top-level value.</li>
+<li><strong>Measurements.</strong> A probe compiled every conformance project in one call under Bun's WebAssembly:
+  <ul>
+  <li>17 of 22 compile. The other 5 are the projects that need missing SDK modules.</li>
+  <li>The largest request is 62 KB, the largest v4 JSON model 82 KB, the longest call 42 ms, and the largest memory
+    6 MiB.</li>
+  <li>The release module is about 1 MB.</li>
+  </ul></li>
+</ul>
 
 <h3 id="id-1">ID-1. The MoonBit extension is <code>morphir-elm</code>, short id <code>elm</code></h3>
 <p>Damian decided this on 2026-10-30. The MoonBit CLI is the main Morphir CLI, and the MoonBit implementation is the
@@ -271,7 +290,7 @@ gain the label <code>repo:morphir-elm</code> when their work moves.</p>
 <table>
 <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
 <tbody>
-<tr><td>The host's 10 s call limit, 4 MiB request or 2 MiB model payload is too small for a large Elm project.</td><td>The spike measures the largest conformance project (expected IR about 990 KB JSON). If it is near a limit, raise it with the host owners under <code>morphir-ukvn.5.64.36</code> before the first release.</td></tr>
+<tr><td>The host's 10 s call limit, 4 MiB request or 2 MiB model payload is too small for a large Elm project.</td><td>The spike found wide margins for every project that compiles today (82 KB model, 42 ms). The largest project, <code>elm-reference-model</code>, does not compile yet (missing SDK modules). Its classic IR is 990 KB, and v4 JSON was about 1.5 times the classic size on <code>examples-tutorial</code>, so its model may come near 2 MiB. When it compiles, measure it again, and raise the limit with the host owners under <code>morphir-ukvn.5.64.36</code> if needed. The instruction budget of a metered engine (10<sup>9</sup> per call) was not measured; 42 ms of JIT time suggests a wide margin.</td></tr>
 <tr><td>The host does not send many documents yet.</td><td>The guest claims <code>multiDocument</code>, and the host spec already supports that claim. Our tests use our own Bun host, so we do not wait for the CLI.</td></tr>
 <tr><td>Admission may refuse a hand-rolled release, because <code>morphir extension publish</code> does not exist yet.</td><td>Follow the documented publish shape (REL-2). Releases stay previews until the publish command exists, and the workflow switches to it then.</td></tr>
 <tr><td><code>moon</code> treats <code>moonbit/.deps</code> or <code>moonbit/tooling</code> as packages of the module.</td><td>Task 1 checks this. If it happens, move the checkout to the repository-root <code>.deps/</code>.</td></tr>

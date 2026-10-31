@@ -37,20 +37,20 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
 
 ## 4. Spike: build and run the Elm guest under the host limits (morphir-ukvn.1.15.4)
 
-- [ ] 4.1 Build a minimal `moonbit/extension` main package that exports `handle` and echoes its input. Verify with a Bun script that the import list is exactly `morphir_bytes_v1.input_len`, `input_byte` and `output_byte`.
-- [ ] 4.2 Find how to set the memory maximum: a `moon` link option, or a post-build rewrite (design GST-2). Verify that the built module declares a maximum of 4096 pages or less.
-- [ ] 4.3 Compile the largest conformance project through the frontend inside the Wasm module. Record the request size, the response and model sizes, and the time per call. Verify them against 4 MiB, 2 MiB decoded and 10 s.
-- [ ] 4.4 Record the results in this change's `design.html` (GST-2 and Risks), and raise any limit problem under `morphir-ukvn.5.64.36`. Verify that `openspec validate move-moonbit-elm-extension --strict` passes.
+- [x] 4.1 Build a minimal `moonbit/extension` main package that exports `handle` and echoes its input. Verify with a Bun script that the import list is exactly `morphir_bytes_v1.input_len`, `input_byte` and `output_byte`.
+- [x] 4.2 Find how to set the memory maximum: a `moon` link option, or a post-build rewrite (design GST-2). Verify that the built module declares a maximum of 4096 pages or less.
+- [x] 4.3 Compile the largest conformance project through the frontend inside the Wasm module. Record the request size, the response and model sizes, and the time per call. Verify them against 4 MiB, 2 MiB decoded and 10 s.
+- [x] 4.4 Record the results in this change's `design.html` (GST-2 and Risks), and raise any limit problem under `morphir-ukvn.5.64.36`. Verify that `openspec validate move-moonbit-elm-extension --strict` passes.
 
 ## 5. Elm MEP guest over the morphir-bytes-v1 ABI (morphir-ukvn.1.15.5)
 
-- [ ] 5.1 Add a Bun test host (`moonbit/tooling/bytes-host.ts`) that instantiates a module with the three imports and calls `handle`. Verify it with tests for a response, a notification (-2), exit (0) and failure (-1).
-- [ ] 5.2 Implement describe and the session lifecycle (design GST-1). Verify with tests the claims in the `mep-guest` spec, the method-not-found error (-32601), and `handle` returning 0 after exit.
-- [ ] 5.3 Implement `morphir.frontend.compileModel` for many documents. Verify that, for each clean conformance project, the guest's model equals the module frontend's IR.
-- [ ] 5.4 Return source problems as diagnostics, and refuse package dependencies. Verify with tests for a port module (`elm.unsupported` with a location) and for a request with a dependency.
-- [ ] 5.5 Implement `morphir.backend.generateModel`. Verify that the files it returns for the acceptance projects compile with `elm make` 0.19.1.
-- [ ] 5.6 Add the `moonbit:package` task (it writes the module and its SHA-256 to `dist/elm-extension/artifacts/`) and a `guest` job in `elm-extension.yml`. Verify that the job passes in CI.
-- [ ] 5.7 Document the guest in `moonbit/README.md`: the ABI, the methods, the claims and the refusals. Open pull request 2 to `vnext`, then verify that CI passes and ask Damian to review.
+- [x] 5.1 Add a Bun test host (`moonbit/tooling/bytes-host.ts`) that instantiates a module with the three imports and calls `handle`. Verify it with tests for a response, a notification (-2), exit (0) and failure (-1).
+- [x] 5.2 Implement describe and the session lifecycle (design GST-1). Verify with tests the claims in the `mep-guest` spec, the method-not-found error (-32601), and `handle` returning 0 after exit.
+- [x] 5.3 Implement `morphir.frontend.compileModel` for many documents. Verify that, for each clean conformance project, the guest's model equals the module frontend's IR.
+- [x] 5.4 Return source problems as diagnostics, and refuse package dependencies. Verify with tests for a port module (`elm.unsupported` with a location) and for a request with a dependency.
+- [x] 5.5 Implement `morphir.backend.generateModel`. Verify that the files it returns for the acceptance projects compile with `elm make` 0.19.1.
+- [x] 5.6 Add the `moonbit:package` task (it writes the module and its SHA-256 to `dist/elm-extension/artifacts/`) and a `guest` job in `elm-extension.yml`. Verify that the job passes in CI.
+- [x] 5.7 Document the guest in `moonbit/README.md`: the ABI, the methods, the claims and the refusals. Open pull request 2 to `vnext`, then verify that CI passes and ask Damian to review.
 
 ## 6. Rename the JavaScript Elm extension to Elm classic (morphir-ukvn.1.15.7)
 

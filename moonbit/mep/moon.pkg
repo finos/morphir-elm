@@ -1,0 +1,24 @@
+// The MEP 0.2.0-draft.1 session of the Elm extension. It is pure: it takes one JSON-RPC message as text and returns
+// the reply, so it runs and is tested on every target. moonbit/extension adapts it to the morphir-bytes-v1 ABI.
+import {
+  "finos/morphir-elm/frontend",
+  "finos/morphir-elm/backend",
+  "finos/morphir-ir/json" @ir_json,
+  "finos/morphir-ir/versions/v4",
+  "moonbitlang/core/cmp",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/base64",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+}
+
+import {
+  "finos/morphir-elm/mep",
+  "finos/morphir-elm/frontend",
+  "finos/morphir-ir/json" @ir_json,
+  "moonbitlang/core/encoding/base64",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+} for "test"

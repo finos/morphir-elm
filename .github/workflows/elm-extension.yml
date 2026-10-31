@@ -93,3 +93,45 @@ jobs:
 
       - name: Require no difference
         run: git diff --exit-code -- moonbit/conformance
+
+  guest:
+    name: Build and test the Wasm extension
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Install tools from mise.toml and mise.moonbit.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: "2026.8.14"
+          sha256: >-
+            7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+          experimental: true
+          install_args: http:moonbit bun
+
+      - name: Build the Wasm module and its SHA-256
+        run: mise run moonbit:package
+
+      - name: Install elm for the generated-Elm checks
+        run: mise exec -- bun install --frozen-lockfile --cwd moonbit/scripts
+
+      # The ABI, describe, the session lifecycle, compile of every
+      # conformance project, and generated Elm that elm make accepts.
+      - name: Test the module through the morphir-bytes-v1 ABI
+        run: mise exec -- bun test moonbit/tests
+
+      - name: Upload the module
+        # actions/upload-artifact v4.6.2
+        uses: >-
+          actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: elm-extension-wasm
+          path: dist/elm-extension/artifacts/
+          if-no-files-found: error

@@ -30,6 +30,66 @@ files the generators read, sparse and shallow into `moonbit/.deps/morphir-moonbi
 `moonbit/moon.work` lists them. When finos/morphir-moonbit publishes a module (plan bead `morphir-ukvn.5.88`),
 import its published version in `moon.mod`, and remove it from `moon.work` and from the pin.
 
+## The extension
+
+`extension/` builds the Elm extension as one core WebAssembly module. `mep/` holds its MEP session, which works on
+every target, so `moonbit:test` tests it on all four.
+
+```shell
+MISE_ENV=moonbit mise run moonbit:package     # dist/elm-extension/artifacts/morphir-elm-<version>.wasm and .sha256
+bun install --frozen-lockfile --cwd moonbit/scripts
+bun test moonbit/tests                        # the packaged module through the ABI, with elm make
+```
+
+**ABI (`morphir-bytes-v1`).**
+
+- The module imports only `input_len () -> i32`, `input_byte (i32) -> i32` and `output_byte (i32) -> ()` from
+  module `morphir_bytes_v1`.
+- It exports `handle () -> i32` and one memory of at most 4096 pages (256 MiB). The start section sets up the
+  session, so a host calls only `handle`.
+- Each call takes one unframed JSON-RPC message. `handle` returns the length of the response, `-2` for a
+  notification, `0` after `morphir.exit`, and `-1` when the input is not UTF-8.
+
+**Protocol.** MEP `0.2.0-draft.1`, claim set `0.1.0-draft.2`. The methods:
+
+- `morphir.extension.describe`;
+- `morphir.initialize` and the `morphir.initialized` notification;
+- `morphir.frontend.compileModel`;
+- `morphir.backend.generateModel`;
+- `morphir.ping`;
+- `morphir.shutdown` and the `morphir.exit` notification.
+
+**Claims.**
+
+- Extension `morphir-elm`, with types `frontend` and `backend`.
+- Language `elm` with `.elm`, `multiDocument: true`, and backend target `elm`.
+- One model transport tuple for each operation: profile `morphir-ir`, codec `morphir-json`, envelope
+  `0.1.0-draft.1`, IR `4.0.0`.
+
+`initialize` keeps the offered tuples that the extension supports and the smaller value of each limit. It repeats the
+described frontend and backend claims.
+
+**Compile.** `compileModel` takes every module of one package in `sources.documents`. URIs are relative, or
+absolute under `sources.root`. The package's name is in `package.name`. Without `package.exposedModules`, every
+module of the package is exposed. The model is the frontend's IR, written as Morphir JSON, in base64 in a
+`single-document` payload with its length and SHA-256.
+
+**Generate.** `generateModel` checks the envelope, the payload digest and the limits. It reads the IR at format
+version 4, and returns the generated files as artifacts with `binary: false`. `options` is the `[backends.elm]`
+table described below.
+
+**Refusals.**
+
+| Case | Answer |
+| --- | --- |
+| Elm sources that do not compile | `success: false` with one diagnostic for each problem, with its code and location; no model |
+| A request with package dependencies | `success: false` with `elm.unsupported_dependencies`; dependency support is a follow-up |
+| A model over the agreed limits | `success: false` with `elm.model_limit` |
+| A malformed request, another language or target, a tuple that was not negotiated, a bad digest, or bad options | JSON-RPC error `-32602` |
+| A request before `initialize` or after `shutdown` | `-32014` |
+| An operation that was not negotiated | `-32013` |
+| An unknown method | `-32601` |
+
 ## Purpose
 
 `finos/morphir-elm` generates Elm source from current Morphir IR. The package `finos/morphir-elm/backend` lowers

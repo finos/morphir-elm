@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "finos/morphir-elm/mep"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub const CLAIMS_VERSION : String = "0.1.0-draft.2"
+
+pub const EXTENSION_ID : String = "morphir-elm"
+
+pub const PROTOCOL_VERSION : String = "0.2.0-draft.1"
+
+pub const TARGET : String = "elm"
+
+pub const UNSUPPORTED_DEPENDENCIES : String = "elm.unsupported_dependencies"
+
+pub const VERSION : String = "0.1.0"
+
+pub fn claims() -> Json
+
+// Errors
+
+// Types and methods
+pub(all) enum Reply {
+  Response(String)
+  Notified
+  Exited
+} derive(Eq, @debug.Debug)
+pub fn Reply::equal(Self, Self) -> Bool
+pub fn Reply::not_equal(Self, Self) -> Bool
+pub fn Reply::to_repr(Self) -> @debug.Repr
+
+pub struct Session {
+  // private fields
+}
+pub fn Session::exited(Self) -> Bool
+pub fn Session::new() -> Self
+pub fn Session::receive(Self, String) -> Reply
+
+// Type aliases
+
+// Traits
