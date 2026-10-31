@@ -25,6 +25,11 @@ permissions:
 env:
   MISE_ENV: moonbit
   MISE_AUTO_INSTALL: "false"
+  # Bun's JavaScriptCore gives wrong, varying answers for this module once its
+  # top WebAssembly tier (OMG) compiles it: the same module and request give
+  # different diagnostics from run to run. Node (V8), and Bun with OMG off,
+  # always give the same answers. moonbit/tests refuses to run without this.
+  BUN_JSC_useOMGJIT: "0"
 
 jobs:
   test:
