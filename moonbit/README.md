@@ -1,5 +1,35 @@
 # Morphir Elm
 
+This is the MoonBit Elm extension of finos/morphir-elm: the MoonBit module `finos/morphir-elm`, with an Elm frontend
+(Elm source to Morphir IR) and an Elm backend (Morphir IR to Elm source). It is released as the Elm extension,
+`morphir-elm`, for the MoonBit Morphir CLI. The JavaScript Elm frontend in `cli2/mep` is the Elm classic extension.
+
+## In this repository
+
+The module came from finos/morphir-moonbit `pkgs/morphir-elm` at commit `fe9ca3dc393bfdde7eb1c8edfa90dd4ac653b984`,
+with its git history. Elm changes are made here only; the copy in finos/morphir-moonbit is frozen until it is
+removed.
+
+MoonBit comes from `mise.moonbit.toml` in the repository root. Run the MoonBit tasks with `MISE_ENV=moonbit`:
+
+```shell
+MISE_ENV=moonbit mise run moonbit:deps            # check out the pinned finos/morphir-moonbit modules
+MISE_ENV=moonbit mise run moonbit:check           # moon check, moon fmt --check, current interfaces
+MISE_ENV=moonbit mise run moonbit:test            # tests on wasm, wasm-gc, js and native
+MISE_ENV=moonbit mise run moonbit:test wasm       # tests on one target
+MISE_ENV=moonbit mise run moonbit:test:elm        # elm make on the generated projects
+MISE_ENV=moonbit mise run moonbit:parity-refresh  # regenerate the parity data with morphir-elm 2.100.0
+```
+
+The tasks run `moon` in `moonbit/` and pass the module's package directories, so `moon` acts on this module only.
+Windows is not supported for these tasks.
+
+`finos/morphir-ir`, `finos/morphir-sdk-spec` and `finos/morphir-typing` are not on mooncakes yet.
+`moonbit/deps.toml` pins one finos/morphir-moonbit commit, and `moonbit:deps` checks out those modules, and the
+files the generators read, sparse and shallow into `moonbit/.deps/morphir-moonbit` (ignored by git).
+`moonbit/moon.work` lists them. When finos/morphir-moonbit publishes a module (plan bead `morphir-ukvn.5.88`),
+import its published version in `moon.mod`, and remove it from `moon.work` and from the pin.
+
 ## Purpose
 
 `finos/morphir-elm` generates Elm source from current Morphir IR. The package `finos/morphir-elm/backend` lowers
@@ -90,11 +120,11 @@ Elm imports that module by default.
 
 ### The built-in table
 
-`scripts/generate-builtin-mapping.py` writes `backend/mapping_builtin.mbt` from
-`pkgs/morphir-sdk/conformance/bindings.json`. The script maps every binding whose `semanticSource` is
+`scripts/generate-builtin-mapping.py` writes `mapping/builtin.mbt` from finos/morphir-moonbit
+`pkgs/morphir-sdk/conformance/bindings.json`, read from the pinned checkout. The script maps every binding whose `semanticSource` is
 `elm/core 1.0.5` to the elm/core function of the same name. It adds a hand-written list of types, constructors and
 operators. The table has elm/core semantics only. Other SDK references stay qualified, for example
-`Morphir.SDK.LocalDate.addDays`. Do not edit `mapping_builtin.mbt` by hand. Run the script again.
+`Morphir.SDK.LocalDate.addDays`. Do not edit `mapping/builtin.mbt` by hand. Run the script again.
 
 Every built-in entry is fully qualified, for example `Basics.max`, `Maybe.Just` or `Basics.Int`. The backend writes
 the name bare (`max`, `Just`, `Int`) only when a default import exposes it and nothing can capture it. A lower-case
@@ -390,13 +420,13 @@ morphir-ukvn.5.22.3.4).
 ## Tests
 
 ```shell
-moon test pkgs/morphir-elm/backend       # unit and generation tests
-moon test pkgs/morphir-elm/conformance   # frontend parity with morphir-elm make and the IR round trip
-mise run test:elm                        # elm make on the generated fixture projects
-mise run elm:parity-refresh              # regenerate the parity corpus after a project change
+moon test backend                                 # in moonbit/: unit and generation tests
+moon test conformance                             # in moonbit/: parity with morphir-elm make and the IR round trip
+MISE_ENV=moonbit mise run moonbit:test:elm        # elm make on the generated fixture projects
+MISE_ENV=moonbit mise run moonbit:parity-refresh  # regenerate the parity corpus after a project change
 ```
 
-The parity test compiles each Elm project in `pkgs/morphir-elm/conformance/projects` with `compile_project` and
+The parity test compiles each Elm project in `conformance/projects` with `compile_project` and
 compares the result with `expected/morphir-ir.json`, the output of the pinned npm `morphir-elm` 2.100.0. It
 compares the modules, types and values, with their access and docs, the type definitions, the value inputs and
 output, and the shape of each value body. The declared input, output and let signature types compare exactly,
@@ -433,12 +463,13 @@ drops, so the generated Elm imports modules that do not exist (morphir-ukvn.5.22
 first-pass signatures of unannotated values (`un : t0`) are annotations that Elm and the frontend refuse
 (morphir-ukvn.5.22.3.9).
 
-After you change a project, run `mise run elm:parity-refresh` from the repository root. It needs network access
+After you change a project, run `MISE_ENV=moonbit mise run moonbit:parity-refresh`. It needs network access
 for `bun install --frozen-lockfile`. It runs `morphir-elm make` on every project and writes `expected/morphir-ir.json` and
-`parity_data_wbtest.mbt`, both with the IR as compact JSON. Commit both. CI runs the refresh in the native build job and fails when `pkgs/morphir-elm/conformance` changes.
+`parity_data_wbtest.mbt`, both with the IR as compact JSON. Commit both. The `elm` job of the Elm extension
+workflow runs the refresh and fails when `moonbit/conformance` changes.
 
-`mise run test:elm` installs the pinned npm `elm` 0.19.1 package in `scripts/` and runs
-`scripts/test-elm-make.mts`. The script runs `pkgs/morphir-elm/acceptance`, which prints the generated projects for
+`moonbit:test:elm` installs the pinned npm `elm` 0.19.1 package from `scripts/bun.lock` and runs
+`scripts/test-elm-make.mts`. The script runs `acceptance`, which prints the generated projects for
 the fixtures `rentals`, `shapes` and `specs` as JSON. It writes each project to a temporary directory and runs
 `elm make` on its modules. The `specs` project uses `placeholders = "debug-todo"`. The first run needs network access,
-because `elm make` downloads its packages. CI runs this task in the native build job.
+because `elm make` downloads its packages. The `elm` job of the Elm extension workflow runs this task.

@@ -24,8 +24,8 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
 
 ## 3. Pull-request CI and docs for the MoonBit Elm module (morphir-ukvn.1.15.3)
 
-- [ ] 3.1 Add `.github/workflows/elm-extension.yml` with the `test` and `elm` jobs (design CI-1), with actions pinned by SHA. Verify that `actionlint` reports nothing for the file.
-- [ ] 3.2 Write `moonbit/README.md`:
+- [x] 3.1 Add `.github/workflows/elm-extension.yml` with the `test` and `elm` jobs (design CI-1), with actions pinned by SHA. Verify that `actionlint` reports nothing for the file.
+- [x] 3.2 Write `moonbit/README.md`:
   - how to build and test with `MISE_ENV=moonbit`;
   - the pin, and when to remove it;
   - `IMPORT_SHA`;

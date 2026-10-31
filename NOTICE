@@ -3,3 +3,12 @@ Copyright 2014 - 2020 Morgan Stanley
 
 This product includes software developed at the Fintech Open Source Foundation (https://www.finos.org/).
 This product includes software developed at Morgan Stanley.
+
+The MoonBit Elm extension in moonbit/ came from finos/morphir-moonbit
+(Copyright 2026 - FINOS, Apache License 2.0).
+
+The MoonBit Elm extension uses these MoonBit modules, each under the Apache
+License 2.0: moonrockz/krueger, moonrockz/expect, moonrockz/pretty,
+moonbitlang/x, moonbitlang/async, moonbit-community/casefold,
+moonbit-community/charclass, moonbit-community/cmark and
+moonbit-community/ucd.
