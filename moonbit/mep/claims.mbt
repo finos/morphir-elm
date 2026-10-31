@@ -4,7 +4,7 @@ pub const EXTENSION_ID : String = "morphir-elm"
 
 ///|
 /// The extension version. It equals the version in moonbit/moon.mod; a tool test checks this.
-pub const VERSION : String = "0.1.0"
+pub const VERSION : String = "0.5.0-preview.1"
 
 ///|
 pub const PROTOCOL_VERSION : String = "0.2.0-draft.1"

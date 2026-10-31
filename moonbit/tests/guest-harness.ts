@@ -1,6 +1,6 @@
 // Drives the packaged Elm extension module through MEP sessions, as the MoonBit CLI's worker host does.
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { BytesSession, wasmGuest } from "../tooling/bytes-host";
 
 export const MOONBIT = join(import.meta.dir, "..");
@@ -59,7 +59,8 @@ export function readProject(name: string): Project {
     for (const entry of readdirSync(d).sort()) {
       const p = join(d, entry);
       if (statSync(p).isDirectory()) walk(p);
-      else if (entry.endsWith(".elm")) documents.push({ uri: relative(root, p), text: readFileSync(p, "utf8") });
+      // URIs use "/" on every platform, as the MoonBit CLI sends them.
+      else if (entry.endsWith(".elm")) documents.push({ uri: relative(root, p).split(sep).join("/"), text: readFileSync(p, "utf8") });
     }
   };
   walk(root);

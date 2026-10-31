@@ -26,7 +26,7 @@ This repository holds two Elm frontends that the Morphir CLI runs as extensions:
 
 | Extension | Implementation | Source | Status |
 |---|---|---|---|
-| Elm extension | MoonBit, one portable WebAssembly module | [`moonbit/`](moonbit/README.md) | In development. It will be released as `morphir-elm` on `extension/elm/v*` tags, from `0.5.0`. |
+| Elm extension | MoonBit, one portable WebAssembly module | [`moonbit/`](moonbit/README.md) | Released as `morphir-elm` on `extension/elm/v*` tags, from `0.5.0-preview.1`. Previews until it supports package dependencies. |
 | Elm classic extension | JavaScript, one executable for each platform | `cli2/mep` | Released as `morphir-elm-classic` on `extension/elm-classic/v*` tags, from `0.5.0`. Its releases `0.1.0` to `0.4.1` were named `morphir-elm`, on `extension/elm/v*` tags. |
 
 See [DEVELOPING.md](DEVELOPING.md) for how to build, test and release them.

@@ -1,0 +1,260 @@
+---
+name: Elm extension release
+
+# The Elm extension (morphir-elm, built from moonbit/) is released on its own
+# tag, extension/elm/v<version>, as one portable Wasm module with a version-2
+# bundle descriptor. The version comes from moonbit/moon.mod and must be
+# greater than 0.4.1, the last JavaScript release on these tags. vnext is the
+# release branch: a tag that does not point to a commit on vnext is refused.
+
+on:  # yamllint disable-line rule:truthy
+  push:
+    tags:
+      - "extension/elm/v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, for example extension/elm/v0.5.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: elm-extension-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  MISE_AUTO_INSTALL: "false"
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RELEASE_BRANCH: vnext
+
+jobs:
+  build:
+    name: Build, test and describe the module
+    runs-on: ubuntu-24.04
+    env:
+      MISE_ENV: moonbit
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      commit: ${{ steps.release.outputs.commit }}
+      sha256: ${{ steps.digest.outputs.sha256 }}
+      session: ${{ steps.session.outputs.digest }}
+    steps:
+      - name: Check out the release tag
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require a commit on the release branch and a new release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          commit="$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")"
+          git fetch --no-tags origin "$RELEASE_BRANCH"
+          if ! git merge-base --is-ancestor "$commit" FETCH_HEAD; then
+            echo "::error::${RELEASE_TAG} is not on ${RELEASE_BRANCH}"
+            exit 1
+          fi
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            echo "::error::${RELEASE_TAG} already has a GitHub release"
+            exit 1
+          fi
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG##*/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install tools from mise.toml and mise.moonbit.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: "2026.8.14"
+          sha256: >-
+            7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+          experimental: true
+          install_args: http:moonbit bun
+
+      - name: Install elm for the generated-Elm checks
+        run: bun install --frozen-lockfile --cwd moonbit/scripts
+
+      - name: Test the module's sources
+        run: |
+          mise exec -- bun test moonbit/tooling
+          mise run moonbit:test
+
+      # The task refuses a tag whose version differs from moonbit/moon.mod or
+      # is not greater than 0.4.1. It writes the claims from the module's own
+      # describe answer into the descriptor.
+      - name: Build, package and describe the release
+        env:
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+        run: >-
+          mise run release:elm-extension --
+          "$RELEASE_TAG" "$RELEASE_COMMIT"
+
+      - name: Test the packaged module
+        env:
+          ELM_EXTENSION_WASM: >-
+            dist/elm-extension-release/morphir-elm-${{
+            steps.release.outputs.version }}.wasm
+        run: mise exec -- bun test moonbit/tests
+
+      - name: Verify the checksum and record the digest
+        id: digest
+        working-directory: dist/elm-extension-release
+        run: |
+          sha256sum --check ./*.sha256
+          echo "sha256=$(cut -d ' ' -f 1 ./*.sha256)" >> "$GITHUB_OUTPUT"
+
+      - name: Record the session digest
+        id: session
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          digest="$(mise exec -- bun moonbit/tests/session-digest.ts \
+            "dist/elm-extension-release/morphir-elm-${VERSION}.wasm")"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the release files
+        # actions/upload-artifact v4.6.2
+        uses: >-
+          actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: elm-extension-release
+          path: dist/elm-extension-release/
+          if-no-files-found: error
+
+  test:
+    name: Same answers on ${{ matrix.platform }}
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        # Executable hashes come from mise v2026.8.14 SHASUMS256.txt.
+        include:
+          - runner: ubuntu-24.04
+            platform: linux-x64
+            mise-sha256: >-
+              7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+          - runner: macos-15
+            platform: macos-arm64
+            mise-sha256: >-
+              ba93b3fe7e47964e4392d40c8b7bfa5740e8c2a0a575e3e86268e9764082ed3e
+          - runner: windows-11-arm
+            platform: windows-arm64
+            mise-sha256: >-
+              48c7e0ca372e51393dc518698cfd4c53791f6f7a42be1fb179179a17489bc237
+    steps:
+      - name: Check out the release tag
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Install Bun from mise.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: "2026.8.14"
+          sha256: ${{ matrix.mise-sha256 }}
+          experimental: true
+          install_args: bun
+
+      - name: Download the release files
+        # actions/download-artifact v4.3.0
+        uses: >-
+          actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: elm-extension-release
+          path: release
+
+      - name: Require the tested bytes and the same answers
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
+          EXPECTED_SESSION: ${{ needs.build.outputs.session }}
+        run: |
+          module="release/morphir-elm-${VERSION}.wasm"
+          sha256="$(mise exec -- bun -e \
+            "const c=require('node:crypto');const f=require('node:fs');console.log(c.createHash('sha256').update(f.readFileSync(process.argv[1])).digest('hex'))" \
+            "$module")"
+          test "$sha256" = "$EXPECTED_SHA256"
+          session="$(mise exec -- bun moonbit/tests/session-digest.ts "$module")"
+          if [ "$session" != "$EXPECTED_SESSION" ]; then
+            echo "::error::session digest $session differs from $EXPECTED_SESSION"
+            exit 1
+          fi
+
+  publish:
+    name: Attest and publish the GitHub release
+    needs: [build, test]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the release files
+        # actions/download-artifact v4.3.0
+        uses: >-
+          actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: elm-extension-release
+          path: release
+
+      - name: Require the tested bytes
+        working-directory: release
+        env:
+          EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          sha256sum --check ./*.sha256
+          test "$(cut -d ' ' -f 1 ./*.sha256)" = "$EXPECTED_SHA256"
+
+      # A repository owner verifies the publisher as finos/morphir-elm and
+      # this workflow.
+      - name: Attest the module
+        # actions/attest v4.2.2
+        uses: >-
+          actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: release/*.wasm
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+          NOTES: >-
+            Morphir Elm extension (morphir-elm), the MoonBit Elm frontend and
+            backend as one portable WebAssembly module for the MoonBit Morphir
+            CLI (MEP 0.2.0-draft.1, morphir-bytes-v1 ABI). The module has a
+            GitHub artifact attestation. Put the .wasm file, its .sha256 file
+            and the .release.json file, renamed to release.json, in one
+            directory to publish the bundle to an extension repository. The
+            JavaScript Elm frontend is the Elm classic extension,
+            morphir-elm-classic, on extension/elm-classic/v* tags.
+        run: |
+          flags=()
+          case "$VERSION" in
+            *-*) flags+=(--prerelease) ;;
+          esac
+          gh release create "$RELEASE_TAG" release/* \
+            --verify-tag \
+            --latest=false \
+            --title "Morphir Elm extension v${VERSION}" \
+            --notes "$NOTES" \
+            "${flags[@]}"
