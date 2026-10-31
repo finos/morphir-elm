@@ -1,0 +1,25 @@
+# MoonBit tools for the Elm extension in moonbit/. Use them with MISE_ENV=moonbit,
+# for example: MISE_ENV=moonbit mise run moonbit:test
+#
+# The version and recipe are the same as finos/morphir-moonbit
+# .config/mise/config.toml. mise cannot resolve "latest" for an http: tool. To
+# move to a newer release, change the version here and in each URL (with "+"
+# written as "%2B"), taken from https://cli.moonbitlang.com/binaries/<version>/.
+# Windows is not supported here.
+
+[tools."http:moonbit"]
+version = "0.10.17+d971670cd"
+bin_path = "bin"
+# The archive alone has no core or moonx. The upstream Unix installer completes
+# the install for the exact version.
+postinstall = """
+bash -c 'set -euo pipefail; export PATH="$MISE_TOOL_INSTALL_PATH/bin:$PATH"; curl -fsSL https://cli.moonbitlang.com/install/unix.sh | MOON_HOME="$MISE_TOOL_INSTALL_PATH" bash -s -- "$MISE_TOOL_VERSION"'
+"""
+
+[tools."http:moonbit".platforms]
+linux-x64 = { url = "https://cli.moonbitlang.com/binaries/0.10.17%2Bd971670cd/moonbit-linux-x86_64.tar.gz" }
+linux-arm64 = { url = "https://cli.moonbitlang.com/binaries/0.10.17%2Bd971670cd/moonbit-linux-aarch64.tar.gz" }
+macos-arm64 = { url = "https://cli.moonbitlang.com/binaries/0.10.17%2Bd971670cd/moonbit-darwin-aarch64.tar.gz" }
+
+[env]
+MOON_HOME = { value = "{{ tools['http:moonbit'].path }}", tools = true }

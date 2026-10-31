@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>move-moonbit-elm-extension: design</title>
+<!--
+  Agent document template (docs/templates/agent-document.html). Specs, plans and reports that a person reviews
+  start from this file: copy it, keep the <head> as it is, and write the content inside <main>.
+  Styles and scripts are files in docs/templates/assets/, referenced and not embedded. In a copy, change the
+  "assets/" prefix of each href and src to the relative path from the copy to that directory, for example
+  "../../docs/templates/assets/" from .dev/beads-specs/. See AGENTS.md, "Specs and plans are HTML documents".
+  Code goes in <pre><code class="language-elm"> (or typescript, json, toml, bash, diff). Give sections an id and
+  list them in nav.toc.
+-->
+<link rel="stylesheet" href="../../../docs/templates/assets/agent-document.css">
+<link rel="stylesheet" href="../../../docs/templates/assets/highlight/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="../../../docs/templates/assets/highlight/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<script defer src="../../../docs/templates/assets/highlight/highlight.min.js"></script>
+<script defer src="../../../docs/templates/assets/highlight/languages/elm.min.js"></script>
+<script defer src="../../../docs/templates/assets/agent-document.js"></script>
+</head>
+<body>
+<main>
+<h1>move-moonbit-elm-extension: design</h1>
+<p class="meta">OpenSpec change · Bead <code>morphir-ukvn.1.15</code> · 2026-10-30 · approved by Damian; revised the same day so that the MoonBit extension is the Elm extension and the JavaScript one is Elm classic</p>
+
+<nav class="toc" aria-label="Contents">
+<ul>
+<li><a href="#context">Context</a></li>
+<li><a href="#goals">Goals and non-goals</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#risks">Risks and trade-offs</a></li>
+<li><a href="#migration">Migration plan</a></li>
+<li><a href="#open-questions">Open questions</a></li>
+</ul>
+</nav>
+
+<h2 id="context">Context</h2>
+<p>See proposal.md for the motivation. These facts shape the approach. Each one is from <code>origin/main</code> of
+finos/morphir-moonbit on 2026-10-30, unless the text says otherwise.</p>
+<ul>
+<li><strong>The code.</strong> <code>pkgs/morphir-elm</code> is module <code>finos/morphir-elm</code> 0.1.0, about 22,000
+  lines of MoonBit, plus 5 MB of conformance data. It has 14 commits since 2026-10-04 and no directory renames. Two
+  scripts outside it belong to it: <code>scripts/elm-parity-refresh.mbtx</code> and
+  <code>scripts/elm-make-check.mbtx</code>.</li>
+<li><strong>Its dependencies.</strong> It imports <code>finos/morphir-ir</code>, <code>finos/morphir-sdk-spec</code>
+  and <code>finos/morphir-typing</code>. They are not on mooncakes; they resolve only through the root
+  <code>moon.work</code>. Damian asked the morphir-moonbit session to publish them.</li>
+<li><strong>The host contract.</strong> The MoonBit CLI's new host (<code>morphir-ukvn.5.64.36</code>,
+  <code>host-extensions-as-workers</code>) and its acquisition (<code>morphir-ukvn.5.64.34</code>,
+  <code>acquire-extensions-from-repositories</code>) fix the publisher side:
+  <ul>
+  <li>The descriptor is <code>release.json</code> <code>2.0.0-draft.2</code>, with <code>runtime</code>
+    <code>wasm</code> or <code>process</code>.</li>
+  <li>A Wasm artifact has no <code>platform</code>. The host recognises the ABI from the module's imports
+    (<code>morphir-bytes-v1</code> or <code>extism-kernel-v1</code>).</li>
+  <li>A bundle holds the descriptor, its artifacts and one checksum per artifact, and nothing else.</li>
+  <li>The publish flow attests the artifacts with <code>actions/attest@v4</code>.</li>
+  <li>The host sends more than one document only to a frontend that claims <code>multiDocument</code>.</li>
+  <li>Bytes guests get 10 s per call, a 4 MiB request, a 16 MiB response and a 2 MiB decoded model payload.</li>
+  <li>The old <code>core-wasm-process</code> pin, its <code>manifest.ion</code> and the profile
+    <code>morphir/mep-bytes-v1/v1-draft</code> are retired.</li>
+  </ul></li>
+<li><strong>The existing MEP code cannot serve Elm.</strong> morphir-moonbit's <code>finos/morphir-moonbit/mep</code>
+  <code>Session</code> takes one <code>CompileInput</code> document and returns a MoonBit-only type, and it refuses
+  more than one document.</li>
+<li><strong>This repository.</strong> It already releases the JavaScript extension <code>morphir-elm</code> from
+  <code>cli2/mep</code> on <code>extension/elm/v*</code> tags, with <code>vnext</code> as the release branch. The
+  releases <code>v0.1.0</code> to <code>v0.4.1</code> exist, and finos/morphir pins <code>v0.4.1</code>. Its mise
+  tasks are Bun TypeScript in <code>.mise/tasks/</code>, and its Bun workspace is <code>packages/*</code>.</li>
+</ul>
+
+<h2 id="goals">Goals and non-goals</h2>
+<p><strong>Goals:</strong></p>
+<ul>
+<li>The module builds and tests here without a full morphir-moonbit checkout.</li>
+<li>The guest needs no host tooling from morphir-moonbit to build or test.</li>
+<li>Every release is reproducible from its tag, and its bytes are the bytes that CI tested.</li>
+</ul>
+<p><strong>Non-goals:</strong></p>
+<ul>
+<li>Package dependencies, incremental compile and the missing SDK modules. These are follow-ups; the guest refuses
+  dependencies explicitly.</li>
+<li>A browser demo. The host change owns the browser worker.</li>
+<li><code>morphir extension publish</code>. It does not exist yet; the release workflow follows its documented
+  shape so it can switch later.</li>
+<li>Changes in finos/morphir-moonbit or finos/morphir.</li>
+</ul>
+
+<h2 id="decisions">Decisions</h2>
+
+<h3 id="lay-1">LAY-1. Import with history into <code>moonbit/</code></h3>
+<p>Use <code>git filter-repo</code> on a fresh clone at a recorded commit (<code>IMPORT_SHA</code>):</p>
+<ul>
+<li>keep <code>pkgs/morphir-elm/</code> and <code>scripts/elm-parity-refresh.mbtx</code>;</li>
+<li>rename them to <code>moonbit/</code> and <code>moonbit/scripts/</code>;</li>
+<li>rewrite <code>(#N)</code> in commit messages to <code>(finos/morphir-moonbit#N)</code>, so GitHub does not link
+  them to this repository's pull requests.</li>
+</ul>
+<p>Merge the result with <code>--allow-unrelated-histories</code>. The pull request lands with a merge commit, as
+Damian approved.</p>
+<p>A top-level <code>moonbit/</code> keeps MoonBit away from the Bun workspace (<code>packages/*</code>) and from the
+Elm sources in <code>src/</code>. <code>elm-make-check.mbtx</code> only runs <code>bun install</code> and a Node script,
+so a Bun task replaces it.</p>
+<p><em>Alternatives:</em></p>
+<ul>
+<li>A one-commit copy loses the history, which is small enough to keep.</li>
+<li><code>packages/morphir-elm-moonbit</code> would put a MoonBit module inside the Bun workspace glob.</li>
+</ul>
+
+<h3 id="dep-1">DEP-1. Pinned sparse checkout until the modules are published</h3>
+<p><code>moonbit/deps.toml</code> records one morphir-moonbit commit and the paths needed: the three modules, plus
+<code>pkgs/morphir-sdk/conformance</code> for the mapping generator. The <code>moonbit:deps</code> task makes
+<code>moonbit/.deps/morphir-moonbit</code> (git-ignored) hold exactly those paths at that commit, and
+<code>moonbit/moon.work</code> lists the module paths. When the modules are on mooncakes, <code>moon.mod</code> uses the
+registry versions and the module paths leave the pin.</p>
+<p>The publication is planned in finos/morphir-moonbit as plan bead <code>morphir-ukvn.5.88</code> and open
+<a href="https://github.com/finos/morphir-moonbit/pull/275">PR #275</a>. All three modules are public in its
+inventory, with one shared first version, <code>0.1.0</code>. A maintainer-created <code>v0.1.0</code> tag starts the
+release workflow, which publishes with the <code>finos</code> mooncakes account. Consumers need stock moonc 0.10.16 or
+later. Task 4 (<code>morphir-ukvn.5.88.4</code>) records the release.</p>
+<p><em>Alternatives:</em></p>
+<ul>
+<li>A git submodule brings the whole monorepo and affects every JavaScript contributor.</li>
+<li>Copying the modules would make a third copy that drifts.</li>
+</ul>
+
+<h3 id="tool-1">TOOL-1. MoonBit through a mise environment</h3>
+<p><code>mise.moonbit.toml</code> (used with <code>MISE_ENV=moonbit</code>, like the existing
+<code>mise.ci-windows.toml</code>) pins MoonBit <code>0.10.17+d971670cd</code> with morphir-moonbit's
+<code>http:moonbit</code> recipe, on linux-x64, linux-arm64 and macos-arm64. JavaScript contributors install nothing
+new. The MoonBit tasks live in <code>.mise/tasks/moonbit/</code>, run <code>moon</code> with <code>cwd</code>
+<code>moonbit/</code>, and fail early with a message that names <code>MISE_ENV=moonbit</code>.</p>
+<p><em>Alternative:</em> MoonBit in the root <code>mise.toml</code>. Then every JavaScript CI job and contributor would
+download it.</p>
+
+<h3 id="ci-1">CI-1. One pull-request workflow, two jobs</h3>
+<p><code>elm-extension.yml</code> runs on pull requests to <code>vnext</code> that touch <code>moonbit/**</code>, the mise
+environment, the MoonBit tasks or the workflow itself.</p>
+<ul>
+<li><strong>test:</strong> the pin unit tests, <code>moonbit:check</code> (check, formatting and interfaces), and
+  <code>moonbit:test</code> on four targets.</li>
+<li><strong>elm:</strong> <code>elm make</code> on the generated projects, and the parity refresh followed by
+  <code>git diff --exit-code</code>.</li>
+</ul>
+<p>Plan 2 adds a <strong>guest</strong> job to this workflow. Actions are pinned by SHA, as in the existing
+workflows.</p>
+
+<h3 id="gst-1">GST-1. A session written for Elm in <code>moonbit/extension</code></h3>
+<p>The guest has its own small MEP session. It handles describe, initialize, initialized, compileModel, generateModel,
+shutdown and exit, and calls the module's frontend and backend directly. It reuses the model transport encoding from
+<code>finos/morphir-ir</code> (wire and versioned JSON) so that its model payloads match what the host expects.</p>
+<p><em>Alternative:</em> make morphir-moonbit's <code>Session</code> generic. That is a cross-repository change on a
+critical path, and that session is built around one MoonBit document. We record it as a possible later convergence;
+the spec, not shared code, keeps the two sessions compatible.</p>
+
+<h3 id="gst-2">GST-2. Build with <code>moon</code> and test with Bun's WebAssembly</h3>
+<p>The guest is built with <code>moon build --target wasm --release</code>, and <code>handle</code> is exported
+through the package's link options.</p>
+<p>If <code>moon</code> cannot set a memory maximum, a small post-build step sets it to 4096 pages. That step is like
+morphir-moonbit's <code>wasm-memory.mjs</code>.</p>
+<p>Tests instantiate the module in Bun with a host written for the test. It provides the three imports and calls
+<code>handle</code>, the same way the MoonBit CLI's worker does. A <code>moonbit:package</code> task writes the module
+and its SHA-256.</p>
+<p><em>Alternative:</em> package with morphir-moonbit's <code>node-package-mep.mts</code>. It writes the retired
+<code>manifest.ion</code> and depends on that repository's in-process compiler.</p>
+<p>Plan 2 starts with a spike that proves three things: the link options, that the import list is exactly the three
+<code>morphir_bytes_v1</code> functions with no WASI, and that a conformance project fits the host limits.</p>
+
+<h3 id="id-1">ID-1. The MoonBit extension is <code>morphir-elm</code>, short id <code>elm</code></h3>
+<p>Damian decided this on 2026-10-30. The MoonBit CLI is the main Morphir CLI, and the MoonBit implementation is the
+Elm frontend it uses, so that implementation takes the plain Elm name. Its tags are <code>extension/elm/v*</code>, the
+same line as the earlier JavaScript releases. Versions go on from <code>0.4.1</code>: the first release is
+<code>0.5.0-preview.1</code>, so a host that orders <code>morphir-elm</code> versions never sees the new extension as
+older. This also matches the provider id <code>finos/morphir-elm</code> that the MoonBit CLI uses for the built-in
+frontend today.</p>
+<p>Both extensions claim <code>elm</code>. A host with both installed must choose: the acquisition spec fails on
+ambiguity, and offers the index's <code>recommended</code> provider first.</p>
+<p><em>Alternative:</em> a new id, <code>morphir-elm-moonbit</code>, which was approved first. It would leave the plain
+name on the implementation that the main CLI does not use.</p>
+
+<h3 id="cls-1">CLS-1. The JavaScript extension becomes Elm classic (BREAKING)</h3>
+<p>The changes:</p>
+<ul>
+<li><code>cli2/mep/extension.json</code>: id <code>morphir-elm-classic</code>, short id <code>elm-classic</code>, name
+  <code>Morphir Elm classic frontend</code>, version <code>0.5.0</code>.</li>
+<li>Tags: <code>parseReleaseTag</code> already builds the tag from the short id, so classic tags become
+  <code>extension/elm-classic/v*</code>.</li>
+<li>File names: the archive, raw executable and descriptor names in <code>cli2/mep/release.ts</code>, and the
+  executable name, become <code>morphir-elm-classic-extension</code>.</li>
+<li>Workflows: <code>mep-extension.yml</code> becomes <code>elm-classic-extension.yml</code>, and
+  <code>mep-extension-release.yml</code> becomes <code>elm-classic-extension-release.yml</code>, with
+  <code>actions/attest@v4</code> on the archives and raw executables. The tag filter becomes
+  <code>extension/elm-classic/v*</code>.</li>
+<li>Tasks: <code>build:mep-extension</code> becomes <code>build:elm-classic-extension</code>, and
+  <code>release:mep-extension</code> becomes <code>release:elm-classic-extension</code>.</li>
+<li>Internal names do not change: <code>cli2/mep</code>, <code>tests-integration/mep-extension.test.ts</code> and
+  <code>MORPHIR_ELM_EXTENSION_BIN</code>.</li>
+</ul>
+<p>The workflow files are renamed now, before any index registers a workflow path as the trusted signer.</p>
+<p>Migration: the releases <code>extension/elm/v0.1.0</code> to <code>v0.4.1</code> stay as they are, so existing pins
+work. A consumer that wants a newer JavaScript release switches to the classic id, tag prefix and file names. The
+version jumps to <code>0.5.0</code> because the id change breaks consumers that install by id.</p>
+<p>This rename is task group 6. It must land before the Elm extension's release workflow (group 7), because until then
+both workflows would start on <code>extension/elm/v*</code> tags.</p>
+
+<h3 id="rel-1">REL-1. A single-artifact Wasm bundle</h3>
+<pre><code class="language-bash">morphir-elm-0.5.0-preview.1.wasm
+morphir-elm-0.5.0-preview.1.wasm.sha256
+morphir-elm-0.5.0-preview.1.release.json   # published name of release.json
+</code></pre>
+<pre><code class="language-json">{
+  "schemaVersion": "2.0.0-draft.2",
+  "extensionId": "morphir-elm",
+  "shortId": "elm",
+  "version": "0.5.0-preview.1",
+  "gitCommit": "&lt;40-hex tagged commit&gt;",
+  "platformDifferences": "none",
+  "artifacts": [{
+    "runtime": "wasm",
+    "filename": "morphir-elm-0.5.0-preview.1.wasm",
+    "sha256": "&lt;64-hex&gt;",
+    "claims": { "claimsVersion": "0.1.0-draft.2", "...": "from describe" },
+    "claimCheck": "checked"
+  }]
+}</code></pre>
+<p>The release task gets <code>claims</code> by running describe on the built module, so the descriptor cannot drift
+from the guest. This replaces the provisional <code>runtime: "core-wasm"</code>, <code>manifest</code> and
+<code>executionProfile</code> in the approved plan: the host specs define none of them, and the profile is
+retired.</p>
+<p>No ABI member is written, because the descriptor field is not defined yet; the host recognises the ABI from the
+imports. The JavaScript release also publishes the descriptor as <code>&lt;name&gt;.release.json</code>, and users
+rename it to <code>release.json</code>, until <code>morphir extension publish</code> exists.</p>
+
+<h3 id="rel-2">REL-2. Hand-rolled release in the shape of the publish command</h3>
+<p><code>elm-extension-release.yml</code> runs on <code>extension/elm/v*</code> tags and on
+<code>workflow_dispatch</code>:</p>
+<ol>
+<li><strong>build:</strong>
+  <ul>
+  <li>refuse a tag that is not on <code>vnext</code>, whose version differs from <code>moonbit/moon.mod</code>, whose
+    version is not greater than <code>0.4.1</code>, or that already has a GitHub release;</li>
+  <li>run the tests, the package task and the descriptor task;</li>
+  <li>run <code>sha256sum --check</code>;</li>
+  <li>upload <code>dist/artifacts/</code> and the descriptor.</li>
+  </ul></li>
+<li><strong>test:</strong> run the packaged guest under Bun on Linux x64, macOS arm64 and Windows arm64. Compare the
+  response bytes with the Linux run, and compare the digest with the build job's.</li>
+<li><strong>publish</strong> (<code>contents: write</code>, <code>id-token: write</code>,
+  <code>attestations: write</code>):
+  <ul>
+  <li><code>actions/attest@v4</code> with <code>subject-path: dist/artifacts/*</code>;</li>
+  <li><code>gh release create --verify-tag --latest=false</code>, with <code>--prerelease</code> when the version has a
+    <code>-</code>.</li>
+  </ul></li>
+</ol>
+<p>When <code>morphir extension publish --stage</code>/<code>--release</code> exists, it replaces the descriptor and
+upload steps, and the attest step stays between them.</p>
+
+<h3 id="rel-3">REL-3. <code>moonbit/moon.mod</code> holds the version</h3>
+<p>The module version is the extension version, so describe, the descriptor and a later mooncakes release agree. The
+first release sets it to <code>0.5.0-preview.1</code> (see ID-1).</p>
+
+<h3 id="frz-1">FRZ-1. Freeze the source copy</h3>
+<p>After the import lands, Elm changes are made only here. The morphir-moonbit copy gets a README note in a
+follow-up there, and its open parity bugs (<code>morphir-ukvn.5.22.7.*</code>, <code>morphir-ukvn.5.22.3.*</code>)
+gain the label <code>repo:morphir-elm</code> when their work moves.</p>
+
+<h2 id="risks">Risks and trade-offs</h2>
+<table>
+<thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+<tbody>
+<tr><td>The host's 10 s call limit, 4 MiB request or 2 MiB model payload is too small for a large Elm project.</td><td>The spike measures the largest conformance project (expected IR about 990 KB JSON). If it is near a limit, raise it with the host owners under <code>morphir-ukvn.5.64.36</code> before the first release.</td></tr>
+<tr><td>The host does not send many documents yet.</td><td>The guest claims <code>multiDocument</code>, and the host spec already supports that claim. Our tests use our own Bun host, so we do not wait for the CLI.</td></tr>
+<tr><td>Admission may refuse a hand-rolled release, because <code>morphir extension publish</code> does not exist yet.</td><td>Follow the documented publish shape (REL-2). Releases stay previews until the publish command exists, and the workflow switches to it then.</td></tr>
+<tr><td><code>moon</code> treats <code>moonbit/.deps</code> or <code>moonbit/tooling</code> as packages of the module.</td><td>Task 1 checks this. If it happens, move the checkout to the repository-root <code>.deps/</code>.</td></tr>
+<tr><td><code>bun install --cwd moonbit/scripts</code> uses the root workspace and loses the Elm pins.</td><td>A frozen-install check in task group 2. If it fails, the scripts package declares its own empty workspace.</td></tr>
+<tr><td>Two copies drift before morphir-moonbit removes its copy.</td><td>The freeze (FRZ-1), and <code>morphir-ukvn.5.64.34.7</code> depends on <code>morphir-ukvn.1.15</code>.</td></tr>
+<tr><td>A host that takes the latest <code>morphir-elm</code> moves from the JavaScript process extension to the Wasm extension, which does not support package dependencies yet.</td><td>Elm extension releases stay previews until it reaches parity. The <code>finos</code> index decides <code>recommended</code>. The Elm classic extension stays available under its own id, and pins to <code>v0.4.1</code> keep working.</td></tr>
+<tr><td>Both release workflows start on <code>extension/elm/v*</code>.</td><td>The classic rename (CLS-1, group 6) lands before the Elm extension's release workflow (group 7). A test checks that neither tag filter matches the other's tags.</td></tr>
+<tr><td>Imported commits fail EasyCLA.</td><td>They passed EasyCLA in finos/morphir-moonbit with the same authors. If one fails, re-import as a single commit.</td></tr>
+</tbody>
+</table>
+
+<h2 id="migration">Migration plan</h2>
+<ol>
+<li>Pull request 1: import, toolchain, pin, tasks and CI (task groups 1 to 3). It lands with a merge commit.</li>
+<li>Pull request 2: the guest (task groups 4 and 5).</li>
+<li>Classic rename pull request (task group 6). It can land at any time before pull request 3. After it lands, Damian
+  decides when to tag <code>extension/elm-classic/v0.5.0</code>.</li>
+<li>Pull request 3: the release workflow and docs (task group 7). Damian tags
+  <code>extension/elm/v0.5.0-preview.1</code>.</li>
+<li>Follow-ups in other repositories, after approval:
+  <ul>
+  <li>morphir-moonbit publishes the three modules, and then this repository drops them from the pin;</li>
+  <li>the <code>finos</code> index admits the release;</li>
+  <li>morphir-moonbit removes its copy and the built-in registration (<code>morphir-ukvn.5.64.34.7</code>);</li>
+  <li>finos/morphir updates decision 0001 and <code>.config/published-extension-bundles.toml</code> to the classic name
+    when it moves past <code>v0.4.1</code>;</li>
+  <li>morphir-moonbit's <code>acquire-extensions-from-repositories</code> treats its <code>extension/elm/v0.4.1</code>
+    fixture as an Elm classic release.</li>
+  </ul></li>
+</ol>
+<p>Rollback: each pull request is self-contained. Reverting the classic rename restores the old names; it changes no
+published release.</p>
+
+<h2 id="open-questions">Open questions</h2>
+<ul>
+<li>Which Elm provider the <code>finos</code> index recommends to the MoonBit CLI. This is the index owner's call
+  under <code>morphir-ukvn.5.64.34</code>; it does not change this repository's work.</li>
+<li>When morphir-moonbit publishes the three modules. Until then, the pin (DEP-1) covers the gap.</li>
+</ul>
+
+</main>
+</body>
+</html>

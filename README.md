@@ -18,6 +18,18 @@ We publish it both as an NPM and an Elm package:
     visualization or language transpiler.
   - It also provides access to the frontend that parses the Elm source code and returns Morphir IR. You could use this
     to embed a business logic editor in your web UI.
+- The [Elm extensions](#elm-extensions-for-the-morphir-cli) let the Morphir CLI compile Elm.
+
+# Elm extensions for the Morphir CLI
+
+This repository holds two Elm frontends that the Morphir CLI runs as extensions:
+
+| Extension | Implementation | Source | Status |
+|---|---|---|---|
+| Elm extension | MoonBit, one portable WebAssembly module | [`moonbit/`](moonbit/README.md) | In development. It will be released as `morphir-elm` on `extension/elm/v*` tags, from `0.5.0`. |
+| Elm classic extension | JavaScript, one executable for each platform | `cli2/mep` | Released as `morphir-elm` on `extension/elm/v0.1.0` to `v0.4.1`. Its next releases will be `morphir-elm-classic` on `extension/elm-classic/v*` tags. |
+
+See [DEVELOPING.md](DEVELOPING.md) for how to build, test and release them.
 
 # NPM package
 

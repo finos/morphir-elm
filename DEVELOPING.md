@@ -213,6 +213,26 @@ This creates:
 
 These executables don't require Node.js on the target system.
 
+### The MoonBit Elm module
+
+`moonbit/` holds the MoonBit module `finos/morphir-elm`: an Elm frontend and an Elm backend, which will be released
+as the Elm extension for the MoonBit Morphir CLI. See [moonbit/README.md](moonbit/README.md).
+
+Its tools come from `mise.moonbit.toml`, so run its tasks with `MISE_ENV=moonbit`. Other tasks do not need it.
+Linux and macOS on Apple silicon are supported.
+
+```sh
+MISE_ENV=moonbit mise install
+MISE_ENV=moonbit mise run moonbit:check
+MISE_ENV=moonbit mise run moonbit:test
+MISE_ENV=moonbit mise run moonbit:test:elm
+MISE_ENV=moonbit mise run moonbit:parity-refresh
+```
+
+`moonbit:deps`, which the other tasks run first, checks out the finos/morphir-moonbit modules that are not on
+mooncakes yet, from the commit pinned in `moonbit/deps.toml`. The `Elm extension` workflow runs these tasks on pull
+requests to `vnext` that change `moonbit/`.
+
 ## Troubleshooting
 
 ### mise not finding tasks

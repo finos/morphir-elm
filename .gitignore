@@ -36,3 +36,12 @@ tests-integration/cli2-qa-test/test-data/business-terms/.DS_Store
 
 # Beads runtime lock at repo root (bd creates this; do not commit)
 .beads.gate.lock
+
+# MoonBit Elm extension (moonbit/): build output, registry cache, the pinned
+# finos/morphir-moonbit checkout, and morphir-elm incremental build state of the
+# parity projects
+moonbit/_build/
+moonbit/target/
+moonbit/.mooncakes/
+moonbit/.deps/
+moonbit/conformance/projects/*/morphir-hashes.json

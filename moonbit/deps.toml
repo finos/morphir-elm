@@ -1,0 +1,13 @@
+# finos/morphir-moonbit modules that are not on mooncakes yet, and the files the
+# Elm generators read. `mise run moonbit:deps` checks them out, sparse and
+# shallow, into moonbit/.deps/morphir-moonbit. Remove a module path when
+# morphir-moonbit publishes that module (plan bead morphir-ukvn.5.88).
+[morphir-moonbit]
+repository = "https://github.com/finos/morphir-moonbit.git"
+commit = "fe9ca3dc393bfdde7eb1c8edfa90dd4ac653b984"
+paths = [
+  "pkgs/morphir-ir",
+  "pkgs/morphir-sdk-spec",
+  "pkgs/morphir-typing",
+  "pkgs/morphir-sdk/conformance",
+]

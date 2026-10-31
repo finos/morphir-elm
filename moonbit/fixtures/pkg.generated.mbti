@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "finos/morphir-elm/fixtures"
+
+import {
+  "finos/morphir-ir/versions/v4",
+}
+
+// Values
+pub fn classic_greeting() -> @v4.IRFile
+
+pub fn classic_rentals_v1() -> @v4.IRFile
+
+pub fn classic_rentals_v2() -> @v4.IRFile
+
+pub fn refused() -> @v4.IRFile
+
+pub fn rentals() -> @v4.IRFile
+
+pub fn sdk_tour() -> @v4.IRFile
+
+pub fn shapes() -> @v4.IRFile
+
+pub fn specs() -> @v4.IRFile
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

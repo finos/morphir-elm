@@ -1,0 +1,5 @@
+import {
+  "finos/morphir-ir" @ir,
+  "finos/morphir-ir/versioned/json" @versioned_json,
+  "finos/morphir-ir/migration",
+}

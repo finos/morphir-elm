@@ -1,0 +1,95 @@
+---
+name: Elm extension
+
+# Builds and tests the MoonBit Elm extension in moonbit/ (module
+# finos/morphir-elm). MoonBit comes from mise.moonbit.toml through
+# MISE_ENV=moonbit; the finos/morphir-moonbit modules that are not on
+# mooncakes come from the commit pinned in moonbit/deps.toml.
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches:
+      - vnext
+    paths:
+      - "moonbit/**"
+      - "mise.moonbit.toml"
+      - ".mise/tasks/moonbit/**"
+      - ".mise/tasks/_lib.ts"
+      - "bunfig.toml"
+      - ".github/workflows/elm-extension.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MISE_ENV: moonbit
+  MISE_AUTO_INSTALL: "false"
+
+jobs:
+  test:
+    name: Check and test the module
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Install tools from mise.toml and mise.moonbit.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: "2026.8.14"
+          sha256: >-
+            7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+          experimental: true
+          install_args: http:moonbit bun
+
+      - name: Show the MoonBit toolchain
+        run: mise exec -- moon version --all
+
+      - name: Test the dependency pin rules
+        run: mise exec -- bun test moonbit/tooling
+
+      - name: Check formatting, warnings and interfaces
+        run: mise run moonbit:check
+
+      - name: Test on wasm, wasm-gc, js and native
+        run: mise run moonbit:test
+
+  elm:
+    name: Compile generated Elm and check parity
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Install tools from mise.toml and mise.moonbit.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: "2026.8.14"
+          sha256: >-
+            7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+          experimental: true
+          install_args: http:moonbit bun
+
+      - name: Compile the generated projects with elm make
+        run: mise run moonbit:test:elm
+
+      # The committed expected IR and parity data must equal the output of
+      # the pinned morphir-elm 2.100.0.
+      - name: Regenerate the parity data
+        run: mise run moonbit:parity-refresh
+
+      - name: Require no difference
+        run: git diff --exit-code -- moonbit/conformance
