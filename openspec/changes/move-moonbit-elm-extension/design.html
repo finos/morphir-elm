@@ -302,6 +302,27 @@ gain the label <code>repo:morphir-elm</code> when their work moves.</p>
 </tbody>
 </table>
 
+<h3 id="rel-4">REL-4. What the first releases taught (2026-10-31)</h3>
+<p>Elm classic <code>v0.5.0</code> was released on the first run. The Elm extension <code>v0.5.0-preview.1</code>
+needed two fixes before its cross-platform check passed. In both cases the module's bytes were the same on every
+runner, and the answers were not.</p>
+<ul>
+<li><strong>JavaScriptCore's OMG tier</strong> (#1326, bead <code>morphir-ukvn.1.15.8</code>). Once Bun's top
+  WebAssembly tier compiles the module, the same request can get different answers. Ten runs under Bun gave five
+  session digests; Node (V8), and Bun with <code>BUN_JSC_useOMGJIT=0</code>, always gave <code>2a36501d…</code>.
+  The workflows set that variable, and <code>moonbit/tests</code> refuses to run under Bun without it. Safari also
+  uses JavaScriptCore, so the browser worker path must be checked.</li>
+<li><strong>CRLF on Windows</strong> (#1327). The Windows runner checked the conformance projects out with CRLF, which
+  changed the Elm sources and so the answers. The test job sets <code>core.autocrlf false</code>, and
+  <code>.gitattributes</code> keeps <code>moonbit/</code> LF.</li>
+</ul>
+<p>The published release was made by a <code>workflow_dispatch</code> run from <code>vnext</code> with the existing
+tag, so its attestation's signer ref is <code>refs/heads/vnext</code>, not the tag. An index that pins the signer ref
+must allow this.</p>
+<p>The released module runs in the MoonBit CLI's native Wasm worker (finos/morphir-moonbit <code>7dc46bd</code>): with
+the release descriptor, <code>morphir extension describe</code>, <code>compile</code> and <code>generate</code> work,
+and <code>elm make</code> compiles the generated Elm.</p>
+
 <h2 id="migration">Migration plan</h2>
 <ol>
 <li>Pull request 1: import, toolchain, pin, tasks and CI (task groups 1 to 3). It lands with a merge commit.</li>
