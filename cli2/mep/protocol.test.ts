@@ -514,6 +514,60 @@ describe("MEP lifecycle dispatch", () => {
     expect(compileCalls).toBe(1);
   });
 
+  test("accepts a compile request without exposedModules and keeps it absent", async () => {
+    let observed: CompileRequest | undefined;
+    const dispatcher = createDispatcher((params) => {
+      observed = params;
+      return successfulCompile;
+    });
+    await dispatcher.dispatch(initialize());
+    const withoutExposed = {
+      ...compileRequest,
+      package: { name: compileRequest.package.name },
+    };
+
+    const response = await dispatcher.dispatch(
+      request("morphir.frontend.compile", withoutExposed)
+    );
+
+    expect(response).not.toHaveProperty("error");
+    expect(observed?.package).toEqual({ name: compileRequest.package.name });
+  });
+
+  test("keeps an explicit empty exposedModules list", async () => {
+    let observed: CompileRequest | undefined;
+    const dispatcher = createDispatcher((params) => {
+      observed = params;
+      return successfulCompile;
+    });
+    await dispatcher.dispatch(initialize());
+
+    const response = await dispatcher.dispatch(
+      request("morphir.frontend.compile", {
+        ...compileRequest,
+        package: { name: compileRequest.package.name, exposedModules: [] },
+      })
+    );
+
+    expect(response).not.toHaveProperty("error");
+    expect(observed?.package.exposedModules).toEqual([]);
+  });
+
+  test("rejects exposedModules that is null or not a string list", async () => {
+    const dispatcher = createDispatcher(() => successfulCompile);
+    await dispatcher.dispatch(initialize());
+
+    for (const exposedModules of [null, "Example", [1]]) {
+      const response = await dispatcher.dispatch(
+        request("morphir.frontend.compile", {
+          ...compileRequest,
+          package: { name: compileRequest.package.name, exposedModules },
+        })
+      );
+      expectError(response, -32602);
+    }
+  });
+
   test("rejects malformed compile parameters", async () => {
     const dispatcher = createDispatcher(() => successfulCompile);
     await dispatcher.dispatch(initialize());

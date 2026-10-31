@@ -94,7 +94,7 @@ export function toWorkerBuildInput(request: CompileRequest): WorkerBuildInput {
     options: { typesOnly: request.options.typesOnly },
     packageInfo: {
       name: packageIdentity.workerName,
-      exposedModules: request.package.exposedModules,
+      exposedModules: request.package.exposedModules ?? [],
     },
     dependencies: request.dependencies.map(
       (dependency) => dependency.distribution
@@ -224,7 +224,7 @@ function validateRequest(request: CompileRequest): ValidatedRequest {
 
   const moduleName = sourceModuleName(document.text);
   if (moduleName !== undefined) {
-    const missingModules = request.package.exposedModules.filter(
+    const missingModules = (request.package.exposedModules ?? []).filter(
       (exposedModule) => exposedModule !== moduleName
     );
     if (missingModules.length > 0) {
@@ -547,7 +547,10 @@ function workerInputForCompilation(
   moduleName: string | undefined
 ): WorkerBuildInput {
   const input = toWorkerBuildInput(request);
-  if (moduleName === undefined || request.package.exposedModules.length > 0) {
+  if (
+    moduleName === undefined ||
+    (request.package.exposedModules ?? []).length > 0
+  ) {
     return input;
   }
 
@@ -560,9 +563,10 @@ function workerInputForCompilation(
   };
 }
 
+/** Sets each module's access from the request. An absent list exposes every module; an empty one exposes none. */
 function applyRequestedExposure(
   ir: unknown,
-  exposedModules: readonly string[]
+  exposedModules: readonly string[] | undefined
 ): unknown {
   if (!isRecord(ir) || !Array.isArray(ir.distribution)) {
     return ir;
@@ -574,7 +578,7 @@ function applyRequestedExposure(
   ) {
     return ir;
   }
-  const exposed = new Set(exposedModules);
+  const exposed = new Set(exposedModules ?? []);
   const modules = packageDefinition.modules.map((entry) => {
     if (!Array.isArray(entry) || !isRecord(entry[1])) {
       return entry;
@@ -585,7 +589,13 @@ function applyRequestedExposure(
     }
     return [
       entry[0],
-      { ...entry[1], access: exposed.has(name) ? "Public" : "Private" },
+      {
+        ...entry[1],
+        access:
+          exposedModules === undefined || exposed.has(name)
+            ? "Public"
+            : "Private",
+      },
     ];
   });
   const distribution = [...ir.distribution];

@@ -557,6 +557,19 @@ value = missing
     }
   });
 
+  test("exposes every module when exposedModules is absent", async () => {
+    const result = await compileElm(
+      request({ package: { name: "local/example" } })
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.modules).toEqual(["Example"]);
+    expect(result).toHaveProperty(
+      "ir.distribution.3.modules.0.1.access",
+      "Public"
+    );
+  });
+
   test("compiles an unexposed submitted module as private IR", async () => {
     const result = await compileElm(
       request({ package: { name: "local/example", exposedModules: [] } })
