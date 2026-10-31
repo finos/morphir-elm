@@ -5,8 +5,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const repository = fileURLToPath(new URL('../../../', import.meta.url));
-const modules = join(repository, 'pkgs/morphir-elm/scripts/node_modules');
+// moonbit/, the module root of finos/morphir-elm.
+const moduleRoot = fileURLToPath(new URL('../', import.meta.url));
+const modules = join(moduleRoot, 'scripts/node_modules');
 // Node does not spawn `.cmd` files without a shell, so Windows uses the binary package directly.
 const elm = process.platform === 'win32'
   ? join(modules, '@elm_binaries/win32_x64/elm.exe')
@@ -15,8 +16,8 @@ const nowhere = process.platform === 'win32' ? 'NUL' : '/dev/null';
 const version = execFileSync(elm, ['--version'], { encoding: 'utf8' }).trim();
 assert.equal(version, '0.19.1', `Elm must be 0.19.1, got ${version}`);
 
-const output = JSON.parse(execFileSync('moon', ['run', 'pkgs/morphir-elm/acceptance', '--target', 'native'], {
-  cwd: repository, encoding: 'utf8', maxBuffer: 16777216,
+const output = JSON.parse(execFileSync('moon', ['run', 'acceptance', '--target', 'native'], {
+  cwd: moduleRoot, encoding: 'utf8', maxBuffer: 16777216,
 }));
 assert.ok(output.projects.length >= 7, 'expected at least seven generated projects');
 
