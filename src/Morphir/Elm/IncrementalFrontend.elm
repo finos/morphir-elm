@@ -9,6 +9,7 @@ import Elm.Syntax.Declaration exposing (Declaration(..))
 import Elm.Syntax.Exposing as Exposing
 import Elm.Syntax.Expression exposing (Expression(..))
 import Elm.Syntax.Node as Node exposing (Node(..))
+import Elm.Syntax.Range exposing (Range)
 import Elm.Syntax.TypeAnnotation as TypeAnnotation
 import List.Extra as List
 import Morphir.Dependency.DAG as DAG exposing (CycleDetected(..), DAG)
@@ -30,6 +31,7 @@ import Morphir.IR.Repo as Repo exposing (Repo, SourceCode)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.IR.Value as Value exposing (Value)
 import Morphir.SDK.ResultList as ResultList
+import Morphir.Value.Exhaustiveness as Exhaustiveness
 import Parser
 import Set exposing (Set)
 
@@ -59,6 +61,19 @@ type Error
     | MappingError Mapper.Errors
     | ResolveError ModuleName IncrementalResolve.Error
     | InvalidSourceFilePath FilePath.Path String
+    | NonExhaustivePatternMatch
+        { moduleName : ModuleName -- includes the package name
+        , definition : Name
+        , range : Maybe Range
+        , typeName : Maybe FQName
+        , missing : List String
+        }
+    | UnknownExport
+        { moduleName : ModuleName -- includes the package name
+        , kindOfName : KindOfName
+        , name : String
+        , range : Range
+        }
 
 
 type alias OrderedFileChanges =
@@ -631,6 +646,12 @@ processModule moduleName parsedModule opts exposedModules repo =
             , values = Set.fromList valueNames
             }
     in
+    withModuleChecks (Repo.getPackageName repoWithModuleInserted) moduleName parsedModule typeNames valueNames <|
+        processModuleContents moduleName parsedModule opts accessOf repoWithModuleInserted localNames
+
+
+processModuleContents : ModuleName -> ParsedModule -> Options -> (KindOfName -> Name -> Access) -> Repo -> IncrementalResolve.VisibleNames -> Result (List Error) Repo
+processModuleContents moduleName parsedModule opts accessOf repoWithModuleInserted localNames =
     parsedModule
         |> ParsedModule.imports
         |> IncrementalResolve.resolveImports repoWithModuleInserted
@@ -674,6 +695,123 @@ processModule moduleName parsedModule opts exposedModules repo =
                                             )
                                             (Ok repoWithTypesInserted)
                                         )
+                        )
+            )
+
+
+
+{-| Reports problems that the Elm compiler would reject: exposed names that are not defined in the module and pattern
+matches that do not cover all cases.
+-}
+withModuleChecks : Path -> ModuleName -> ParsedModule -> List Name -> List Name -> Result (List Error) Repo -> Result (List Error) Repo
+withModuleChecks packageName moduleName parsedModule typeNames valueNames processed =
+    let
+        exportErrors : List Error
+        exportErrors =
+            unknownExports (packageName ++ moduleName) parsedModule typeNames valueNames
+    in
+    case processed of
+        Ok repo ->
+            case exportErrors ++ nonExhaustivePatternMatches packageName moduleName parsedModule repo of
+                [] ->
+                    Ok repo
+
+                errors ->
+                    Err errors
+
+        Err errors ->
+            Err (exportErrors ++ errors)
+
+
+unknownExports : ModuleName -> ParsedModule -> List Name -> List Name -> List Error
+unknownExports moduleName parsedModule typeNames valueNames =
+    case parsedModule |> ParsedModule.exposingList of
+        Exposing.All _ ->
+            []
+
+        Exposing.Explicit exposeNodes ->
+            exposeNodes
+                |> List.filterMap
+                    (\(Node range expose) ->
+                        let
+                            unknown : KindOfName -> String -> Maybe Error
+                            unknown kindOfName name =
+                                Just (UnknownExport { moduleName = moduleName, kindOfName = kindOfName, name = name, range = range })
+
+                            defined : List Name -> String -> Bool
+                            defined names name =
+                                List.member (Name.fromString name) names
+                        in
+                        case expose of
+                            Exposing.FunctionExpose name ->
+                                if defined valueNames name then
+                                    Nothing
+
+                                else
+                                    unknown Value name
+
+                            Exposing.TypeOrAliasExpose name ->
+                                if defined typeNames name then
+                                    Nothing
+
+                                else
+                                    unknown Type name
+
+                            Exposing.TypeExpose typeExpose ->
+                                if defined typeNames typeExpose.name then
+                                    Nothing
+
+                                else
+                                    unknown Type typeExpose.name
+
+                            Exposing.InfixExpose _ ->
+                                Nothing
+                    )
+
+
+nonExhaustivePatternMatches : Path -> ModuleName -> ParsedModule -> Repo -> List Error
+nonExhaustivePatternMatches packageName moduleName parsedModule repo =
+    let
+        lookup : Exhaustiveness.ConstructorLookup
+        lookup =
+            Exhaustiveness.constructorLookup (Repo.toDistribution repo)
+
+        definitionRanges : Dict Name Range
+        definitionRanges =
+            parsedModule
+                |> ParsedModule.declarations
+                |> List.filterMap
+                    (\declarationNode ->
+                        case Node.value declarationNode of
+                            FunctionDeclaration func ->
+                                let
+                                    implementation =
+                                        func.declaration
+                                in
+                                Just ( implementation |> Node.value |> .name |> Node.value |> Name.fromString, Node.range implementation )
+
+                            _ ->
+                                Nothing
+                    )
+                |> Dict.fromList
+    in
+    repo
+        |> Repo.modules
+        |> Dict.get moduleName
+        |> Maybe.map (.value >> .values >> Dict.toList)
+        |> Maybe.withDefault []
+        |> List.concatMap
+            (\( valueName, accessControlledValueDef ) ->
+                Exhaustiveness.check lookup accessControlledValueDef.value.value.body
+                    |> List.map
+                        (\issue ->
+                            NonExhaustivePatternMatch
+                                { moduleName = packageName ++ moduleName
+                                , definition = valueName
+                                , range = definitionRanges |> Dict.get valueName
+                                , typeName = issue.typeName
+                                , missing = issue.missing
+                                }
                         )
             )
 

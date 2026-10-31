@@ -19,7 +19,7 @@ getDepartmentCode departmentCode departmentPlant departmentProcessName overDepar
                                 _ ->
                                     departmentCode
 
-                        Nothing ->
+                        _ ->
                             departmentCode
 
                 _ ->

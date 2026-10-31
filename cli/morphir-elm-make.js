@@ -21,6 +21,7 @@ program
     .option('-o, --output <path>', 'Target file location where the Morphir IR will be saved.', 'morphir-ir.json')
     .option('-t, --types-only', 'Only include type information in the IR, no values.', false)
     .option('-f, --fallback-cli', 'Use old cli make function.', false)
+    .option('-r, --report <format>', "Format used to report errors. Use 'json' for machine-readable errors.")
     .option('-i, --indent-json', 'Use indentation in the generated JSON file.', false)
     .parse(process.argv)
 
@@ -58,6 +59,8 @@ function make(projectDir, opts) {
         .catch((err) => {
             if (err.code == 'ENOENT') {
                 console.error(`Could not find file at '${err.path}'`)
+            } else if (opts.report === 'json' && Array.isArray(err)) {
+                process.stderr.write(JSON.stringify(err) + '\n')
             } else {
                 if (err instanceof Error) {
                     console.error(err)
