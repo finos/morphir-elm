@@ -161,6 +161,12 @@ jobs:
             mise-sha256: >-
               48c7e0ca372e51393dc518698cfd4c53791f6f7a42be1fb179179a17489bc237
     steps:
+      # The session digest covers the Elm sources of the conformance projects.
+      # Windows runners convert text files to CRLF on checkout, which changes
+      # those sources and so the answers; keep the files as committed.
+      - name: Keep line endings as committed
+        run: git config --global core.autocrlf false
+
       - name: Check out the release tag
         # actions/checkout v4.4.0
         uses: >-
