@@ -37,10 +37,10 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
 
 ## 4. Spike: build and run the Elm guest under the host limits (morphir-ukvn.1.15.4)
 
-- [ ] 4.1 Build a minimal `moonbit/extension` main package that exports `handle` and echoes its input. Verify with a Bun script that the import list is exactly `morphir_bytes_v1.input_len`, `input_byte` and `output_byte`.
-- [ ] 4.2 Find how to set the memory maximum: a `moon` link option, or a post-build rewrite (design GST-2). Verify that the built module declares a maximum of 4096 pages or less.
-- [ ] 4.3 Compile the largest conformance project through the frontend inside the Wasm module. Record the request size, the response and model sizes, and the time per call. Verify them against 4 MiB, 2 MiB decoded and 10 s.
-- [ ] 4.4 Record the results in this change's `design.html` (GST-2 and Risks), and raise any limit problem under `morphir-ukvn.5.64.36`. Verify that `openspec validate move-moonbit-elm-extension --strict` passes.
+- [x] 4.1 Build a minimal `moonbit/extension` main package that exports `handle` and echoes its input. Verify with a Bun script that the import list is exactly `morphir_bytes_v1.input_len`, `input_byte` and `output_byte`.
+- [x] 4.2 Find how to set the memory maximum: a `moon` link option, or a post-build rewrite (design GST-2). Verify that the built module declares a maximum of 4096 pages or less.
+- [x] 4.3 Compile the largest conformance project through the frontend inside the Wasm module. Record the request size, the response and model sizes, and the time per call. Verify them against 4 MiB, 2 MiB decoded and 10 s.
+- [x] 4.4 Record the results in this change's `design.html` (GST-2 and Risks), and raise any limit problem under `morphir-ukvn.5.64.36`. Verify that `openspec validate move-moonbit-elm-extension --strict` passes.
 
 ## 5. Elm MEP guest over the morphir-bytes-v1 ABI (morphir-ukvn.1.15.5)
 
