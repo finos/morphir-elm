@@ -4,10 +4,10 @@ Pull request 1 is groups 1 to 3, and pull request 2 is groups 4 and 5. Group 6 (
 
 ## 1. Import the MoonBit Elm module with its history (morphir-ukvn.1.15.1)
 
-- [ ] 1.1 Clone finos/morphir-moonbit `main` into a scratch directory outside the worktree, record its HEAD as `IMPORT_SHA`, and run `git filter-repo` as in design LAY-1. Verify that `git ls-tree -r --name-only HEAD` lists no file outside `moonbit/`, and that there are 13 or more commits.
-- [ ] 1.2 Merge the filtered history into the branch with `--allow-unrelated-histories --no-ff`, with a message that names `IMPORT_SHA`. Verify that `diff -r` between the filtered clone's `moonbit/` and the worktree's `moonbit/` prints nothing.
-- [ ] 1.3 Set `repository` in `moonbit/moon.mod` to `https://github.com/finos/morphir-elm`. Verify with `grep repository moonbit/moon.mod`.
-- [ ] 1.4 Verify that the imported commit messages link to `finos/morphir-moonbit#N`. `git log --format=%s -- moonbit | grep -c '(#[0-9]'` must print 0.
+- [x] 1.1 Clone finos/morphir-moonbit `main` into a scratch directory outside the worktree, record its HEAD as `IMPORT_SHA`, and run `git filter-repo` as in design LAY-1. Verify that `git ls-tree -r --name-only HEAD` lists no file outside `moonbit/`, and that there are 13 or more commits.
+- [x] 1.2 Merge the filtered history into the branch with `--allow-unrelated-histories --no-ff`, with a message that names `IMPORT_SHA`. Verify that `diff -r` between the filtered clone's `moonbit/` and the worktree's `moonbit/` prints nothing.
+- [x] 1.3 Set `repository` in `moonbit/moon.mod` to `https://github.com/finos/morphir-elm`. Verify with `grep repository moonbit/moon.mod`.
+- [x] 1.4 Verify that the imported commit messages link to `finos/morphir-moonbit#N`. `git log --format=%s -- moonbit | grep -c '(#[0-9]'` must print 0.
 
 ## 2. MoonBit toolchain, dependency pin and module tasks (morphir-ukvn.1.15.2)
 
