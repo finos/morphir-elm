@@ -1,6 +1,6 @@
 name = "finos/morphir-elm"
 
-version = "0.5.0-preview.1"
+version = "0.5.0-preview.2"
 
 license = "Apache-2.0"
 
