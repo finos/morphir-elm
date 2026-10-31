@@ -1,0 +1,21 @@
+// The Elm extension as one core WebAssembly module with the morphir-bytes-v1 ABI: it imports only
+// morphir_bytes_v1.input_len, input_byte and output_byte, and exports handle and one memory of at most
+// 4096 pages (256 MiB). The MEP session is in finos/morphir-elm/mep.
+supported_targets = "wasm"
+
+import {
+  "finos/morphir-elm/mep",
+  "moonbitlang/core/encoding/utf8",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "wasm": {
+      "exports": [ "handle" ],
+      "export-memory-name": "memory",
+      "memory-limits": { "min": 1, "max": 4096 },
+    },
+  },
+)

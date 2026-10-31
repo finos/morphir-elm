@@ -227,7 +227,12 @@ MISE_ENV=moonbit mise run moonbit:check
 MISE_ENV=moonbit mise run moonbit:test
 MISE_ENV=moonbit mise run moonbit:test:elm
 MISE_ENV=moonbit mise run moonbit:parity-refresh
+MISE_ENV=moonbit mise run moonbit:package   # the Wasm extension module and its SHA-256
+bun test moonbit/tests                      # the packaged module through the morphir-bytes-v1 ABI
 ```
+
+`bun test moonbit/tests` needs the packaged module and the Elm tools in `moonbit/scripts`
+(`bun install --frozen-lockfile --cwd moonbit/scripts`).
 
 `moonbit:deps`, which the other tasks run first, checks out the finos/morphir-moonbit modules that are not on
 mooncakes yet, from the commit pinned in `moonbit/deps.toml`. The `Elm extension` workflow runs these tasks on pull
