@@ -1,0 +1,17 @@
+// Converts the classic Morphir IR (format 3) that the Elm classic extension writes to Morphir IR 4.0.0 JSON, with
+// finos/morphir-ir's own migration. It is built once to JavaScript and committed as cli2/mep/generated/classic-ir.js,
+// so the Elm classic extension needs no MoonBit toolchain. `mise run moonbit:classic-ir` builds it again.
+supported_targets = "js"
+
+import {
+  "finos/morphir-ir/json" @ir_json,
+  "finos/morphir-ir/migration",
+  "finos/morphir-ir/versioned/json" @versioned_json,
+  "moonbitlang/core/json",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  link: { "js": { "exports": [ "classic_to_v4" ], "format": "esm" } },
+)

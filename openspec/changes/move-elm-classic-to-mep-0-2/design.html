@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>move-elm-classic-to-mep-0-2: design</title>
+<!--
+  Agent document template (docs/templates/agent-document.html). Specs, plans and reports that a person reviews
+  start from this file: copy it, keep the <head> as it is, and write the content inside <main>.
+  Styles and scripts are files in docs/templates/assets/, referenced and not embedded. In a copy, change the
+  "assets/" prefix of each href and src to the relative path from the copy to that directory, for example
+  "../../docs/templates/assets/" from .dev/beads-specs/. See AGENTS.md, "Specs and plans are HTML documents".
+  Code goes in <pre><code class="language-elm"> (or typescript, json, toml, bash, diff). Give sections an id and
+  list them in nav.toc.
+-->
+<link rel="stylesheet" href="../../../docs/templates/assets/agent-document.css">
+<link rel="stylesheet" href="../../../docs/templates/assets/highlight/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="../../../docs/templates/assets/highlight/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<script defer src="../../../docs/templates/assets/highlight/highlight.min.js"></script>
+<script defer src="../../../docs/templates/assets/highlight/languages/elm.min.js"></script>
+<script defer src="../../../docs/templates/assets/agent-document.js"></script>
+</head>
+<body>
+<main>
+<h1>move-elm-classic-to-mep-0-2: design</h1>
+<p class="meta">OpenSpec change · Bead <code>morphir-ukvn.1.18</code> · 2026-10-31 · approved by Damian (merge and tag <code>extension/elm-classic/v0.6.0</code>)</p>
+
+<nav class="toc" aria-label="Contents">
+<ul>
+<li><a href="#context">Context</a></li>
+<li><a href="#goals">Goals and non-goals</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#risks">Risks and trade-offs</a></li>
+<li><a href="#migration">Migration plan</a></li>
+</ul>
+</nav>
+
+<h2 id="context">Context</h2>
+<p>See proposal.md for the motivation. These facts shape the approach. Each is from finos/morphir-moonbit
+<code>main</code> at <code>40623b86</code>, or from this repository.</p>
+<ul>
+<li>The MoonBit CLI describes with <code>["0.2.0-draft.1", "0.1"]</code>. When the claims name
+<code>morphir.frontend.compileModel</code>, it initializes with <code>["0.2.0-draft.1"]</code> alone and a model
+transport offer: the <code>ion-binary</code> tuple first, then the <code>morphir-json</code> tuple, and the default
+limits. It uses the first agreed tuple. Otherwise it initializes on 0.1 and uses the legacy compile.</li>
+<li>Its compileModel request has relative document URIs, and no <code>sources.root</code>, no
+<code>exposedModules</code> and no <code>dependencies</code>. It sends every file in one request, and refuses more than
+one file when the claims say <code>multiDocument: false</code>.</li>
+<li>When a pin names a descriptor, the descriptor's claims must equal the live describe claims.</li>
+<li>The Elm worker of <code>cli2</code> writes classic IR (format 3). finos/morphir-ir has the migration to IR
+4.0.0, and the Elm extension's parity tests already run it on <code>morphir-elm make</code> output.</li>
+<li>The Elm classic workflow builds on Windows. <code>mise.moonbit.toml</code> has no Windows toolchain.</li>
+</ul>
+
+<h2 id="goals">Goals and non-goals</h2>
+<p><strong>Goals:</strong> the MoonBit CLI compiles Elm through Elm classic to an IR 4.0.0 model; the Rust CLI's 0.1
+sessions do not change.</p>
+<p><strong>Non-goals:</strong> more than one document per compile (<code>multiDocument</code> stays false); package
+dependencies in compileModel; <code>morphir.backend.generateModel</code> (classic has no backend role); the
+<code>ion-binary</code> codec; IR 4.0.0 from the legacy compile (<code>frontend.irVersions</code> stays
+<code>["3"]</code>, which names what the legacy compile gives).</p>
+
+<h2 id="decisions">Decisions</h2>
+
+<h3 id="neg-1">NEG-1: Choose the version from the offer and the model transport</h3>
+<p>Initialize selects 0.2.0-draft.1 when the host offers it with a model transport offer, and otherwise 0.1 when the
+host offers it. A 0.2-only offer without a transport gets <code>-32011</code>. Describe answers any offer that names
+one of the two versions, with one static claim set that lists both.</p>
+<p>Alternative: prefer 0.2 whenever it is offered, and refuse a 0.2 offer without a transport. A host that offers both
+and sends no transport would then fail, though it can speak 0.1. Rejected.</p>
+
+<h3 id="ir-1">IR-1: Convert with finos/morphir-ir's migration, built to JavaScript and committed</h3>
+<p><code>moonbit/classic-ir</code> exports <code>classic_to_v4</code>: read with <code>versioned/json</code>, migrate
+with <code>migration.to_current</code>, write with the v4 JSON writer. <code>mise run moonbit:classic-ir</code> builds
+it with <code>moon build --target js --release</code> and copies it to
+<code>cli2/mep/generated/classic-ir.js</code> (2 MB; 168 KB gzip in git; Bun minifies it in the executable). The Elm
+extension workflow, which has MoonBit, runs the task and requires no difference.</p>
+<table>
+<thead><tr><th>Alternative</th><th>Why not</th></tr></thead>
+<tbody>
+<tr><td>Port the migration to TypeScript</td><td>A second copy of the IR rules that can drift from finos/morphir-ir.</td></tr>
+<tr><td>Build the converter in the classic build</td><td>The classic workflow builds on Windows, where the MoonBit toolchain is not set up.</td></tr>
+<tr><td>Make the Elm worker write v4</td><td>A large change in the Elm code of morphir-elm, for one consumer.</td></tr>
+</tbody>
+</table>
+<p>The converter sets the attribute of each value input to its declared type before the migration, as the parity
+tests do: the format 3 migration refuses an input whose inferred and declared types differ, and v4 keeps no value
+attributes. The result then has the same form as the Elm extension's models.</p>
+
+<h3 id="mod-1">MOD-1: compileModel reuses the classic compile</h3>
+<p>compileModel checks the request (tuple, language, context digest, options, package, sources), turns it into a
+classic compile request with <code>irVersion "3"</code>, converts the IR and returns the envelope. The envelope, the
+<code>modelId</code> (<code>urn:finos:morphir-elm:model:</code> and the SHA-256 of the package name), the limits and
+the refusal messages are those of the Elm extension (<code>moonbit/mep</code>), so a host sees the same model id from
+either Elm frontend. Dependencies give the diagnostic <code>elm.unsupported_dependencies</code>, as in the Elm
+extension. A conversion failure is <code>-32603</code>: it is a defect of the extension, not of the source.</p>
+<p>The payload must also be within the agreed <code>maxDepth</code> and <code>maxNodes</code>, counted as the MoonBit host
+counts them: every JSON value is a node, and the root is level 1. A larger model gives the diagnostic
+<code>elm.model_limit</code>. The Elm extension checks only the byte limits; bead <code>morphir-ukvn.1.19</code> adds
+the same check there.</p>
+
+<h3 id="rel-1">REL-1: Release 0.6.0 with the same release path</h3>
+<p><code>extension.json</code> gives version <code>0.6.0</code> and <code>mepVersions</code>
+<code>["0.2.0-draft.1", "0.1"]</code>. The descriptors copy <code>capabilityClaims()</code>, so they carry the model
+transport. The version-1 descriptor also lists both versions; the Rust CLI does not read that field.</p>
+
+<h2 id="risks">Risks and trade-offs</h2>
+<ul>
+<li>[A host that rejects unknown claim members] → <code>modelTransport</code> is a member of claim set
+<code>0.1.0-draft.2</code>, and the Rust CLI does not read the descriptor's <code>mepVersions</code>. The 0.1
+initialize answer has no <code>modelTransport</code>.</li>
+<li>[The committed converter goes stale after a finos/morphir-ir pin change] → the Elm extension workflow rebuilds it
+and requires no difference.</li>
+<li>[moon writes different JavaScript on Linux and macOS] → the CI check would fail on the first pull request; the
+fix is to commit the Linux output.</li>
+<li>[finos/morphir-moonbit's own qualification expects elm-classic 0.1 and format 3] → it pins v0.5.1, so it keeps
+passing; moving its pin to 0.6.0 is that repository's change.</li>
+</ul>
+
+<h2 id="migration">Migration plan</h2>
+<ol>
+<li>Merge to <code>vnext</code> after green CI; tag <code>extension/elm-classic/v0.6.0</code>.</li>
+<li>Verify the release: checksums, attestations, and describe plus compileModel through the MoonBit CLI with a
+contract 0.2.0 pin.</li>
+<li>Rollback: hosts can pin <code>v0.5.1</code>, which is unchanged.</li>
+</ol>
+</main>
+</body>
+</html>

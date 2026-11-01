@@ -2,8 +2,8 @@
   "extensionId": "morphir-elm-classic",
   "shortId": "elm-classic",
   "name": "Morphir Elm classic frontend",
-  "version": "0.5.1",
-  "mepVersions": ["0.1"],
+  "version": "0.6.0",
+  "mepVersions": ["0.2.0-draft.1", "0.1"],
   "irVersions": ["3"],
   "languages": [{ "id": "elm", "fileExtensions": [".elm"] }],
   "workspaceDiscovery": true
