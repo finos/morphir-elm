@@ -16,6 +16,7 @@ on:  # yamllint disable-line rule:truthy
       - ".mise/tasks/moonbit/**"
       - ".mise/tasks/_lib.ts"
       - "bunfig.toml"
+      - "cli2/mep/generated/**"
       - ".github/workflows/elm-extension.yml"
   workflow_dispatch:
 
@@ -60,6 +61,13 @@ jobs:
 
       - name: Test on wasm, wasm-gc, js and native
         run: mise run moonbit:test
+
+      # The Elm classic extension commits the classic-to-IR-4.0.0 converter
+      # as JavaScript; it must be what moonbit/classic-ir builds.
+      - name: Require the committed classic IR converter
+        run: |
+          mise run moonbit:classic-ir
+          git diff --exit-code -- cli2/mep/generated
 
   elm:
     name: Compile generated Elm and check parity

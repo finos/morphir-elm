@@ -155,7 +155,7 @@ describe("MEP lifecycle dispatch", () => {
       shortId: "elm-classic",
       name: "Morphir Elm classic frontend",
       version: expect.stringMatching(/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/),
-      mepVersions: ["0.1"],
+      mepVersions: ["0.2.0-draft.1", "0.1"],
       irVersions: ["3"],
       languages: [{ id: "elm", fileExtensions: [".elm"] }],
       // The published descriptor must declare the workspace capability the session advertises.
@@ -210,7 +210,7 @@ describe("MEP lifecycle dispatch", () => {
     expectError(response, -32011);
     expect(response).toHaveProperty("error.data", {
       hostVersions: ["9.0"],
-      extensionVersions: ["0.1"],
+      extensionVersions: ["0.2.0-draft.1", "0.1"],
     });
     expect(dispatcher.state()).toEqual({ kind: "loaded" });
   });

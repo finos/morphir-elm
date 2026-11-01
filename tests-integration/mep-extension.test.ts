@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -409,6 +410,114 @@ describe("standalone Morphir Elm MEP extension", () => {
       "result.ir.distribution.3.modules.0.1.access",
       "Public"
     );
+  }, 60_000);
+
+  test("compiles a v4 model over MEP 0.2 as the MoonBit CLI asks for it", async () => {
+    const fixtureDir = join(import.meta.dir, "mep-extension");
+    const [validSource, invalidSource, golden] = await Promise.all([
+      readFile(join(fixtureDir, "Example.elm"), "utf8"),
+      readFile(join(fixtureDir, "Invalid.elm"), "utf8"),
+      readFile(join(fixtureDir, "Example.v4.json"), "utf8"),
+    ]);
+    const jsonTuple = {
+      operation: "morphir.frontend.compileModel",
+      profile: "morphir-ir",
+      codec: "morphir-json",
+      envelopeVersion: "0.1.0-draft.1",
+      irVersion: "4.0.0",
+    };
+    // The CLI offers the binary tuple first; the extension agrees only the JSON one.
+    const ionTuple = { ...jsonTuple, profile: "morphir-model", codec: "ion-binary" };
+    // Document URIs are relative to the named source folder (finos/morphir-moonbit#294, decision B), and the CLI
+    // sends no exposedModules, dependencies or sources.root.
+    const compileModel = (uri: string, text: string, output: unknown, id: number) =>
+      frame(
+        request(
+          "morphir.frontend.compileModel",
+          {
+            languageId: "elm",
+            sources: { documents: [{ uri, languageId: "elm", version: 0, text }] },
+            package: { name: "local/example" },
+            options: { typesOnly: false, irVersion: "4.0.0" },
+            contextDigest: "0".repeat(64),
+            output,
+          },
+          id
+        )
+      );
+    const result = await runExtension(
+      appendFrames([
+        frame(
+          request(
+            "morphir.extension.describe",
+            { protocolVersions: ["0.2.0-draft.1", "0.1"] },
+            1
+          )
+        ),
+        frame(
+          request(
+            "morphir.initialize",
+            {
+              protocolVersions: ["0.2.0-draft.1"],
+              host: { name: "morphir-moonbit-cli", version: "0.1.0" },
+              modelTransport: {
+                tuples: [ionTuple, jsonTuple],
+                limits: {
+                  maxEncodedBytes: 2796204,
+                  maxDecodedBytes: 2097152,
+                  maxDepth: 128,
+                  maxNodes: 100000,
+                },
+                guarantees: [],
+              },
+            },
+            2
+          )
+        ),
+        frame(notification("morphir.initialized", {})),
+        compileModel("Example.elm", validSource, jsonTuple, 3),
+        compileModel("Invalid.elm", invalidSource, jsonTuple, 4),
+        compileModel("Example.elm", validSource, ionTuple, 5),
+        compileModel(
+          "Example.elm",
+          validSource,
+          { ...jsonTuple, envelopeVersion: "0.2.0" },
+          6
+        ),
+        frame(request("morphir.shutdown", {}, 7)),
+        frame(notification("morphir.exit")),
+      ]),
+      false
+    );
+    const responses = decodeCompleteFrames(result.stdout) as readonly any[];
+
+    expect(result.exitCode).toBe(0);
+    expect(responses.map((response) => response.id)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(responses[0].result).toEqual(capabilityClaims());
+    expect(responses[1].result.protocolVersion).toBe("0.2.0-draft.1");
+    expect(responses[1].result.capabilities.modelTransport.tuples).toEqual([jsonTuple]);
+
+    const compiled = responses[2].result;
+    expect(compiled).toMatchObject({ success: true, diagnostics: [], modules: ["Example"] });
+    const payload = Buffer.from(compiled.model.payload.content, "base64");
+    expect(payload.toString("utf8")).toBe(golden);
+    expect(compiled.model.payload.decodedByteLength).toBe(payload.byteLength);
+    expect(compiled.model.payload.sha256).toBe(
+      createHash("sha256").update(payload).digest("hex")
+    );
+    // Every module is public when the host names none.
+    expect(JSON.parse(golden)).toHaveProperty(
+      "distribution.Library.def.modules.example.Public"
+    );
+
+    expect(responses[3].result).toMatchObject({
+      success: false,
+      diagnostics: [{ severity: "error", code: "elm.parser" }],
+    });
+    expect(responses[3].result).not.toHaveProperty("model");
+    expect(responses[4]).toHaveProperty("error.code", -32602);
+    expect(responses[5]).toHaveProperty("error.code", -32602);
+    expect(responses[6]).toEqual({ jsonrpc: "2.0", id: 7, result: {} });
   }, 60_000);
 
   test("acknowledges shutdown and stays alive until a delayed exit notification", async () => {

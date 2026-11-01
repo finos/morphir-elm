@@ -19,6 +19,7 @@ MISE_ENV=moonbit mise run moonbit:test            # tests on wasm, wasm-gc, js a
 MISE_ENV=moonbit mise run moonbit:test wasm       # tests on one target
 MISE_ENV=moonbit mise run moonbit:test:elm        # elm make on the generated projects
 MISE_ENV=moonbit mise run moonbit:parity-refresh  # regenerate the parity data with morphir-elm 2.100.0
+MISE_ENV=moonbit mise run moonbit:classic-ir      # rebuild the Elm classic extension's IR converter
 ```
 
 The tasks run `moon` in `moonbit/` and pass the module's package directories, so `moon` acts on this module only.

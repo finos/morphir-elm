@@ -106,7 +106,7 @@ describe("MEP extension release", () => {
       name: "Morphir Elm classic frontend",
       version: extensionMetadata.version,
       runtime: "process",
-      mepVersions: ["0.1"],
+      mepVersions: ["0.2.0-draft.1", "0.1"],
       irVersions: ["3"],
       languages: [{ id: "elm", fileExtensions: [".elm"] }],
       // The host stops a session whose capability kinds differ from the published record.

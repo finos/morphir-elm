@@ -236,7 +236,8 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
           NOTES: >-
             Morphir Elm classic extension (morphir-elm-classic), the
-            JavaScript Elm frontend, as an MEP process extension. Each
+            JavaScript Elm frontend, as an MEP process extension (MEP
+            0.2.0-draft.1 with compileModel and IR 4.0.0, and MEP 0.1). Each
             archive holds one executable for one platform. The .release.json
             file describes the archives and their SHA-256 digests.
             Raw executables and their .sha256 files form a version-2 process

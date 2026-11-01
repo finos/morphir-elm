@@ -210,9 +210,19 @@ local development. The Elm classic extension pull-request workflow builds and va
 CI artifacts for Linux AMD64, macOS ARM64, and Windows ARM64. The
 platform-neutral npm package does not include the native executable.
 
+From `0.6.0` the extension speaks MEP `0.2.0-draft.1` and `0.1`. A host that initializes on
+`0.2.0-draft.1` must send a model transport offer; the extension then answers
+`morphir.frontend.compileModel` with the tuple `morphir-ir` / `morphir-json` / envelope
+`0.1.0-draft.1` / IR `4.0.0`. The model is the classic IR of the Elm worker, converted with
+finos/morphir-ir's migration. That converter is built from `moonbit/classic-ir` and committed as
+`cli2/mep/generated/classic-ir.js`; after a change to it or to the pinned finos/morphir-ir, run
+`MISE_ENV=moonbit mise run moonbit:classic-ir` and commit the result (the Elm extension workflow
+requires no difference). A host that offers `0.1`, such as the finos/morphir Rust CLI, gets `0.1` and
+the legacy `morphir.frontend.compile` with classic IR, as before.
+
 The extension answers `morphir.extension.describe` with its capability claim set.
-Send `{ "protocolVersions": ["0.1"] }` before initialization or during a session,
-before shutdown. Description has no side effects and does not initialize a
+Send `{ "protocolVersions": ["0.2.0-draft.1", "0.1"] }` (or either version alone) before
+initialization or during a session, before shutdown. Description has no side effects and does not initialize a
 session; a probe can send `describe` followed by the `morphir.exit` notification.
 An incompatible version offer receives `-32011`, as for `morphir.initialize`.
 

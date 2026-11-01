@@ -10,6 +10,8 @@ morphir-ir.json
 morphir-hashes.json
 morphir-test-coverage.json
 generated/
+# The Elm classic extension commits its IR converter; CI checks that it is current (mise run moonbit:classic-ir).
+!cli2/mep/generated/
 out/
 redistributable/Scala
 packages/cli/web/insightapp.js

@@ -1,10 +1,24 @@
+import { classicToV4 } from "./classic-ir";
 import type { JsonRpcError, JsonRpcId, JsonRpcResponse } from "./framing";
 import {
-  MEP_VERSION,
+  MEP_0_1,
+  MEP_0_2,
+  MEP_VERSIONS,
+  type MepVersion,
   extensionInfo,
   capabilities,
   capabilityClaims,
 } from "./identity";
+import {
+  COMPILE_MODEL,
+  MODEL_IR_VERSION,
+  agreeTransport,
+  envelope,
+  readTuple,
+  sameTuple,
+  type Transport,
+  type Tuple,
+} from "./model";
 import { discover, parseDiscoveryRequest } from "./workspace";
 
 export type { JsonRpcError, JsonRpcId, JsonRpcResponse } from "./framing";
@@ -92,7 +106,7 @@ export type CompileResult = CompileSuccess | CompileFailure;
 
 export type SessionState =
   | { readonly kind: "loaded" }
-  | { readonly kind: "ready"; readonly protocolVersion: typeof MEP_VERSION }
+  | { readonly kind: "ready"; readonly protocolVersion: MepVersion }
   | { readonly kind: "shutdown" }
   | { readonly kind: "stopped" };
 
@@ -106,6 +120,9 @@ export class InvalidCompileParamsError extends Error {
     this.name = "InvalidCompileParamsError";
   }
 }
+
+/** Classic IR (format 3) to Morphir IR 4.0.0 JSON text. Throws when it cannot convert the IR. */
+export type ToV4 = (ir: unknown) => string;
 
 export interface Dispatcher {
   readonly dispatch: (body: Uint8Array) => Promise<JsonRpcResponse | null>;
@@ -124,10 +141,6 @@ interface JsonRpcRequest {
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
 const loadedState: SessionState = Object.freeze({ kind: "loaded" });
-const readyState: SessionState = Object.freeze({
-  kind: "ready",
-  protocolVersion: MEP_VERSION,
-});
 const shutdownState: SessionState = Object.freeze({ kind: "shutdown" });
 const stoppedState: SessionState = Object.freeze({ kind: "stopped" });
 
@@ -194,7 +207,7 @@ function protocolMismatch(
     "No compatible Morphir Extension Protocol version",
     {
       hostVersions,
-      extensionVersions: [MEP_VERSION],
+      extensionVersions: MEP_VERSIONS,
     }
   );
 }
@@ -382,6 +395,100 @@ function isCompileResult(value: unknown): value is CompileResult {
   return !("irVersion" in value) || typeof value.irVersion === "string";
 }
 
+/** The diagnostic for a request that names package dependencies, as the Elm extension gives it. */
+export const UNSUPPORTED_DEPENDENCIES = "elm.unsupported_dependencies";
+
+type CompileModelParseResult =
+  | {
+      readonly kind: "valid";
+      readonly request: CompileRequest;
+      readonly hasDependencies: boolean;
+    }
+  | { readonly kind: "invalid"; readonly message: string };
+
+/** Reads compileModel params as a classic compile request. `tuple` is the agreed compileModel tuple. */
+function parseCompileModelRequest(
+  value: Record<string, unknown>,
+  tuple: Tuple
+): CompileModelParseResult {
+  const refuse = (reason: string) =>
+    ({ kind: "invalid", message: `Compilation admission refused: ${reason}` } as const);
+  const output = readTuple(value.output);
+  if (output === undefined || !sameTuple(output, tuple)) {
+    return {
+      kind: "invalid",
+      message: "Model admission refused: unsupported_tuple (output)",
+    };
+  }
+  if (value.languageId !== "elm") {
+    return refuse("unsupported_language");
+  }
+  if (
+    typeof value.contextDigest !== "string" ||
+    !/^[0-9a-f]{64}$/.test(value.contextDigest)
+  ) {
+    return refuse("invalid_request");
+  }
+  const options = value.options ?? {};
+  if (!isRecord(options)) {
+    return refuse("invalid_request");
+  }
+  if ("irVersion" in options && options.irVersion !== MODEL_IR_VERSION) {
+    return refuse("unsupported_ir_version");
+  }
+  if ("profile" in options && options.profile !== "library") {
+    return refuse("unsupported_profile");
+  }
+  if ("typesOnly" in options && typeof options.typesOnly !== "boolean") {
+    return refuse("invalid_request");
+  }
+  const pkg = value.package;
+  if (
+    !isRecord(pkg) ||
+    typeof pkg.name !== "string" ||
+    pkg.name.length === 0 ||
+    ("exposedModules" in pkg && !hasStringArray(pkg.exposedModules))
+  ) {
+    return refuse("invalid_request");
+  }
+  const sources = value.sources;
+  if (
+    !isRecord(sources) ||
+    !Array.isArray(sources.documents) ||
+    sources.documents.length === 0
+  ) {
+    return refuse("unsupported_source_count");
+  }
+  if (!sources.documents.every(isSourceDocument)) {
+    return refuse("invalid_request");
+  }
+  if ("root" in sources && typeof sources.root !== "string") {
+    return refuse("invalid_source_root");
+  }
+  const dependencies = value.dependencies ?? [];
+  if (!Array.isArray(dependencies)) {
+    return refuse("invalid_request");
+  }
+  return {
+    kind: "valid",
+    hasDependencies: dependencies.length > 0,
+    request: {
+      languageId: "elm",
+      sources: {
+        root: typeof sources.root === "string" ? sources.root : undefined,
+        documents: sources.documents,
+      },
+      package:
+        "exposedModules" in pkg
+          ? { name: pkg.name, exposedModules: pkg.exposedModules as string[] }
+          : { name: pkg.name },
+      dependencies: [],
+      // The Elm worker writes classic IR; compileModel converts it to IR 4.0.0.
+      options: { typesOnly: options.typesOnly === true, irVersion: "3" },
+    },
+  };
+}
+
 function hasObjectParams(value: unknown): boolean {
   return isRecord(value);
 }
@@ -398,8 +505,17 @@ function parseBody(
   }
 }
 
-export function createDispatcher(compile: Compile): Dispatcher {
+export function createDispatcher(
+  compile: Compile,
+  toV4: ToV4 = classicToV4
+): Dispatcher {
   let sessionState: SessionState = loadedState;
+  // The model transport agreed in a MEP 0.2 session; undefined in a 0.1 session.
+  let transport: Transport | undefined;
+  const liveCapabilities = () =>
+    transport === undefined
+      ? capabilities
+      : { ...capabilities, modelTransport: transport };
 
   const dispatch = async (
     body: Uint8Array
@@ -446,8 +562,9 @@ export function createDispatcher(compile: Compile): Dispatcher {
           invalidParams(id, "Invalid morphir.extension.describe parameters")
         );
       }
-      if (!request.params.protocolVersions.includes(MEP_VERSION)) {
-        return respond(protocolMismatch(id, request.params.protocolVersions));
+      const offered = request.params.protocolVersions;
+      if (!MEP_VERSIONS.some((version) => offered.includes(version))) {
+        return respond(protocolMismatch(id, offered));
       }
       return respond(success(id, capabilityClaims()));
     }
@@ -472,16 +589,31 @@ export function createDispatcher(compile: Compile): Dispatcher {
           invalidParams(id, "Invalid morphir.initialize parameters")
         );
       }
-      if (!request.params.protocolVersions.includes(MEP_VERSION)) {
-        return respond(protocolMismatch(id, request.params.protocolVersions));
+      // MEP 0.2 needs a model transport offer. A host that offers 0.1 and no transport gets 0.1, as before.
+      const offered = request.params.protocolVersions;
+      const offer = isRecord(request.params)
+        ? (request.params as Record<string, unknown>).modelTransport
+        : undefined;
+      let version: MepVersion;
+      if (offered.includes(MEP_0_2) && offer !== undefined) {
+        const agreement = agreeTransport(offer);
+        if (agreement.kind === "invalid") {
+          return respond(invalidParams(id, agreement.message));
+        }
+        transport = agreement.transport;
+        version = MEP_0_2;
+      } else if (offered.includes(MEP_0_1)) {
+        version = MEP_0_1;
+      } else {
+        return respond(protocolMismatch(id, offered));
       }
 
-      sessionState = readyState;
+      sessionState = Object.freeze({ kind: "ready", protocolVersion: version });
       return respond(
         success(id, {
-          protocolVersion: MEP_VERSION,
+          protocolVersion: version,
           extension: extensionInfo,
-          capabilities,
+          capabilities: liveCapabilities(),
         })
       );
     }
@@ -503,7 +635,7 @@ export function createDispatcher(compile: Compile): Dispatcher {
       case "morphir.extension.capabilities":
         return respond(
           !request.hasParams || hasObjectParams(request.params)
-            ? success(id, capabilities)
+            ? success(id, liveCapabilities())
             : invalidParams(
                 id,
                 "morphir.extension.capabilities parameters must be an object"
@@ -538,6 +670,90 @@ export function createDispatcher(compile: Compile): Dispatcher {
             failure(id, -32603, "Elm frontend compilation failed internally")
           );
         }
+      case COMPILE_MODEL: {
+        const tuple = transport?.tuples.find(
+          (agreed) => agreed.operation === COMPILE_MODEL
+        );
+        if (tuple === undefined || transport === undefined) {
+          return respond(
+            failure(id, -32013, `${COMPILE_MODEL} was not negotiated`)
+          );
+        }
+        if (!isRecord(request.params)) {
+          return respond(invalidParams(id, "params must be an object"));
+        }
+        const parsed = parseCompileModelRequest(request.params, tuple);
+        if (parsed.kind === "invalid") {
+          return respond(invalidParams(id, parsed.message));
+        }
+        if (parsed.hasDependencies) {
+          return respond(
+            success(id, {
+              success: false,
+              diagnostics: [
+                {
+                  severity: "error",
+                  code: UNSUPPORTED_DEPENDENCIES,
+                  message:
+                    "The Elm classic extension does not support package dependencies in compileModel",
+                },
+              ],
+            })
+          );
+        }
+        let result: unknown;
+        try {
+          result = await compile(parsed.request);
+        } catch (error) {
+          if (error instanceof InvalidCompileParamsError) {
+            return respond(invalidParams(id, error.message));
+          }
+          return respond(
+            failure(id, -32603, "Elm frontend compilation failed internally")
+          );
+        }
+        if (!isCompileResult(result)) {
+          return respond(
+            failure(id, -32603, "Elm frontend returned an invalid compile result")
+          );
+        }
+        if (!result.success) {
+          return respond(
+            success(id, { success: false, diagnostics: result.diagnostics })
+          );
+        }
+        let irText: string;
+        try {
+          irText = toV4(result.ir);
+        } catch {
+          return respond(
+            failure(id, -32603, "The compiled IR could not be converted to IR 4.0.0")
+          );
+        }
+        const model = envelope(irText, parsed.request.package.name, transport.limits);
+        if (model === undefined) {
+          return respond(
+            success(id, {
+              success: false,
+              diagnostics: [
+                {
+                  severity: "error",
+                  code: "elm.model_limit",
+                  message: "The compiled model is larger than the agreed model limits",
+                },
+              ],
+            })
+          );
+        }
+        return respond(
+          success(id, {
+            success: true,
+            model,
+            diagnostics: result.diagnostics,
+            modules: result.modules,
+          })
+        );
+      }
       case "morphir.workspace.discover": {
         const discoveryRequest = parseDiscoveryRequest(
           request.hasParams ? request.params : undefined
