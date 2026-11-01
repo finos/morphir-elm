@@ -8,5 +8,5 @@
 
 ## Workflow follow-up
 
-- After Damian approves the merge and the tag, tag `extension/elm/v0.5.0-preview.2` on `vnext` and verify the release with `gh attestation verify` and `sha256sum --check`.
+- Done 2026-10-31: `extension/elm/v0.5.0-preview.2` released from 1604c110 and verified with `gh attestation verify` and `sha256sum --check`.
 - Archive this change after the release is verified.
