@@ -140,11 +140,34 @@ export function modelId(packageName: string): string {
   return `urn:finos:morphir-elm:model:${sha256Hex(packageName)}`;
 }
 
+/** The nesting levels of a JSON text, the root being level 1, and its number of values. The MoonBit host counts a
+ * payload so: it refuses a value deeper than maxDepth levels and more than maxNodes values. */
+export function jsonShape(text: string): { readonly levels: number; readonly nodes: number } {
+  let levels = 0;
+  let nodes = 0;
+  const pending: [unknown, number][] = [[JSON.parse(text), 1]];
+  while (pending.length > 0) {
+    const [value, level] = pending.pop()!;
+    nodes += 1;
+    levels = Math.max(levels, level);
+    if (typeof value === "object" && value !== null) {
+      for (const child of Object.values(value)) {
+        pending.push([child, level + 1]);
+      }
+    }
+  }
+  return { levels, nodes };
+}
+
 /** The morphir-json model envelope for IR 4.0.0 text, or undefined when it is over the agreed limits. */
 export function envelope(irText: string, packageName: string, limits: Limits) {
   const bytes = new TextEncoder().encode(irText);
   const content = Buffer.from(bytes).toString("base64");
   if (bytes.byteLength > limits.maxDecodedBytes || content.length > limits.maxEncodedBytes) {
+    return undefined;
+  }
+  const shape = jsonShape(irText);
+  if (shape.levels > limits.maxDepth || shape.nodes > limits.maxNodes) {
     return undefined;
   }
   const digest = sha256Hex(bytes);

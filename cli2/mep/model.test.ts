@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 
 import extensionMetadata from "./extension.json";
+import { jsonShape } from "./model";
 import {
   createDispatcher,
   type CompileRequest,
@@ -111,6 +112,15 @@ async function ready02(
   result(await session.dispatch(initialize02()));
   return session;
 }
+
+describe("JSON shape", () => {
+  test("counts levels from the root as level 1 and every value as a node, as the MoonBit host does", () => {
+    expect(jsonShape("1")).toEqual({ levels: 1, nodes: 1 });
+    expect(jsonShape("[]")).toEqual({ levels: 1, nodes: 1 });
+    expect(jsonShape('{"a":[1,2]}')).toEqual({ levels: 3, nodes: 4 });
+    expect(jsonShape(V4_TEXT)).toEqual({ levels: 2, nodes: 3 });
+  });
+});
 
 describe("MEP 0.2 claims", () => {
   test("extension.json offers 0.2.0-draft.1 first and keeps 0.1", () => {
@@ -387,6 +397,45 @@ describe("morphir.frontend.compileModel", () => {
     expect(answer.diagnostics).toEqual([
       expect.objectContaining({ code: "elm.model_limit" }),
     ]);
+  });
+
+  test.each([
+    ["maxDepth", { maxDepth: 1 }],
+    ["maxNodes", { maxNodes: 2 }],
+  ])("answers a model over the agreed %s with an elm.model_limit diagnostic", async (_, limit) => {
+    // V4_TEXT has two levels and three values.
+    const session = dispatcher(undefined, () => V4_TEXT);
+    result(
+      await session.dispatch(
+        initialize02({
+          tuples: [COMPILE_MODEL_TUPLE],
+          limits: { ...DEFAULT_LIMITS, ...limit },
+          guarantees: [],
+        })
+      )
+    );
+    const answer = result(
+      await session.dispatch(request("morphir.frontend.compileModel", compileModelParams(), 2))
+    );
+    expect(answer.success).toBe(false);
+    expect(answer.diagnostics).toEqual([expect.objectContaining({ code: "elm.model_limit" })]);
+  });
+
+  test("accepts a model at exactly the agreed depth and node limits", async () => {
+    const session = dispatcher(undefined, () => V4_TEXT);
+    result(
+      await session.dispatch(
+        initialize02({
+          tuples: [COMPILE_MODEL_TUPLE],
+          limits: { ...DEFAULT_LIMITS, maxDepth: 2, maxNodes: 3 },
+          guarantees: [],
+        })
+      )
+    );
+    const answer = result(
+      await session.dispatch(request("morphir.frontend.compileModel", compileModelParams(), 2))
+    );
+    expect(answer.success).toBe(true);
   });
 
   test("answers a failed conversion with an internal error", async () => {

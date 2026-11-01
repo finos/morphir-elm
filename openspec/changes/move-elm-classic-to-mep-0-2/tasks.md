@@ -26,7 +26,7 @@
 
 - [x] 4.1 Run `mise run release:elm-classic-extension -- extension/elm-classic/v0.6.0` as a dry run; test the bundle
   executable with the integration tests.
-- [ ] 4.2 Qualify with finos/morphir-moonbit `main` (native and npm CLIs) and a contract 0.2.0 process pin with the
+- [x] 4.2 Qualify with finos/morphir-moonbit `main` (native and npm CLIs) and a contract 0.2.0 process pin with the
   bundle descriptor: describe, compileModel to a model, and a clean process exit.
 - [ ] 4.3 Open the pull request against `vnext`; merge after green CI and answered reviews.
 - [ ] 4.4 Tag `extension/elm-classic/v0.6.0`; verify the checksums, the attestations and a pinned compile with the

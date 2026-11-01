@@ -94,6 +94,10 @@ classic compile request with <code>irVersion "3"</code>, converts the IR and ret
 the refusal messages are those of the Elm extension (<code>moonbit/mep</code>), so a host sees the same model id from
 either Elm frontend. Dependencies give the diagnostic <code>elm.unsupported_dependencies</code>, as in the Elm
 extension. A conversion failure is <code>-32603</code>: it is a defect of the extension, not of the source.</p>
+<p>The payload must also be within the agreed <code>maxDepth</code> and <code>maxNodes</code>, counted as the MoonBit host
+counts them: every JSON value is a node, and the root is level 1. A larger model gives the diagnostic
+<code>elm.model_limit</code>. The Elm extension checks only the byte limits; bead <code>morphir-ukvn.1.19</code> adds
+the same check there.</p>
 
 <h3 id="rel-1">REL-1: Release 0.6.0 with the same release path</h3>
 <p><code>extension.json</code> gives version <code>0.6.0</code> and <code>mepVersions</code>
