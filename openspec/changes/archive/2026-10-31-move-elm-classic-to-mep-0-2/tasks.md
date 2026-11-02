@@ -28,7 +28,15 @@
   executable with the integration tests.
 - [x] 4.2 Qualify with finos/morphir-moonbit `main` (native and npm CLIs) and a contract 0.2.0 process pin with the
   bundle descriptor: describe, compileModel to a model, and a clean process exit.
-- [ ] 4.3 Open the pull request against `vnext`; merge after green CI and answered reviews.
-- [ ] 4.4 Tag `extension/elm-classic/v0.6.0`; verify the checksums, the attestations and a pinned compile with the
+- [x] 4.3 Open the pull request against `vnext`; merge after green CI and answered reviews.
+- [x] 4.4 Tag `extension/elm-classic/v0.6.0`; verify the checksums, the attestations and a pinned compile with the
   published files.
-- [ ] 4.5 Report the tag, the asset digests and the receipts to the requesting session.
+- [x] 4.5 Report the tag, the asset digests and the receipts to the requesting session.
+
+## Workflow follow-up
+
+- Done 2026-10-31: finos/morphir-elm#1339 merged as c9efbc9c; `extension/elm-classic/v0.6.0` released (run 41268232852),
+  verified with `shasum -a 256 -c` and `gh attestation verify` (12/12), and qualified with the published files through
+  finos/morphir-moonbit `main` (native and npm CLIs, contract 0.2.0 pin with the bundle descriptor, 17/17). Reported in
+  orchestration message `msg_1e351b5cbd6d`.
+- Archive this change.
