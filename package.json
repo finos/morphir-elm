@@ -135,7 +135,7 @@
     "zod": "^3.23.8"
   },
   "overrides": {
-    "glob": "^11.0.0",
+    "glob": "^14.0.0",
     "glob-parent": "^5.1.2",
     "package-json": "^8.1.1",
     "path-to-regexp": "^0.1.12",
