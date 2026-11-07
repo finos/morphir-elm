@@ -30,13 +30,14 @@ pub const TARGET : String = "elm"
 
 ///|
 /// One model transport tuple. The extension supports the plain IR as Morphir JSON for both operations.
+#derive(Eq)
 priv struct Tuple {
   operation : String
   profile : String
   codec : String
   envelope_version : String
   ir_version : String
-} derive(Eq)
+}
 
 ///|
 fn json_tuple(operation : String) -> Tuple {

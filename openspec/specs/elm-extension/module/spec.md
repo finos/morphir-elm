@@ -15,7 +15,7 @@ MoonBit task started without that environment SHALL stop with a message that nam
 #### Scenario: Pinned version
 
 - **WHEN** a contributor installs the MoonBit environment and asks for the MoonBit version
-- **THEN** the version is `0.10.18+6c83a7f62`
+- **THEN** the version is `0.10.20+65efd5b93`
 
 #### Scenario: Environment not set
 

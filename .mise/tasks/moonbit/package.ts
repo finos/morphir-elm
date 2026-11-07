@@ -12,7 +12,7 @@ const version = moduleVersion(await readFile(join(MOONBIT_DIR, "moon.mod"), "utf
 const name = wasmArtifactName(version);
 const output = join(PATHS.dist, "elm-extension", "artifacts");
 
-// From 0.10.18, moon links wasm executables for WASI by default, which adds a wasi_snapshot_preview1.fd_write
+// From 0.10.18 (and still on 0.10.20), moon links wasm executables for WASI by default, which adds a wasi_snapshot_preview1.fd_write
 // import. The morphir-bytes-v1 ABI allows only the three morphir_bytes_v1 imports, so turn WASI linking off for this
 // build only: the MoonBit scripts, such as the parity refresh, use moonbitlang/async and need WASI.
 await moon(["build", "--target", "wasm", "--release", "extension"], { env: { MOON_WASI_LINK: "0" } });
