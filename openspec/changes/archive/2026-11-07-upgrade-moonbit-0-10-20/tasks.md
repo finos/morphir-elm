@@ -1,6 +1,6 @@
 # Tasks
 
-## 1. Move the MoonBit Elm module to MoonBit 0.10.20
+## 1. Move the MoonBit Elm module to MoonBit 0.10.20 (morphir-ukvn.1.20)
 
 - [x] 1.1 Pin `0.10.20+65efd5b93` in `mise.moonbit.toml`. Verify that `MISE_ENV=moonbit mise exec -- moon version --all` shows `moonc v0.10.20+65efd5b93`.
 - [x] 1.2 Commit the 0.10.20 `moon fmt` and `moon info` output, fix the deprecated API calls, and verify that `mise run moonbit:check` passes.

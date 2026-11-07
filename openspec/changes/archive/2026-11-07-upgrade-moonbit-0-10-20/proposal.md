@@ -29,7 +29,8 @@ None.
 
 ## Beads
 
-- **Tracked by**: the MoonBit 0.10.20 rollout (coordinator task, no bead in this repository)
+- **Tracked by**: `morphir-ukvn.1.20`
+- **Related**: `morphir-ukvn.1.16` (the move to MoonBit 0.10.18)
 
 ## Impact
 
