@@ -4,7 +4,7 @@
 # morphir-moonbit publishes that module (plan bead morphir-ukvn.5.88).
 [morphir-moonbit]
 repository = "https://github.com/finos/morphir-moonbit.git"
-commit = "fe9ca3dc393bfdde7eb1c8edfa90dd4ac653b984"
+commit = "3a7b557796b1ce84d867cc9de8bbec7f024294b9"
 paths = [
   "pkgs/morphir-ir",
   "pkgs/morphir-sdk-spec",
