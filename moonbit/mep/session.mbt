@@ -1,5 +1,6 @@
 ///|
 /// What the guest answers to one message.
+#derive(Eq, Debug)
 pub(all) enum Reply {
   /// A response, as JSON-RPC text.
   Response(String)
@@ -7,7 +8,7 @@ pub(all) enum Reply {
   Notified
   /// The message was `morphir.exit`; the session has ended.
   Exited
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend Reply with Eq::{equal, not_equal}

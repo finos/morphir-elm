@@ -24,18 +24,20 @@ pub fn type_attributes(@ast.Range) -> @v4.TypeAttributes
 pub fn value_attributes(@ast.Range) -> @v4.ValueAttributes
 
 // Errors
+#derive(Eq, @debug.Debug)
 pub(all) suberror LowerError {
   LowerError(String, String, @ast.Range?)
-} derive(Eq, @debug.Debug)
+}
 pub fn LowerError::equal(Self, Self) -> Bool
 pub fn LowerError::not_equal(Self, Self) -> Bool
 pub fn LowerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+#derive(Eq, @debug.Debug)
 pub(all) enum LetGroup {
   Single(Int32)
   Recursive(Array[Int32])
-} derive(Eq, @debug.Debug)
+}
 pub fn LetGroup::equal(Self, Self) -> Bool
 pub fn LetGroup::not_equal(Self, Self) -> Bool
 pub fn LetGroup::to_repr(Self) -> @debug.Repr

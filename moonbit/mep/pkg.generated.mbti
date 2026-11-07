@@ -3,6 +3,7 @@ package "finos/morphir-elm/mep"
 
 import {
   "moonbitlang/core/debug",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -18,16 +19,17 @@ pub const UNSUPPORTED_DEPENDENCIES : String = "elm.unsupported_dependencies"
 
 pub const VERSION : String = "0.5.0-preview.2"
 
-pub fn claims() -> Json
+pub fn claims() -> @json.Json
 
 // Errors
 
 // Types and methods
+#derive(Eq, @debug.Debug)
 pub(all) enum Reply {
   Response(String)
   Notified
   Exited
-} derive(Eq, @debug.Debug)
+}
 pub fn Reply::equal(Self, Self) -> Bool
 pub fn Reply::not_equal(Self, Self) -> Bool
 pub fn Reply::to_repr(Self) -> @debug.Repr
