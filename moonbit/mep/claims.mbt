@@ -71,13 +71,29 @@ impl ToJson for Tuple with fn to_json(self) {
 priv struct Limits {
   encoded : Int32
   decoded : Int32
-  depth : Int32
-  nodes : Int32
+  depth : MaxDepth
+  nodes : MaxNodes
 }
 
 ///|
+/// The most JSON nesting levels a model payload may have. The root value is level 1.
+#derive(Eq, Compare)
+priv struct MaxDepth(Int32)
+
+///|
+/// The most JSON values a model payload may have. Each object, array, string, number, boolean and null is one value;
+/// an object key is not.
+#derive(Eq, Compare)
+priv struct MaxNodes(Int32)
+
+///|
 fn supported_limits() -> Limits {
-  { encoded: 2796204, decoded: 2097152, depth: 128, nodes: 100000, }
+  {
+    encoded: 2796204,
+    decoded: 2097152,
+    depth: MaxDepth(128),
+    nodes: MaxNodes(100000),
+  }
 }
 
 ///|
@@ -85,8 +101,8 @@ impl ToJson for Limits with fn to_json(self) {
   {
     "maxEncodedBytes": self.encoded,
     "maxDecodedBytes": self.decoded,
-    "maxDepth": self.depth,
-    "maxNodes": self.nodes,
+    "maxDepth": self.depth.0,
+    "maxNodes": self.nodes.0,
   }
 }
 

@@ -68,7 +68,9 @@ bun test moonbit/tests                        # the packaged module through the 
   `0.1.0-draft.1`, IR `4.0.0`.
 
 `initialize` keeps the offered tuples that the extension supports and the smaller value of each limit. It repeats the
-described frontend and backend claims.
+described frontend and backend claims. The limits apply to the model payload of both operations: its encoded and
+decoded size, its JSON nesting depth (`maxDepth`, the root value is level 1) and its number of JSON values (`maxNodes`;
+an object key is not a value). The MoonBit host and the Elm classic extension count depth and values the same way.
 
 **Compile.** `compileModel` takes every module of one package in `sources.documents`. URIs are relative, or
 absolute under `sources.root`. The package's name is in `package.name`. Without `package.exposedModules`, every
@@ -85,7 +87,8 @@ table described below.
 | --- | --- |
 | Elm sources that do not compile | `success: false` with one diagnostic for each problem, with its code and location; no model |
 | A request with package dependencies | `success: false` with `elm.unsupported_dependencies`; dependency support is a follow-up |
-| A model over the agreed limits | `success: false` with `elm.model_limit` |
+| A compiled model over the agreed limits | `success: false` with `elm.model_limit` |
+| A model to generate from that is over the agreed limits | JSON-RPC error `-32602`, `Model admission refused: model_limit` |
 | A malformed request, another language or target, a tuple that was not negotiated, a bad digest, or bad options | JSON-RPC error `-32602` |
 | A request before `initialize` or after `shutdown` | `-32014` |
 | An operation that was not negotiated | `-32013` |
