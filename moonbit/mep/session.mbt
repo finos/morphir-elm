@@ -258,8 +258,8 @@ fn read_limits(offer : Map[String, Json]) -> Limits raise RpcError {
   {
     encoded: positive("maxEncodedBytes"),
     decoded: positive("maxDecodedBytes"),
-    depth: positive("maxDepth"),
-    nodes: positive("maxNodes"),
+    depth: MaxDepth(positive("maxDepth")),
+    nodes: MaxNodes(positive("maxNodes")),
   }
 }
 
