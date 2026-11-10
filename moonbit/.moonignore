@@ -1,0 +1,8 @@
+# Files that `moon package` leaves out of the finos/morphir-elm archive on mooncakes. They are repository tooling,
+# not the module: the TypeScript tooling and tests, the scripts and their Node packages, the pin of the data files,
+# and the workspace file. See openspec/specs/elm-extension/release.
+/tooling/
+/tests/
+/scripts/
+/deps.toml
+/moon.work

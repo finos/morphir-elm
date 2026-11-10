@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>publish-elm-extension-to-mooncakes: design</title>
+<!--
+  Agent document template (docs/templates/agent-document.html). Specs, plans and reports that a person reviews
+  start from this file: copy it, keep the <head> as it is, and write the content inside <main>.
+  Styles and scripts are files in docs/templates/assets/, referenced and not embedded. In a copy, change the
+  "assets/" prefix of each href and src to the relative path from the copy to that directory, for example
+  "../../docs/templates/assets/" from .dev/beads-specs/. See AGENTS.md, "Specs and plans are HTML documents".
+  Code goes in <pre><code class="language-elm"> (or typescript, json, toml, bash, diff). Give sections an id and
+  list them in nav.toc.
+-->
+<link rel="stylesheet" href="../../../docs/templates/assets/agent-document.css">
+<link rel="stylesheet" href="../../../docs/templates/assets/highlight/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="../../../docs/templates/assets/highlight/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<script defer src="../../../docs/templates/assets/highlight/highlight.min.js"></script>
+<script defer src="../../../docs/templates/assets/highlight/languages/elm.min.js"></script>
+<script defer src="../../../docs/templates/assets/agent-document.js"></script>
+</head>
+<body>
+<main>
+<h1>publish-elm-extension-to-mooncakes: design</h1>
+<p class="meta">OpenSpec change · Bead <code>morphir-oa72</code> · 2026-11-10 · proposed</p>
+
+<nav class="toc" aria-label="Contents">
+<ul>
+<li><a href="#context">Context</a></li>
+<li><a href="#goals">Goals and non-goals</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#flow">The mooncakes job</a></li>
+<li><a href="#risks">Risks and trade-offs</a></li>
+<li><a href="#migration">Migration plan</a></li>
+</ul>
+</nav>
+
+<h2 id="context">Context</h2>
+<p>See proposal.md for the reason. These facts, which I measured on MoonBit <code>0.10.20+65efd5b93</code> in a
+scratch copy with no upload, shape the approach:</p>
+<ul>
+<li><code>elm-extension-release.yml</code> has three jobs: <code>build</code> (tag and vnext checks, the Wasm module, the
+session digest), <code>test</code> (the same bytes and answers on three hosts) and <code>publish</code> (attestation and
+GitHub release). No file in the repository runs <code>moon publish</code>.</li>
+<li><code>moon package</code> of <code>moonbit/</code> makes <code>_build/publish/finos-morphir-elm-&lt;version&gt;.zip</code>
+with 326 files. It has no <code>LICENSE</code>, and it has <code>tooling/*.ts</code>, <code>tests/*.ts</code>,
+<code>scripts/</code>, <code>deps.toml</code> and <code>moon.work</code>.</li>
+<li><code>exclude</code> in <code>moon.mod</code> is deprecated: moon warns and names <code>.moonignore</code>. With a
+<code>.moonignore</code> and a <code>LICENSE</code>, the archive has <code>moon.mod</code>, <code>README.md</code>,
+<code>LICENSE</code> and the MoonBit packages only.</li>
+<li>That archive, unpacked alone with a new <code>MOON_HOME</code> and <code>MOON_WORK=off</code>, passed 201 of 201
+tests on <code>wasm</code>, <code>wasm-gc</code>, <code>js</code> and <code>native</code>.</li>
+<li>Mooncakes accepts prerelease versions, and a new consumer resolved one.</li>
+<li>The organization secret <code>MOONCAKES_TOKEN</code> is visible to finos/morphir-elm. finos/morphir-moonbit
+writes it into <code>credentials.json</code> as <code>{"token", "username": "finos", "registry_api":
+"https://mooncakes.io"}</code>, after a read-only check
+(<code>GET https://mooncakes.io/api/v0/api_token/check</code>) that the account is <code>finos</code>.</li>
+<li>The minimum consumer compiler of the published finos modules is <code>0.10.20+65efd5b93</code>, which is also the
+release compiler. So one compiler covers both.</li>
+</ul>
+
+<h2 id="goals">Goals and non-goals</h2>
+<p><strong>Goals:</strong> a mooncakes publication from the release tag that fails before the upload when the archive is
+wrong, uploads each version at most once, and proves the published version from a new consumer.</p>
+<p><strong>Non-goals:</strong></p>
+<ul>
+<li>The plan, receipt and gate machinery of finos/morphir-moonbit (<code>scripts/mooncakes-release.mbtx</code>). This
+workflow already has the tag, vnext and digest gates.</li>
+<li>A pull-request or merge-queue job. The archive rules have unit tests that run in the existing
+<code>bun test moonbit/tooling</code> step.</li>
+<li>The version bump to <code>0.5.0-preview.3</code>, the tag and the publication. They are later steps.</li>
+<li>A protected deployment environment (the maintainer chose none for now).</li>
+</ul>
+
+<h2 id="decisions">Decisions</h2>
+
+<h3 id="rel-1">REL-1. One job after <code>publish</code>, in the existing workflow</h3>
+<p>The job <code>mooncakes</code> needs <code>build</code> and <code>publish</code>, and checks out the same tag. The
+maintainer chose this on 2026-11-10. The tag, vnext and version checks of <code>build</code> stay the only gates; the
+job does not repeat them. Alternatives: a separate dispatch-only workflow (two places to start one release), or a job
+before <code>publish</code> (a mooncakes failure would then block the GitHub release; the maintainer preferred the
+GitHub release first).</p>
+
+<h3 id="rel-2">REL-2. Package from a git snapshot of the tagged commit</h3>
+<p><code>package</code> runs <code>git archive &lt;commit&gt; moonbit</code> into a new directory and runs
+<code>moon package</code> there. Untracked files in the checkout (<code>.deps</code>, <code>.mooncakes</code>,
+<code>_build</code>, <code>scripts/node_modules</code>) cannot enter the archive, and the archive does not depend on how
+moon reads the root <code>.gitignore</code>. The commit must be <code>HEAD</code>, and the tag must give the
+<code>moon.mod</code> version (<code>parseReleaseTag</code>, which the GitHub release already uses).</p>
+
+<h3 id="rel-3">REL-3. Archive rules are pure and unit-tested</h3>
+<p><code>moonbit/tooling/mooncakes.ts</code> holds the rules that do not need the network or moon:</p>
+<table>
+<thead><tr><th>Function</th><th>Rule</th></tr></thead>
+<tbody>
+<tr><td><code>archiveName(version)</code></td><td><code>finos-morphir-elm-&lt;version&gt;.zip</code>, the name <code>moon package</code> writes</td></tr>
+<tr><td><code>checkArchiveEntries(entries)</code></td><td>requires <code>moon.mod</code>, <code>README.md</code>, <code>LICENSE</code>; refuses <code>tooling/</code>, <code>tests/</code>, <code>scripts/</code>, <code>deps.toml</code>, <code>moon.work</code>, <code>_build/</code>, <code>.mooncakes/</code>, <code>.deps/</code>, <code>node_modules/</code>, an absolute path or <code>..</code>; names every bad entry</td></tr>
+<tr><td><code>registryState(status)</code></td><td>404 is <code>absent</code>, 200 is <code>present</code>, any other answer is <code>unknown</code></td></tr>
+<tr><td><code>isFinosAccount(status, body)</code></td><td>200 with <code>ok: true</code> and <code>username: "finos"</code></td></tr>
+<tr><td><code>credentialsJson(token)</code></td><td>the credential file content; refuses an empty token</td></tr>
+<tr><td><code>redact(text, token)</code></td><td>replaces every copy of the token in child output</td></tr>
+<tr><td><code>consumerFiles(version)</code></td><td><code>moon.mod</code>, <code>moon.work</code>, <code>moon.pkg</code> and a test of the verify consumer</td></tr>
+</tbody>
+</table>
+
+<h3 id="rel-4">REL-4. A new Moon home for each check</h3>
+<p>The archive test, the upload and the consumer each use a new directory as <code>MOON_HOME</code> that links only
+<code>bin</code>, <code>lib</code>, <code>include</code> and <code>share</code> of the pinned toolchain, and each runs
+moon with <code>MOON_WORK=off</code>. No registry cache or login of the runner, and no workspace in a parent
+directory, can supply an input. Only the upload home ever holds a credential, and the task deletes that home when it
+ends.</p>
+
+<h3 id="rel-5">REL-5. Stop when the version exists; upload once</h3>
+<p>Before the upload, the task reads <code>https://mooncakes.io/api/v0/manifest/finos/morphir-elm@&lt;version&gt;</code>.
+Only <code>absent</code> continues. A present version stops the job: a mooncakes version cannot change, and a new
+source needs a new version. The upload is one <code>moon publish</code> run with no retry; a failure leaves the
+version for a person to examine. Alternative: accept a present version whose archive checksum equals ours (as
+finos/morphir-moonbit does); that needs a reproducible archive and a download path, and the GitHub release step
+already refuses a second run of the same tag.</p>
+
+<h3 id="rel-6">REL-6. The token stays in one step</h3>
+<p>Only the step <code>Publish to mooncakes</code> has <code>MOONCAKES_TOKEN</code> in its environment. The task checks
+the account, writes <code>credentials.json</code> with mode 0600 and exclusive create, runs
+<code>moon publish</code>, and removes the home in a <code>finally</code> block. Child output goes through
+<code>redact</code>; GitHub also masks the secret. The token goes in the check URL as a query parameter, as moon's own
+login does.</p>
+
+<h3 id="rel-7">REL-7. The consumer checks the version that it resolved</h3>
+<p>The consumer imports <code>finos/morphir-elm/mep</code>. Its test requires <code>@mep.VERSION</code> to equal the
+release version and a new <code>Session</code> to be open. So the test fails if moon resolves another version.
+<code>moon update</code> retries with 1, 2, 4, 8, 16 and 32 seconds of wait, because the registry index can show a new
+version late; the tests do not retry.</p>
+
+<h2 id="flow">The mooncakes job</h2>
+<pre><code class="language-bash"># .github/workflows/elm-extension-release.yml, job mooncakes (needs: build, publish)
+mise run release:elm-extension-mooncakes -- package "$RELEASE_TAG" "$RELEASE_COMMIT"   # no secret
+mise run release:elm-extension-mooncakes -- publish "$VERSION"                        # MOONCAKES_TOKEN here only
+mise run release:elm-extension-mooncakes -- verify "$VERSION"                         # no secret</code></pre>
+<table>
+<thead><tr><th>Command</th><th>Does</th><th>Fails when</th></tr></thead>
+<tbody>
+<tr><td><code>package</code></td><td>git snapshot, <code>moon package</code>, entry check, unpacked archive tested on 4 targets, zip and <code>.sha256</code> into <code>dist/elm-extension-mooncakes/</code></td><td>tag or commit mismatch, bad entries, any test</td></tr>
+<tr><td><code>publish</code></td><td>checksum check, registry check, account check, one <code>moon publish</code> from the unpacked archive</td><td>checksum, version present or unknown, wrong account, upload error</td></tr>
+<tr><td><code>verify</code></td><td>new consumer, <code>moon update</code>, tests on 4 targets</td><td>version not resolvable, any test</td></tr>
+</tbody>
+</table>
+<p>The job uploads <code>dist/elm-extension-mooncakes/</code> as an artifact, also when it fails, so a person can read
+the archive that it packaged.</p>
+
+<h2 id="risks">Risks and trade-offs</h2>
+<table>
+<thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+<tbody>
+<tr><td>The GitHub release exists but the mooncakes job fails.</td><td>The job stops before the upload for every check except the upload itself. A person reads the job and the artifact, and re-runs the failed job (the registry check stops it if the upload did happen).</td></tr>
+<tr><td>The upload succeeds and <code>verify</code> fails.</td><td>The version stays; a fix needs a new version. The job fails, so the release is visibly incomplete.</td></tr>
+<tr><td>The upload path is not tested before the first real release.</td><td>The <code>moon publish</code> step is one command on an archive that <code>moon package</code> already checked. The first publication of <code>0.5.0-preview.3</code> is a preview, and the maintainer approves it explicitly.</td></tr>
+<tr><td>moon changes its archive name or <code>.moonignore</code> rules.</td><td>The release pins the toolchain; <code>checkArchiveEntries</code> fails on a changed archive before the upload.</td></tr>
+</tbody>
+</table>
+
+<h2 id="migration">Migration plan</h2>
+<ol>
+<li>Merge this change. Nothing runs until a tag.</li>
+<li>A separate PR bumps <code>moon.mod</code> and <code>mep</code> <code>VERSION</code> to <code>0.5.0-preview.3</code>.</li>
+<li>With the maintainer's approval, push tag <code>extension/elm/v0.5.0-preview.3</code> on vnext.</li>
+</ol>
+<p>Rollback: remove the job. A published version cannot be removed; <code>moon deprecate</code> can mark it.</p>
+</main>
+</body>
+</html>
