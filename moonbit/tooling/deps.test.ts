@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import committed from "../deps.toml";
+import moonMod from "../moon.mod" with { type: "text" };
+import moonWork from "../moon.work" with { type: "text" };
 import { parsePin, planDepsFetch, type Pin } from "./deps";
 
 const good: Pin = {
@@ -12,7 +14,17 @@ describe("parsePin", () => {
   test("accepts the committed pin", () => {
     const pin = parsePin(committed["morphir-moonbit"]);
     expect(pin.commit).toMatch(/^[0-9a-f]{40}$/);
-    expect(pin.paths).toContain("pkgs/morphir-ir");
+    expect(pin.paths).toContain("pkgs/morphir-sdk/conformance");
+  });
+
+  // A finos module that moon.mod imports comes from mooncakes. A checkout of the same module in the workspace would
+  // replace the registry version without a sign.
+  test("checks out no module that moon.mod imports from mooncakes", () => {
+    const imported = [...moonMod.matchAll(/"finos\/([A-Za-z0-9._-]+)@/g)].map((match) => `pkgs/${match[1]}`);
+    expect(imported).toContain("pkgs/morphir-ir");
+    const pin = parsePin(committed["morphir-moonbit"]);
+    expect(pin.paths.filter((path) => imported.includes(path))).toEqual([]);
+    expect(moonWork).not.toContain(".deps/");
   });
 
   test("refuses a short commit", () => {

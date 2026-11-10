@@ -25,11 +25,11 @@ MISE_ENV=moonbit mise run moonbit:classic-ir      # rebuild the Elm classic exte
 The tasks run `moon` in `moonbit/` and pass the module's package directories, so `moon` acts on this module only.
 Windows is not supported for these tasks.
 
-`finos/morphir-ir`, `finos/morphir-sdk-spec` and `finos/morphir-typing` are not on mooncakes yet.
-`moonbit/deps.toml` pins one finos/morphir-moonbit commit, and `moonbit:deps` checks out those modules, and the
-files the generators read, sparse and shallow into `moonbit/.deps/morphir-moonbit` (ignored by git).
-`moonbit/moon.work` lists them. When finos/morphir-moonbit publishes a module (plan bead `morphir-ukvn.5.88`),
-import its published version in `moon.mod`, and remove it from `moon.work` and from the pin.
+`finos/morphir-ir`, `finos/morphir-sdk-spec` and `finos/morphir-typing` come from mooncakes, at the versions that
+`moon.mod` imports. `moonbit/deps.toml` pins one finos/morphir-moonbit commit, and `moonbit:deps` checks out the
+files the generators read (`pkgs/morphir-sdk/conformance`), sparse and shallow, into `moonbit/.deps/morphir-moonbit`
+(ignored by git). These files are data, not modules, so `moonbit/moon.work` does not list them. Do not add a
+checkout of a module that `moon.mod` imports: it would replace the registry version.
 
 ## The extension
 

@@ -3,8 +3,9 @@ name: Elm extension
 
 # Builds and tests the MoonBit Elm extension in moonbit/ (module
 # finos/morphir-elm). MoonBit comes from mise.moonbit.toml through
-# MISE_ENV=moonbit; the finos/morphir-moonbit modules that are not on
-# mooncakes come from the commit pinned in moonbit/deps.toml.
+# MISE_ENV=moonbit; the finos/morphir-moonbit modules come from mooncakes,
+# and the data files that the generators read come from the commit pinned
+# in moonbit/deps.toml.
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
