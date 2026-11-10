@@ -17,7 +17,7 @@
 
 - [x] 3.1 Add job `mooncakes` to `.github/workflows/elm-extension-release.yml` (needs `build` and `publish`; `MOONCAKES_TOKEN` in the publish step only; artifact upload also on failure); verify with `actionlint` (or `yamllint`) and by reading that no other step references the secret
 - [x] 3.2 Update the workflow header comment and the release section of `moonbit/README.md`; verify that the text names the job, the tag and the secret
-- [ ] 3.3 Run the PR gates: `bun test moonbit/tooling`, `moonbit:check`, `moonbit:test`, and `openspec validate publish-elm-extension-to-mooncakes --strict`; verify that each passes
+- [x] 3.3 Run the PR gates: `bun test moonbit/tooling`, `moonbit:check`, `moonbit:test`, and `openspec validate publish-elm-extension-to-mooncakes --strict`; verify that each passes
 
 ## Workflow follow-up
 
