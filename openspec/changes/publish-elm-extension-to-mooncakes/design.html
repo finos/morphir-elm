@@ -100,7 +100,8 @@ moon reads the root <code>.gitignore</code>. The commit must be <code>HEAD</code
 <tr><td><code>isFinosAccount(status, body)</code></td><td>200 with <code>ok: true</code> and <code>username: "finos"</code></td></tr>
 <tr><td><code>credentialsJson(token)</code></td><td>the credential file content; refuses an empty token</td></tr>
 <tr><td><code>redact(text, token)</code></td><td>replaces every copy of the token in child output</td></tr>
-<tr><td><code>consumerFiles(version)</code></td><td><code>moon.mod</code>, <code>moon.work</code>, <code>moon.pkg</code> and a test of the verify consumer</td></tr>
+<tr><td><code>indexHasVersion(index, version)</code></td><td>the registry index that <code>moon update</code> wrote lists the version</td></tr>
+<tr><td><code>consumerFiles(version)</code></td><td><code>moon.mod</code>, <code>moon.pkg</code> and a test of the verify consumer</td></tr>
 </tbody>
 </table>
 
@@ -129,8 +130,8 @@ login does.</p>
 <h3 id="rel-7">REL-7. The consumer checks the version that it resolved</h3>
 <p>The consumer imports <code>finos/morphir-elm/mep</code>. Its test requires <code>@mep.VERSION</code> to equal the
 release version and a new <code>Session</code> to be open. So the test fails if moon resolves another version.
-<code>moon update</code> retries with 1, 2, 4, 8, 16 and 32 seconds of wait, because the registry index can show a new
-version late; the tests do not retry.</p>
+<code>moon update</code> runs again after 1, 2, 4, 8, 16 and 32 seconds until the index lists the version
+(<code>indexHasVersion</code>), because the registry index can show a new version late; the tests do not retry.</p>
 
 <h2 id="flow">The mooncakes job</h2>
 <pre><code class="language-bash"># .github/workflows/elm-extension-release.yml, job mooncakes (needs: build, publish)

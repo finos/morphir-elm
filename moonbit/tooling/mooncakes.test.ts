@@ -4,6 +4,7 @@ import {
   checkArchiveEntries,
   consumerFiles,
   credentialsJson,
+  indexHasVersion,
   isFinosAccount,
   redact,
   registryState,
@@ -113,11 +114,27 @@ describe("consumerFiles", () => {
     expect(files["consumer_test.mbt"]).toContain('assert_eq(@mep.VERSION, "0.5.0-preview.3")');
   });
 
-  test("is its own workspace", () => {
-    expect(files["moon.work"]).toContain('"."');
-  });
-
   test("refuses a version that is not SemVer", () => {
     expect(() => consumerFiles('0.5.0"\n')).toThrow(/SemVer/);
+  });
+});
+
+describe("indexHasVersion", () => {
+  const index = [
+    JSON.stringify({ name: "finos/morphir-elm", version: "0.1.0" }),
+    JSON.stringify({ name: "finos/morphir-elm", version: "0.5.0-preview.3" }),
+    "",
+  ].join("\n");
+
+  test("finds a version that the index lists", () => {
+    expect(indexHasVersion(index, "0.5.0-preview.3")).toBe(true);
+  });
+
+  test("does not find a version that the index does not list", () => {
+    expect(indexHasVersion(index, "0.5.0-preview.4")).toBe(false);
+  });
+
+  test("ignores lines that are not JSON", () => {
+    expect(indexHasVersion("not json\n", "0.1.0")).toBe(false);
   });
 });

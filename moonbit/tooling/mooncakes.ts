@@ -78,7 +78,6 @@ export function consumerFiles(version: string): Readonly<Record<string, string>>
   requireSemVer(version);
   return {
     "moon.mod": `name = "morphir-elm-release/consumer"\n\nversion = "0.0.0"\n\nimport {\n  "${MODULE_NAME}@${version}",\n}\n`,
-    "moon.work": `members = [\n  ".",\n]\n`,
     "moon.pkg": `import {\n  "${MODULE_NAME}/mep",\n} for "test"\n`,
     "consumer_test.mbt": [
       "///|",
@@ -89,4 +88,16 @@ export function consumerFiles(version: string): Readonly<Record<string, string>>
       "",
     ].join("\n"),
   };
+}
+
+/** True when a registry index file (one JSON object per line) lists the version. */
+export function indexHasVersion(index: string, version: string): boolean {
+  return index.split("\n").some((line) => {
+    try {
+      const entry: unknown = JSON.parse(line);
+      return typeof entry === "object" && entry !== null && (entry as Record<string, unknown>).version === version;
+    } catch {
+      return false;
+    }
+  });
 }

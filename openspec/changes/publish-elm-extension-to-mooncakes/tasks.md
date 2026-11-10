@@ -4,7 +4,7 @@
 
 - [x] 1.1 Write `moonbit/tooling/mooncakes.test.ts` first for `archiveName`, `checkArchiveEntries`, `registryState`, `isFinosAccount`, `credentialsJson`, `redact` and `consumerFiles` (design REL-3); verify that `bun test moonbit/tooling` fails because the module does not exist
 - [x] 1.2 Implement `moonbit/tooling/mooncakes.ts`; verify that `bun test moonbit/tooling` passes
-- [ ] 1.3 Add `moonbit/LICENSE` (the repository's Apache-2.0 text) and `moonbit/.moonignore` (`/tooling/`, `/tests/`, `/scripts/`, `/deps.toml`, `/moon.work`); verify that `moon package --list` in a git snapshot of `moonbit/` lists `LICENSE` and none of the ignored paths, and that `moonbit:check` passes
+- [x] 1.3 Add `moonbit/LICENSE` (the repository's Apache-2.0 text) and `moonbit/.moonignore` (`/tooling/`, `/tests/`, `/scripts/`, `/deps.toml`, `/moon.work`); verify that `moon package --list` in a git snapshot of `moonbit/` lists `LICENSE` and none of the ignored paths, and that `moonbit:check` passes
 
 ## 2. Release task: package, publish, verify (morphir-oa72.2)
 
