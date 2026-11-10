@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Write fixtures/classic_ir.mbt from the classic IR conformance fixtures.
 
-The JSON comes from pkgs/morphir-ir/conformance/fixtures in finos/morphir-moonbit, at the commit pinned in
-moonbit/deps.toml (run `mise run moonbit:deps` first). Run this script again after a pin change.
+The JSON comes from conformance/fixtures in finos/morphir-ir (pkgs/morphir-ir in finos/morphir-moonbit), at the
+version that moonbit/moon.mod imports. moon downloads that module into moonbit/.mooncakes (run `mise run
+moonbit:check` first). Run this script again after a change of that version.
 """
 import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SOURCE = ROOT / ".deps/morphir-moonbit/pkgs/morphir-ir/conformance/fixtures"
+SOURCE = ROOT / ".mooncakes/finos/morphir-ir/conformance/fixtures"
 OUTPUT = ROOT / "fixtures/classic_ir.mbt"
 FIXTURES = [
     ("classic_greeting_json", "v3-greeting.json"),

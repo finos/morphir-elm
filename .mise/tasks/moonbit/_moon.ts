@@ -27,8 +27,16 @@ export async function moon(
 }
 
 /**
- * Package directories of finos/morphir-elm, relative to moonbit/. The workspace also holds the pinned
- * finos/morphir-moonbit modules, so moon commands get these paths to act on this module only.
+ * The file that `moon build --release --target <target> <pkg>` writes. moonbit/moon.work has one member, so moon
+ * writes the build without the module name in the path.
+ */
+export function releaseArtifact(target: string, pkg: string, file: string): string {
+  return join(MOONBIT_DIR, "_build", target, "release", "build", pkg, file);
+}
+
+/**
+ * Package directories of finos/morphir-elm, relative to moonbit/. moonbit/.deps holds files from finos/morphir-moonbit,
+ * with their moon.pkg files, so moon commands get these paths to act on this module only.
  */
 export function modulePackages(): string[] {
   const packages: string[] = [];

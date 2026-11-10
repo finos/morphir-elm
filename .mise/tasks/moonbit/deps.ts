@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-//MISE description="Check out the pinned finos/morphir-moonbit modules into moonbit/.deps and update the registry index"
+//MISE description="Check out the pinned finos/morphir-moonbit files into moonbit/.deps and update the registry index"
 
 import { $, join, log, rm, existsSync } from "../_lib.ts";
 import { MOONBIT_DIR, moon } from "./_moon.ts";
@@ -41,5 +41,5 @@ if (planDepsFetch(await current(), pin) === "skip") {
 }
 
 // Every MoonBit task runs this task first. A fresh machine has no mooncakes registry index, and moon cannot resolve
-// moonbitlang/x, moonrockz/krueger and the other registry modules without it.
+// finos/morphir-ir, moonrockz/krueger and the other registry modules without it.
 await moon(["update"]);

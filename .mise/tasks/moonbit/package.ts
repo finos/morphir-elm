@@ -4,7 +4,7 @@
 
 import { createHash } from "node:crypto";
 import { copyFile, join, log, mkdir, PATHS, readFile, rm, writeFile } from "../_lib.ts";
-import { MOONBIT_DIR, moon } from "./_moon.ts";
+import { MOONBIT_DIR, moon, releaseArtifact } from "./_moon.ts";
 import { moduleImports } from "../../../moonbit/tooling/bytes-host.ts";
 import { checksumLine, moduleVersion, wasmArtifactName } from "../../../moonbit/tooling/module.ts";
 
@@ -16,7 +16,7 @@ const output = join(PATHS.dist, "elm-extension", "artifacts");
 // import. The morphir-bytes-v1 ABI allows only the three morphir_bytes_v1 imports, so turn WASI linking off for this
 // build only: the MoonBit scripts, such as the parity refresh, use moonbitlang/async and need WASI.
 await moon(["build", "--target", "wasm", "--release", "extension"], { env: { MOON_WASI_LINK: "0" } });
-const built = join(MOONBIT_DIR, "_build", "wasm", "release", "build", "finos", "morphir-elm", "extension", "extension.wasm");
+const built = releaseArtifact("wasm", "extension", "extension.wasm");
 
 // The morphir-bytes-v1 ABI allows exactly these imports. A toolchain change must not ship a module that hosts refuse.
 const imports = moduleImports(await readFile(built));

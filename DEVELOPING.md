@@ -304,8 +304,8 @@ bun test moonbit/tests                      # the packaged module through the mo
 `bun test moonbit/tests` needs the packaged module and the Elm tools in `moonbit/scripts`
 (`bun install --frozen-lockfile --cwd moonbit/scripts`).
 
-`moonbit:deps`, which the other tasks run first, checks out the finos/morphir-moonbit modules that are not on
-mooncakes yet, from the commit pinned in `moonbit/deps.toml`. The `Elm extension` workflow runs these tasks on pull
+`moonbit:deps`, which the other tasks run first, checks out the finos/morphir-moonbit data files that the
+generators read, from the commit pinned in `moonbit/deps.toml`. The finos/morphir-moonbit modules come from mooncakes. The `Elm extension` workflow runs these tasks on pull
 requests to `vnext` that change `moonbit/`.
 
 ## Troubleshooting
