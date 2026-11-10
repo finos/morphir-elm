@@ -12,6 +12,11 @@ export const LAST_CLASSIC_VERSION = "0.4.1";
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
+/** True when the text is a SemVer 2.0.0 version. */
+export function isSemVer(version: string): boolean {
+  return SEMVER.test(version);
+}
+
 function parseVersion(version: string): { core: number[]; pre: string[] } {
   const match = SEMVER.exec(version);
   if (match === null) {
