@@ -4,6 +4,16 @@ This is the MoonBit Elm extension of finos/morphir-elm: the MoonBit module `fino
 (Elm source to Morphir IR) and an Elm backend (Morphir IR to Elm source). It is released as the Elm extension,
 `morphir-elm`, for the MoonBit Morphir CLI. The JavaScript Elm frontend in `cli2/mep` is the Elm classic extension.
 
+## On mooncakes
+
+Each release of the Elm extension, from version `0.5.0-preview.3`, also publishes this module to mooncakes at the
+same version. `finos/morphir-elm@0.1.0` is an older copy that finos/morphir-moonbit published; it does not have the
+`extension` and `mep` packages.
+
+```shell
+moon add finos/morphir-elm@<version>
+```
+
 ## In this repository
 
 The module came from finos/morphir-moonbit `pkgs/morphir-elm` at commit `fe9ca3dc393bfdde7eb1c8edfa90dd4ac653b984`,

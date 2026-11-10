@@ -181,6 +181,25 @@ It then tests the packaged module. On Linux, macOS and Windows it checks that th
 a fixed set of sessions are the same. It attests the module with GitHub artifact attestations, and publishes a GitHub
 release that is not marked as latest. A version with a `-` part is published as a prerelease.
 
+After the GitHub release, the job `mooncakes` publishes the MoonBit module `finos/morphir-elm` at the same version
+to [mooncakes](https://mooncakes.io), with the task `release:elm-extension-mooncakes`:
+
+1. `package <tag> <git-commit>` packages `moonbit/` from a git snapshot of the tagged commit. The archive must hold
+   `moon.mod`, `README.md` and `LICENSE`, and no repository tooling (`moonbit/.moonignore` leaves it out). The task
+   unpacks the archive alone and runs its tests on `wasm`, `wasm-gc`, `js` and `native` with a new Moon home and
+   `MOON_WORK=off`, so every import comes from mooncakes. It writes the zip and its `.sha256` file to
+   `dist/elm-extension-mooncakes/`.
+2. `publish <version>` stops when mooncakes already has the version, or does not answer clearly. It checks that
+   `MOONCAKES_TOKEN` (an organization secret, given to this step only) is the `finos` account, and runs
+   `moon publish` once, with no retry. A published version cannot change: a fix needs a new version.
+3. `verify <version>` makes a new module that imports the published version and runs its tests on the four targets.
+
+Run `package` locally to inspect the archive (no token, no upload):
+
+```sh
+MISE_ENV=moonbit mise run release:elm-extension-mooncakes -- package extension/elm/<version> "$(git rev-parse HEAD)"
+```
+
 To publish the bundle to an extension repository, put the three files in one directory and rename the descriptor to
 `release.json`. Check the attestation with:
 

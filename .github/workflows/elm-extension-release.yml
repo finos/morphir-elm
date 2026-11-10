@@ -6,6 +6,8 @@ name: Elm extension release
 # bundle descriptor. The version comes from moonbit/moon.mod and must be
 # greater than 0.4.1, the last JavaScript release on these tags. vnext is the
 # release branch: a tag that does not point to a commit on vnext is refused.
+# After the GitHub release, the job mooncakes publishes the MoonBit module
+# finos/morphir-elm at the same version to mooncakes.
 
 on:  # yamllint disable-line rule:truthy
   push:
@@ -264,3 +266,62 @@ jobs:
             --title "Morphir Elm extension v${VERSION}" \
             --notes "$NOTES" \
             "${flags[@]}"
+
+  # The MoonBit module finos/morphir-elm, at the release version, on
+  # mooncakes. Only the publish step has the organization secret
+  # MOONCAKES_TOKEN. See openspec/specs/elm-extension/release.
+  mooncakes:
+    name: Publish the module to mooncakes
+    needs: [build, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      MISE_ENV: moonbit
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Check out the release tag
+        # actions/checkout v4.4.0
+        uses: >-
+          actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Install tools from mise.toml and mise.moonbit.toml
+        # jdx/mise-action v2.4.4
+        uses: >-
+          jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac
+        with:
+          version: "2026.8.14"
+          sha256: >-
+            7cd12d6002d5b3c83a89cad79023712faf2a36f9e8b2ee2061dac5135b3de0ed
+          experimental: true
+          install_args: http:moonbit bun
+
+      # No credential exists yet. The archive must hold the module only, and
+      # its tests must pass alone on wasm, wasm-gc, js and native.
+      - name: Package the module and test the archive alone
+        env:
+          RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
+        run: >-
+          mise run release:elm-extension-mooncakes --
+          package "$RELEASE_TAG" "$RELEASE_COMMIT"
+
+      # Stops when mooncakes has the version. One upload, no retry.
+      - name: Publish to mooncakes
+        env:
+          MOONCAKES_TOKEN: ${{ secrets.MOONCAKES_TOKEN }}
+        run: mise run release:elm-extension-mooncakes -- publish "$VERSION"
+
+      - name: Test the published module from a new consumer
+        run: mise run release:elm-extension-mooncakes -- verify "$VERSION"
+
+      - name: Upload the module archive
+        if: always()
+        # actions/upload-artifact v4.6.2
+        uses: >-
+          actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: elm-extension-mooncakes
+          path: dist/elm-extension-mooncakes/
+          if-no-files-found: warn
