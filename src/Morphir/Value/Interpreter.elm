@@ -224,11 +224,12 @@ evaluateValueWithLibraries nativeFunctions libraries ir variables arguments valu
             case nativeFunctions |> Dict.get ( packageName, moduleName, localName ) of
                 Just nativeFunction ->
                     nativeFunction
-                        (evaluateValue
+                        (evaluateValueWithLibraries
                             -- This is the state that will be used when native functions call "eval".
                             -- We need to retain most of the current state but clear out the argument since
                             -- the native function will evaluate completely new expressions.
                             nativeFunctions
+                            libraries
                             ir
                             variables
                             []

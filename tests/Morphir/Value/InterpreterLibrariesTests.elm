@@ -100,6 +100,17 @@ libraryTests =
                     quad
                     [ Just (Value.Literal () (WholeNumberLiteral 3)) ]
                     |> Expect.equal (Ok (Value.Literal () (WholeNumberLiteral 12)))
+        , test "is found from inside a native function's arguments" <|
+            \_ ->
+                -- Basics.add evaluates its arguments itself; the libraries must reach them.
+                Interpreter.evaluateWithLibraries SDK.nativeFunctions
+                    (Dict.singleton [ [ "lib" ] ] lib)
+                    app
+                    (Value.Apply ()
+                        (Value.Apply () (Value.Reference () (fqn "Morphir.SDK" "Basics" "add")) (Value.Literal () (WholeNumberLiteral 1)))
+                        (Value.Apply () (Value.Reference () (fqn "Lib" "Calc" "double")) (Value.Literal () (WholeNumberLiteral 3)))
+                    )
+                    |> Expect.equal (Ok (Value.Literal () (WholeNumberLiteral 7)))
         , test "is reported as not found without it" <|
             \_ ->
                 Interpreter.evaluateFunctionValue SDK.nativeFunctions
