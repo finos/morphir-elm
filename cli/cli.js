@@ -288,6 +288,26 @@ async function testResult(morphirIRJson, morphirTestsJson, dependencies = []) {
         worker.ports.runTestCases.send([morphirIRJson, morphirTestsJson, dependencies])
     });
 }
+// Evaluates a function on each record of arguments. Returns one `{ output }` or `{ error }` per record.
+async function evaluate(projectDir, functionName, records) {
+    const morphirIRJson = JSON.parse((await readFile(path.join(projectDir, 'morphir-ir.json'))).toString())
+    const dependencies = await loadDependencies(projectDir)
+    return new Promise((resolve, reject) => {
+        worker.ports.jsonDecodeError.subscribe(err => {
+            reject(err)
+        })
+        worker.ports.evaluateResult.subscribe(ok => {
+            resolve(ok)
+        })
+        worker.ports.evaluate.send({
+            distribution: morphirIRJson,
+            dependencies: dependencies,
+            function: functionName,
+            inputs: records
+        })
+    });
+}
+exports.evaluate = evaluate;
 exports.make = make;
 exports.gen = gen;
 exports.test = test;
