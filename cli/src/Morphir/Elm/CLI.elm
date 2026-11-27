@@ -40,7 +40,7 @@ import Morphir.IR.Value as Value
 import Morphir.SDK.ResultList as ResultList
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Exhaustiveness as Exhaustiveness
-import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
+import Morphir.Value.Interpreter as Interpreter exposing (evaluateFunctionValue)
 import Morphir.IR.NameConstructorArguments as NameConstructorArguments
 
 
@@ -59,7 +59,7 @@ port generate : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
 port generateResult : Encode.Value -> Cmd msg
 
 
-port runTestCases : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
+port runTestCases : (( Decode.Value, Decode.Value, Decode.Value ) -> msg) -> Sub msg
 
 
 port runTestCasesResult : Encode.Value -> Cmd msg
@@ -71,7 +71,7 @@ port runTestCasesResultError : Encode.Value -> Cmd msg
 type Msg
     = PackageDefinitionFromSource ( Decode.Value, Decode.Value, List SourceFile )
     | Generate ( Decode.Value, Decode.Value )
-    | RunTestCases ( Decode.Value, Decode.Value )
+    | RunTestCases ( Decode.Value, Decode.Value, Decode.Value )
 
 
 main : Platform.Program () () Msg
@@ -191,7 +191,7 @@ update msg model =
                 Err errorMessage ->
                     ( model, errorMessage |> Decode.errorToString |> jsonDecodeError )
 
-        RunTestCases ( distributionJson, testSuiteJson ) ->
+        RunTestCases ( distributionJson, testSuiteJson, dependenciesJson ) ->
             let
                 resultIR : Result Decode.Error Distribution
                 resultIR =
@@ -203,9 +203,20 @@ update msg model =
 
                         Err err ->
                             Err err
+
+                -- The definitions of the dependency packages, so that calls into them can be evaluated.
+                resultLibraries : Result Decode.Error Interpreter.Libraries
+                resultLibraries =
+                    dependenciesJson
+                        |> Decode.decodeValue (Decode.list DistributionCodec.decodeVersionedDistribution)
+                        |> Result.map
+                            (List.map
+                                (\(Library packageName _ packageDef) -> ( packageName, packageDef ))
+                                >> Dict.fromList
+                            )
             in
-            case resultIR of
-                Ok ir ->
+            case Result.map2 Tuple.pair resultIR resultLibraries of
+                Ok ( ir, libraries ) ->
                     case testSuiteJson |> Decode.decodeValue (decodeTestSuite ir) of
                         Ok testSuite ->
                             let
@@ -223,7 +234,7 @@ update msg model =
                                                         testCaseList
                                                             |> List.map
                                                                 (\testCase ->
-                                                                    case evaluateFunctionValue SDK.nativeFunctions ir functionName testCase.inputs of
+                                                                    case Interpreter.evaluateFunctionValueWithLibraries SDK.nativeFunctions libraries ir functionName testCase.inputs of
                                                                         Ok rawValue ->
                                                                             if rawValue == testCase.expectedOutput then
                                                                                 ( "PASS"
