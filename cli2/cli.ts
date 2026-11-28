@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as util from "util";
 import * as path from "path";
 import { createRequire } from "module";
+import { createHash } from "crypto";
 import * as FileChanges from "./FileChanges.js";
 import * as Dependencies from "./dependencies.js";
 import { DependencyConfig } from "./dependencies.js";
@@ -20,6 +21,9 @@ const fsReadFile = util.promisify(fs.readFile);
 const readdir = util.promisify(fs.readdir);
 
 const worker = require("./../Morphir.Elm.CLI.cjs").Elm.Morphir.Elm.CLI.init();
+
+// The entry in morphir-hashes.json for the dependencies, so that a changed dependency forces a full build.
+const DEPENDENCIES_HASH_KEY = "morphir.json#dependencies";
 
 const Includes = z.array(z.string()).optional();
 type Includes = z.infer<typeof Includes>;
@@ -57,6 +61,9 @@ async function make(
 
   //load List Of Dependency IR
   const dependencies = await Dependencies.loadAllDependencies(dependencyConfig);
+  const dependenciesHash = createHash("sha256")
+    .update(JSON.stringify(dependencies))
+    .digest("hex");
 
   // check the status of the build incremental flag
   if (options.buildIncrementally == false) {
@@ -75,12 +82,20 @@ async function make(
     );
     await writeContentHashes(
       hashFilePath,
-      FileChanges.toContentHashes(fileChanges)
+      FileChanges.toContentHashes(fileChanges),
+      dependenciesHash
     );
     return newIR;
   } else {
-    if ((await fsExists(morphirIrPath)) && (await fsExists(hashFilePath))) {
-      const oldContentHashes = await readContentHashes(hashFilePath);
+    const oldContentHashes = (await fsExists(morphirIrPath))
+      ? await readContentHashes(hashFilePath)
+      : new Map<FileChanges.Path, FileChanges.Hash>();
+    // The previous IR was built against the dependencies as they were then; if they changed, every module may be
+    // affected, so build from scratch.
+    const dependenciesChanged =
+      oldContentHashes.get(DEPENDENCIES_HASH_KEY) !== dependenciesHash;
+    oldContentHashes.delete(DEPENDENCIES_HASH_KEY);
+    if (oldContentHashes.size > 0 && !dependenciesChanged) {
       const fileChanges = await FileChanges.detectChanges(
         oldContentHashes,
         path.join(projectDir, morphirJson.sourceDirectory)
@@ -99,7 +114,8 @@ async function make(
         );
         await writeContentHashes(
           hashFilePath,
-          FileChanges.toContentHashes(fileChanges)
+          FileChanges.toContentHashes(fileChanges),
+          dependenciesHash
         );
         return updatedIR;
       } else {
@@ -108,7 +124,11 @@ async function make(
         );
       }
     } else {
-      console.log("Building from scratch.");
+      console.log(
+        oldContentHashes.size > 0
+          ? "The dependencies changed. Building from scratch."
+          : "Building from scratch."
+      );
       // We invoke file change detection but pass in no hashes which will generate inserts only
       const fileChanges = await FileChanges.detectChanges(
         new Map(),
@@ -123,7 +143,8 @@ async function make(
       );
       await writeContentHashes(
         hashFilePath,
-        FileChanges.toContentHashes(fileChanges)
+        FileChanges.toContentHashes(fileChanges),
+        dependenciesHash
       );
       return newIR;
     }
@@ -252,9 +273,12 @@ async function readContentHashes(
  */
 async function writeContentHashes(
   filePath: string,
-  hashes: Map<FileChanges.Path, FileChanges.Hash>
+  hashes: Map<FileChanges.Path, FileChanges.Hash>,
+  dependenciesHash: string
 ): Promise<void> {
-  const jsonObject: { [index: string]: string } = {};
+  const jsonObject: { [index: string]: string } = {
+    [DEPENDENCIES_HASH_KEY]: dependenciesHash,
+  };
   for (let [path, hash] of hashes) {
     jsonObject[path] = hash;
   }

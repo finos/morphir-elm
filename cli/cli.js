@@ -246,9 +246,35 @@ async function test(projectDir) {
     const morphirTestsJsonPath = path.join(projectDir, 'morphir-tests.json')
     const morphirTestsJsonContent = await readFile(morphirTestsJsonPath)
     const morphirTestsJson = JSON.parse(morphirTestsJsonContent.toString())
-    return testResult(morphirIRJson, morphirTestsJson)
+    const dependencies = await loadDependencies(projectDir)
+    return testResult(morphirIRJson, morphirTestsJson, dependencies)
 }
-async function testResult(morphirIRJson, morphirTestsJson) {
+
+// The IR of each dependency in morphir.json, so the tests can call into it. Loaded the same way `morphir make` does.
+async function loadDependencies(projectDir) {
+    const morphirJsonPath = path.join(projectDir, 'morphir.json')
+    if (!fs.existsSync(morphirJsonPath)) {
+        return []
+    }
+    const morphirJson = JSON.parse((await readFile(morphirJsonPath)).toString())
+    const Dependencies = require('../cli2/lib/dependencies')
+    const dependencyConfig = Dependencies.DependencyConfig.parse({
+        dependencies: morphirJson.dependencies,
+        localDependencies: morphirJson.localDependencies,
+        includes: [],
+        projectDir: projectDir
+    })
+    // The loader logs each dependency's whole IR at info level.
+    const info = console.info
+    console.info = () => {}
+    try {
+        return await Dependencies.loadAllDependencies(dependencyConfig)
+    } finally {
+        console.info = info
+    }
+}
+
+async function testResult(morphirIRJson, morphirTestsJson, dependencies = []) {
     return new Promise((resolve, reject) => {
         worker.ports.jsonDecodeError.subscribe(err => {
             reject(err)
@@ -259,9 +285,29 @@ async function testResult(morphirIRJson, morphirTestsJson) {
         worker.ports.runTestCasesResult.subscribe(ok => {
             resolve(ok)
         })
-        worker.ports.runTestCases.send([morphirIRJson, morphirTestsJson])
+        worker.ports.runTestCases.send([morphirIRJson, morphirTestsJson, dependencies])
     });
 }
+// Evaluates a function on each record of arguments. Returns one `{ output }` or `{ error }` per record.
+async function evaluate(projectDir, functionName, records) {
+    const morphirIRJson = JSON.parse((await readFile(path.join(projectDir, 'morphir-ir.json'))).toString())
+    const dependencies = await loadDependencies(projectDir)
+    return new Promise((resolve, reject) => {
+        worker.ports.jsonDecodeError.subscribe(err => {
+            reject(err)
+        })
+        worker.ports.evaluateResult.subscribe(ok => {
+            resolve(ok)
+        })
+        worker.ports.evaluate.send({
+            distribution: morphirIRJson,
+            dependencies: dependencies,
+            function: functionName,
+            inputs: records
+        })
+    });
+}
+exports.evaluate = evaluate;
 exports.make = make;
 exports.gen = gen;
 exports.test = test;

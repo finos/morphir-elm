@@ -22,7 +22,8 @@ import Json.Decode as Decode exposing (field, string)
 import Json.Encode as Encode
 import Morphir.Compiler as Compiler
 import Morphir.Compiler.Codec as CompilerCodec
-import Morphir.Correctness.Codec exposing (decodeTestSuite)
+import Morphir.Correctness.Codec exposing (decodeTestCase)
+import Morphir.Correctness.Test exposing (TestCase)
 import Morphir.Elm.Frontend as Frontend exposing (PackageInfo, SourceFile, SourceLocation)
 import Morphir.Elm.Frontend.Codec as FrontendCodec
 import Morphir.Elm.Target exposing (BackendOptions, decodeOptions, mapDistribution)
@@ -30,17 +31,19 @@ import Morphir.File.FileMap exposing (FileMap)
 import Morphir.File.FileMap.Codec exposing (encodeFileMap)
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
 import Morphir.IR.FQName as FQName
+import Morphir.IR.FQName.CodecV1 exposing (decodeFQName)
 import Morphir.IR.FormatVersion.Codec as DistributionCodec
 import Morphir.IR.Name as Name
 import Morphir.IR.Package as Package exposing (PackageName)
 import Morphir.IR.Path as Path
 import Morphir.IR.SDK as SDK
 import Morphir.IR.Type exposing (Type)
+import Morphir.IR.Type.DataCodec as DataCodec
 import Morphir.IR.Value as Value
 import Morphir.SDK.ResultList as ResultList
 import Morphir.Type.Infer as Infer
 import Morphir.Value.Exhaustiveness as Exhaustiveness
-import Morphir.Value.Interpreter exposing (evaluateFunctionValue)
+import Morphir.Value.Interpreter as Interpreter exposing (evaluateFunctionValue)
 import Morphir.IR.NameConstructorArguments as NameConstructorArguments
 
 
@@ -59,7 +62,7 @@ port generate : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
 port generateResult : Encode.Value -> Cmd msg
 
 
-port runTestCases : (( Decode.Value, Decode.Value ) -> msg) -> Sub msg
+port runTestCases : (( Decode.Value, Decode.Value, Decode.Value ) -> msg) -> Sub msg
 
 
 port runTestCasesResult : Encode.Value -> Cmd msg
@@ -68,10 +71,17 @@ port runTestCasesResult : Encode.Value -> Cmd msg
 port runTestCasesResultError : Encode.Value -> Cmd msg
 
 
+port evaluate : (Decode.Value -> msg) -> Sub msg
+
+
+port evaluateResult : Encode.Value -> Cmd msg
+
+
 type Msg
     = PackageDefinitionFromSource ( Decode.Value, Decode.Value, List SourceFile )
     | Generate ( Decode.Value, Decode.Value )
-    | RunTestCases ( Decode.Value, Decode.Value )
+    | RunTestCases ( Decode.Value, Decode.Value, Decode.Value )
+    | Evaluate Decode.Value
 
 
 main : Platform.Program () () Msg
@@ -191,61 +201,63 @@ update msg model =
                 Err errorMessage ->
                     ( model, errorMessage |> Decode.errorToString |> jsonDecodeError )
 
-        RunTestCases ( distributionJson, testSuiteJson ) ->
-            let
-                resultIR : Result Decode.Error Distribution
-                resultIR =
-                    case distributionJson |> Decode.decodeValue DistributionCodec.decodeVersionedDistribution of
-                        Ok packageDist ->
-                            case packageDist of
-                                Library packageName dependencies packageDef ->
-                                    Ok (Library packageName (Dict.union Frontend.defaultDependencies dependencies) packageDef)
-
-                        Err err ->
-                            Err err
-            in
-            case resultIR of
-                Ok ir ->
-                    case testSuiteJson |> Decode.decodeValue (decodeTestSuite ir) of
+        RunTestCases ( distributionJson, testSuiteJson, dependenciesJson ) ->
+            case Result.map2 Tuple.pair (decodeDistribution distributionJson) (decodeLibraries dependenciesJson) of
+                Ok ( ir, libraries ) ->
+                    case testSuiteJson |> Decode.decodeValue (decodeTestSuiteByCase ir) of
                         Ok testSuite ->
                             let
                                 finalResult =
                                     testSuite
-                                        |> Dict.toList
                                         |> List.map
                                             (\( functionName, testCaseList ) ->
                                                 let
                                                     totalTestCase =
                                                         List.length testCaseList
 
+                                                    runTestCase : TestCase -> ( String, Encode.Value )
+                                                    runTestCase testCase =
+                                                        case Interpreter.evaluateFunctionValueWithLibraries SDK.nativeFunctions libraries ir functionName testCase.inputs of
+                                                            Ok rawValue ->
+                                                                if rawValue == testCase.expectedOutput then
+                                                                    ( "PASS"
+                                                                    , Encode.object
+                                                                        [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
+                                                                        , ( "Actual Output", rawValue |> Value.toString |> Encode.string )
+                                                                        ]
+                                                                    )
+
+                                                                else
+                                                                    ( "FAIL"
+                                                                    , Encode.object
+                                                                        [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
+                                                                        , ( "Actual Output", rawValue |> Value.toString |> Encode.string )
+                                                                        ]
+                                                                    )
+
+                                                            Err error ->
+                                                                ( "FAIL"
+                                                                , Encode.object
+                                                                    [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
+                                                                    , ( "Actual Output", Debug.toString error |> Encode.string )
+                                                                    ]
+                                                                )
+
                                                     resultList : List ( String, Encode.Value )
                                                     resultList =
                                                         testCaseList
                                                             |> List.map
-                                                                (\testCase ->
-                                                                    case evaluateFunctionValue SDK.nativeFunctions ir functionName testCase.inputs of
-                                                                        Ok rawValue ->
-                                                                            if rawValue == testCase.expectedOutput then
-                                                                                ( "PASS"
-                                                                                , Encode.object
-                                                                                    [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
-                                                                                    , ( "Actual Output", rawValue |> Value.toString |> Encode.string )
-                                                                                    ]
-                                                                                )
+                                                                (\caseResult ->
+                                                                    case caseResult of
+                                                                        Ok testCase ->
+                                                                            runTestCase testCase
 
-                                                                            else
-                                                                                ( "FAIL"
-                                                                                , Encode.object
-                                                                                    [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
-                                                                                    , ( "Actual Output", rawValue |> Value.toString |> Encode.string )
-                                                                                    ]
-                                                                                )
-
+                                                                        -- A test case that cannot be read fails on its own; the others still run.
                                                                         Err error ->
                                                                             ( "FAIL"
                                                                             , Encode.object
-                                                                                [ ( "Expected Output", testCase.expectedOutput |> Value.toString |> Encode.string )
-                                                                                , ( "Actual Output", Debug.toString error |> Encode.string )
+                                                                                [ ( "Expected Output", Encode.string "" )
+                                                                                , ( "Actual Output", "InvalidTestCase " ++ error |> Encode.string )
                                                                                 ]
                                                                             )
                                                                 )
@@ -308,6 +320,31 @@ update msg model =
                 Err errorMessage ->
                     ( model, errorMessage |> Decode.errorToString |> jsonDecodeError )
 
+        Evaluate requestJson ->
+            let
+                request : Result String ( ( Distribution, Interpreter.Libraries ), ( String, List Decode.Value ) )
+                request =
+                    Result.map2 Tuple.pair
+                        (Result.map2 Tuple.pair
+                            (requestJson |> Decode.decodeValue (Decode.field "distribution" Decode.value) |> Result.andThen decodeDistribution)
+                            (requestJson |> Decode.decodeValue (Decode.field "dependencies" Decode.value) |> Result.andThen decodeLibraries)
+                        )
+                        (requestJson
+                            |> Decode.decodeValue
+                                (Decode.map2 Tuple.pair
+                                    (Decode.field "function" Decode.string)
+                                    (Decode.field "inputs" (Decode.list Decode.value))
+                                )
+                        )
+                        |> Result.mapError Decode.errorToString
+            in
+            case request |> Result.andThen (\( ( ir, libraries ), ( functionName, records ) ) -> evaluateRecords ir libraries functionName records) of
+                Ok results ->
+                    ( model, results |> Encode.list identity |> evaluateResult )
+
+                Err error ->
+                    ( model, error |> jsonDecodeError )
+
 
 subscriptions : () -> Sub Msg
 subscriptions _ =
@@ -315,6 +352,7 @@ subscriptions _ =
         [ packageDefinitionFromSource PackageDefinitionFromSource
         , generate Generate
         , runTestCases RunTestCases
+        , evaluate Evaluate
         ]
 
 
@@ -387,3 +425,112 @@ encodeResult encodeErr encodeValue result =
                 [ encodeErr e
                 , Encode.null
                 ]
+
+
+{-| A distribution as the CLI reads it, with the SDK added to its dependencies.
+-}
+decodeDistribution : Decode.Value -> Result Decode.Error Distribution
+decodeDistribution distributionJson =
+    distributionJson
+        |> Decode.decodeValue DistributionCodec.decodeVersionedDistribution
+        |> Result.map
+            (\(Library packageName dependencies packageDef) ->
+                Library packageName (Dict.union Frontend.defaultDependencies dependencies) packageDef
+            )
+
+
+{-| The definitions of the dependency packages, so that calls into them can be evaluated.
+-}
+decodeLibraries : Decode.Value -> Result Decode.Error Interpreter.Libraries
+decodeLibraries dependenciesJson =
+    dependenciesJson
+        |> Decode.decodeValue (Decode.list DistributionCodec.decodeVersionedDistribution)
+        |> Result.map
+            (List.map (\(Library packageName _ packageDef) -> ( packageName, packageDef ))
+                >> Dict.fromList
+            )
+
+
+{-| A test suite where each test case is read on its own, so one that cannot be read does not stop the others.
+-}
+decodeTestSuiteByCase : Distribution -> Decode.Decoder (List ( FQName.FQName, List (Result String TestCase) ))
+decodeTestSuiteByCase ir =
+    Decode.list
+        (Decode.index 0 decodeFQName
+            |> Decode.andThen
+                (\fQName ->
+                    case Distribution.lookupValueSpecification fQName ir of
+                        Just valueSpec ->
+                            Decode.index 1
+                                (Decode.list Decode.value
+                                    |> Decode.map
+                                        (List.map
+                                            (Decode.decodeValue (decodeTestCase ir valueSpec)
+                                                >> Result.mapError Decode.errorToString
+                                            )
+                                        )
+                                    |> Decode.map (Tuple.pair fQName)
+                                )
+
+                        Nothing ->
+                            Decode.fail ("Cannot find " ++ FQName.toString fQName)
+                )
+        )
+
+
+{-| Evaluate a function on each record of arguments. Each record gives `{ "output": ... }` or `{ "error": ... }`, so a
+record that cannot be read or evaluated does not stop the others. Records and outputs use the same JSON encoding as
+morphir-tests.json.
+-}
+evaluateRecords : Distribution -> Interpreter.Libraries -> String -> List Decode.Value -> Result String (List Encode.Value)
+evaluateRecords ir libraries functionName records =
+    FQName.fromStringStrict functionName ":"
+        |> Result.andThen
+            (\fQName ->
+                case Distribution.lookupValueSpecification fQName ir of
+                    Just valueSpec ->
+                        Result.map2
+                            (\inputsDecoder encodeOutput ->
+                                records
+                                    |> List.map
+                                        (\record ->
+                                            record
+                                                |> Decode.decodeValue inputsDecoder
+                                                |> Result.mapError (\error -> "InvalidInput " ++ Decode.errorToString error)
+                                                |> Result.andThen
+                                                    (\inputs ->
+                                                        Interpreter.evaluateFunctionValueWithLibraries SDK.nativeFunctions libraries ir fQName inputs
+                                                            |> Result.mapError Debug.toString
+                                                    )
+                                                |> Result.andThen encodeOutput
+                                                |> (\result ->
+                                                        case result of
+                                                            Ok output ->
+                                                                Encode.object [ ( "output", output ) ]
+
+                                                            Err error ->
+                                                                Encode.object [ ( "error", Encode.string error ) ]
+                                                   )
+                                        )
+                            )
+                            (decodeInputs ir valueSpec)
+                            (DataCodec.encodeData ir valueSpec.output)
+
+                    Nothing ->
+                        Err ("Cannot find " ++ functionName)
+            )
+
+
+{-| The arguments of a function as a JSON array, one element per input.
+-}
+decodeInputs : Distribution -> Value.Specification () -> Result String (Decode.Decoder (List (Maybe Value.RawValue)))
+decodeInputs ir valueSpec =
+    valueSpec.inputs
+        |> List.indexedMap
+            (\index ( _, inputType ) ->
+                DataCodec.decodeData ir inputType
+                    |> Result.map (Decode.index index >> Decode.map Just)
+            )
+        |> ResultList.keepFirstError
+        |> Result.map (List.foldr (Decode.map2 (::)) (Decode.succeed []))
+
